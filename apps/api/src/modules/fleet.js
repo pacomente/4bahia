@@ -45,6 +45,15 @@ export default function fleetRoutes(db) {
     res.status(201).json(db.prepare('SELECT * FROM vehicles WHERE id = ?').get(lastInsertRowid));
   });
 
+  // Transportistas para asignar a viajes. Se listan todos (los troncales cruzan sucursales),
+  // primero los de la sucursal del usuario.
+  r.get('/drivers', (req, res) => {
+    res.json(db.prepare(`
+      SELECT u.id, u.name, u.phone, u.branch_id, b.code AS branch_code FROM users u LEFT JOIN branches b ON b.id = u.branch_id
+      WHERE u.role = 'driver' AND u.active = 1 ORDER BY (u.branch_id = ?) DESC, u.name
+    `).all(req.user.branch_id ?? 0));
+  });
+
   // Mapa en vivo: vehículos con última posición, estado de conexión, viaje activo y ETA.
   r.get('/live', (_req, res) => {
     const vehicles = db.prepare(`

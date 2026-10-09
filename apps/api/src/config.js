@@ -4,7 +4,7 @@ export const config = {
   dbPath: process.env.DB_PATH ?? 'data/4bahia.db',
   jwtSecret: process.env.JWT_SECRET ?? 'dev-secret-cambiar-en-produccion',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '12h',
-  publicBaseUrl: process.env.PUBLIC_BASE_URL ?? 'http://localhost:3000',
+  publicBaseUrl: process.env.PUBLIC_BASE_URL ?? 'http://localhost:3001',
   // Minutos sin posición GPS para considerar un vehículo desconectado.
   gpsOfflineMinutes: Number(process.env.GPS_OFFLINE_MINUTES ?? 10),
   // Días de retención del historial GPS (política de privacidad).

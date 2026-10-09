@@ -63,7 +63,7 @@ export async function renderLabel(shipment, db) {
     <div class="route"><span>${esc(d.ob)}</span>→<span class="big">${esc(d.dbc)}</span></div>
     <div class="qr">${qr}<div><div class="code">${esc(shipment.tracking_code)}</div><div>Bulto ${i + 1} de ${shipment.packages_count}</div>
       <div>${(shipment.chargeable_weight_g / 1000).toFixed(2)} kg</div>${shipment.cod_amount_cents ? `<div class="cod">COBRAR $ ${(shipment.cod_amount_cents / 100).toFixed(2)}</div>` : ''}</div></div>
-    <div class="box"><small>DESTINATARIO</small><b>${esc(shipment.recipient_name)}</b><div>${esc(shipment.recipient_address ?? d.dest_branch_name)}</div><div>${esc(d.dest)}, ${esc(d.dest_prov)} · ${esc(shipment.recipient_phone)}</div></div>
+    <div class="box"><small>DESTINATARIO</small><b>${esc(shipment.recipient_name)}</b><div>${esc(shipment.recipient_address ?? d.dest_branch_name)}</div><div>${esc(d.dest)}, ${esc(d.dest_prov)}${shipment.recipient_phone ? ` · ${esc(shipment.recipient_phone)}` : ''}</div></div>
     <div class="box"><small>REMITENTE</small><b>${esc(shipment.sender_name)}</b><div>${esc(d.origin)}, ${esc(d.origin_prov)}</div></div>
     <footer>Seguí tu envío: ${esc(trackUrl)}</footer>
   </section>`).join('');

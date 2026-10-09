@@ -1,14 +1,16 @@
 # Roadmap — qué entra en el MVP y qué después
 
-Leyenda: ✅ hecho en backend (etapa 1) · 🖥️ falta la pantalla (etapa 2/3) · 🔜 fase posterior
+Leyenda: ✅ hecho (backend en etapa 1; pantallas web en etapa 2) · 🖥️ falta la pantalla de la app móvil (etapa 3) · 🔜 fase posterior
+
+> En la etapa 2 se completaron todas las pantallas web marcadas antes con 🖥️ (panel, mapa, tarifas, sucursal, cliente). Quedan 🖥️ solo las de la app del transportista.
 
 ## Etapas
 
 | Etapa | Contenido | Estado |
 |---|---|---|
 | **1. Estructura + backend** | Monorepo, modelo de datos, API completa del circuito, tests | ✅ **esta entrega** |
-| **2. Web y panel** (`apps/web`) | Web pública (seguimiento, cotizador, contacto, área cliente) + panel superadmin + panel sucursal | siguiente |
-| **3. App transportista** (`apps/driver`) | React Native/Expo: login, viajes, escaneo, entregas con firma/foto, GPS en segundo plano, offline | después de 2 |
+| **2. Web y panel** (`apps/web`) | Web pública (seguimiento, cotizador, contacto, área cliente) + panel superadmin + panel sucursal | ✅ hecho |
+| **3. App transportista** (`apps/driver`) | React Native/Expo: login, viajes, escaneo, entregas con firma/foto, GPS en segundo plano, offline | siguiente |
 | **4. Producción** | PostgreSQL, almacenamiento de archivos, emails reales, despliegue, datos reales de 4 Bahía | |
 | **5. Extensiones** | Facturación ARCA, plugin WooCommerce, Shopify/Tiendanube, desvíos de ruta, PDF | presupuestar |
 
