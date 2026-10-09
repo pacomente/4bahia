@@ -17,8 +17,12 @@ export default function Cotizar() {
   });
 
   return (
-    <div className="container" style={{ marginTop: 28 }}>
-      <h1>Cotizá tu envío</h1>
+    <div className="container">
+      <div className="page-hero" style={{ marginBottom: 20 }}>
+        <span className="eyebrow">Cotizador</span>
+        <h1>Cotizá tu envío</h1>
+        <p>Precio al instante por origen, destino, peso y medidas. Si cargás medidas, calculamos el peso volumétrico.</p>
+      </div>
       <div className="form-layout">
         <form className="card stack" onSubmit={(e) => { e.preventDefault(); run(); }}>
           <div className="form-grid">
@@ -39,14 +43,14 @@ export default function Cotizar() {
             <Field label="Contrarreembolso ($)"><input type="number" min="0" value={f.cod_amount} onChange={set('cod_amount')} /></Field>
           </div>
           <ErrorBox error={error} />
-          <div><button className="btn accent lg" disabled={busy}>Cotizar</button></div>
+          <div><button className="btn lg" disabled={busy}>{busy ? 'Calculando…' : 'Cotizar'}</button></div>
         </form>
-        <div className="card stack">
+        <div className="card stack sticky-card">
           <h3 style={{ margin: 0 }}>Resultado</h3>
           {quote ? (
             <>
               <QuoteBreakdown quote={quote} />
-              <Link className="btn" href="/ingresar">Generar el envío</Link>
+              <Link className="btn lg" href="/ingresar">Generar el envío</Link>
             </>
           ) : <p className="small muted">Completá los datos para ver el precio. Si cargás medidas, calculamos el peso volumétrico.</p>}
         </div>

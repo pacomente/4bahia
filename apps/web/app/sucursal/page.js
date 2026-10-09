@@ -2,6 +2,7 @@
 import { useRouter } from 'next/navigation';
 import { PageHead } from '@/components/AppShell';
 import { BranchPicker, useBranch } from '@/components/BranchContext';
+import { Boxes, Send, PackageOpen, Clock, Truck } from 'lucide-react';
 import { Kpi, StatusBadge, Loading, ErrorBox, Empty, useApi } from '@/components/ui';
 import { fmtDateTime } from '@/lib/format';
 
@@ -11,17 +12,17 @@ export default function Pendientes() {
   const { data, error, loading } = useApi(branchId ? `/branches/${branchId}/ops/pending` : null, { interval: 30000 });
   return (
     <>
-      <PageHead title="Pendientes de la sucursal"><BranchPicker /></PageHead>
+      <PageHead title="Pendientes de la sucursal" sub="Qué hay en el depósito y qué falta mover"><BranchPicker /></PageHead>
       {loading && <Loading />}
       <ErrorBox error={error} />
       {data && (
         <div className="stack">
-          <div className="grid grid-4">
-            <Kpi label="En sucursal" value={data.at_branch.length} />
-            <Kpi label="Para despachar" value={data.to_dispatch} hint="Destino otra sucursal" />
-            <Kpi label="Para entregar" value={data.to_deliver} hint="Reparto o mostrador" />
-            <Kpi label="Demorados" value={data.stale.length} hint="Más de 48 h sin movimiento" />
-            <Kpi label="Entrantes" value={data.inbound.length} hint="En viaje hacia acá" />
+          <div className="kpi-grid">
+            <Kpi icon={Boxes} label="En sucursal" value={data.at_branch.length} />
+            <Kpi icon={Send} label="Para despachar" value={data.to_dispatch} hint="Destino otra sucursal" />
+            <Kpi icon={PackageOpen} label="Para entregar" value={data.to_deliver} hint="Reparto o mostrador" />
+            <Kpi icon={Clock} label="Demorados" value={data.stale.length} hint="Más de 48 h sin movimiento" />
+            <Kpi icon={Truck} label="Entrantes" value={data.inbound.length} hint="En viaje hacia acá" />
           </div>
           <div className="card">
             <h3>Paquetes en la sucursal</h3>

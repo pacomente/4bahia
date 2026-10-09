@@ -13,12 +13,12 @@ export function useLocalities() {
 }
 
 // Selector de localidad agrupado por provincia.
-export default function LocalitySelect({ value, onChange, required, name }) {
+export default function LocalitySelect({ value, onChange, required, name, placeholder = 'Elegí una localidad…' }) {
   const list = useLocalities();
   const byProvince = list.reduce((acc, l) => ((acc[l.province] ??= []).push(l), acc), {});
   return (
-    <select name={name} value={value ?? ''} required={required} onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}>
-      <option value="">Elegí una localidad…</option>
+    <select name={name} aria-label={placeholder} value={value ?? ''} required={required} onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}>
+      <option value="">{placeholder}</option>
       {Object.entries(byProvince).map(([prov, locs]) => (
         <optgroup key={prov} label={prov}>
           {locs.map((l) => <option key={l.id} value={l.id}>{l.name}{l.home_delivery ? '' : ' (solo retiro en sucursal)'}</option>)}

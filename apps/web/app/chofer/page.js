@@ -1,4 +1,5 @@
 'use client';
+import { Truck } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import { useApi, Loading, Empty } from '@/components/ui';
 
@@ -21,5 +22,5 @@ function Viajes() {
 }
 
 export default function Chofer() {
-  return <AppShell roles={['driver']} nav={[{ items: [{ href: '/chofer', label: 'Mis viajes' }] }]}><Viajes /></AppShell>;
+  return <AppShell roles={['driver']} nav={[{ items: [{ href: '/chofer', label: 'Mis viajes', icon: Truck }] }]}><Viajes /></AppShell>;
 }

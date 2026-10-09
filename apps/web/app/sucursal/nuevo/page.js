@@ -24,7 +24,7 @@ export default function NuevoEnvio() {
 
   return (
     <>
-      <PageHead title="Nuevo envío en mostrador"><BranchPicker /></PageHead>
+      <PageHead title="Nuevo envío en mostrador" sub="Cotiza en vivo e imprime la etiqueta al guardar"><BranchPicker /></PageHead>
       {created && (
         <div className="alert ok" style={{ marginBottom: 16 }}>
           <div className="row between">

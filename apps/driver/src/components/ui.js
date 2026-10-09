@@ -11,7 +11,7 @@ export function Button({ title, onPress, variant = 'primary', disabled, busy, st
       onPress={onPress}
       disabled={disabled || busy}
       style={({ pressed }) => [{
-        backgroundColor: bg, borderRadius: 10, paddingVertical: 14, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center',
+        backgroundColor: bg, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center',
         borderWidth: variant === 'ghost' ? 1 : 0, borderColor: colors.border, opacity: disabled ? 0.5 : pressed ? 0.85 : 1, minHeight: 50,
       }, style]}
     >

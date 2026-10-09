@@ -1,13 +1,13 @@
 import { StyleSheet } from 'react-native';
 
 export const colors = {
-  bg: '#f6f6f4',
+  bg: '#f4f4f5',
   surface: '#ffffff',
-  border: '#e2e1dc',
-  text: '#121212',
-  text2: '#52514e',
-  brand: '#12305a',
-  accent: '#e2591f',
+  border: '#e6e6e9',
+  text: '#17181c',
+  text2: '#5b5d66',
+  brand: '#17181c',
+  accent: '#e1251b',
   good: '#006300',
   goodBg: '#e6f4e6',
   warn: '#8a5a00',
@@ -21,7 +21,7 @@ export const colors = {
 export const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   content: { padding: 16, gap: 12 },
-  card: { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 16, gap: 6 },
+  card: { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 16, gap: 6 },
   h1: { fontSize: 22, fontWeight: '700', color: colors.text },
   h2: { fontSize: 17, fontWeight: '700', color: colors.text },
   text: { fontSize: 15, color: colors.text },
@@ -29,7 +29,7 @@ export const s = StyleSheet.create({
   small: { fontSize: 13, color: colors.text2 },
   mono: { fontFamily: 'monospace', fontSize: 15, color: colors.text, letterSpacing: 0.5 },
   label: { fontSize: 13, color: colors.text2, marginBottom: 4 },
-  input: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: colors.text },
+  input: { backgroundColor: '#f7f7f8', borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: colors.text },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   between: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
 });

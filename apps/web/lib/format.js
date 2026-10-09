@@ -1,5 +1,8 @@
 const money = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 2 });
 export const fmtMoney = (cents) => (cents == null ? '—' : money.format(cents / 100));
+const moneyRound = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+// Para indicadores grandes: sin centavos.
+export const fmtMoneyRound = (cents) => (cents == null ? '—' : moneyRound.format(Math.round(cents / 100)));
 export const fmtKg = (grams) => (grams == null ? '—' : `${(grams / 1000).toLocaleString('es-AR', { maximumFractionDigits: 2 })} kg`);
 export const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—');
 export const fmtDateTime = (iso) => (iso ? new Date(iso).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—');
