@@ -3,8 +3,8 @@
 Prototipo (MVP) de la plataforma logística: superadmin, sucursales, app del transportista con GPS,
 web de clientes con seguimiento público, cotizador, administración comercial e integraciones.
 
-**Etapa actual: estructura + backend.** La API y el modelo de datos ya cubren el circuito completo
-de un envío. Las interfaces (web/panel y app móvil) son la próxima etapa — ver [`docs/ROADMAP.md`](docs/ROADMAP.md).
+**Etapas hechas:** 1) estructura + backend, 2) web pública + panel superadmin + panel de sucursal + área de clientes.
+**Próxima:** app del transportista — ver [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Estructura
 
@@ -12,7 +12,7 @@ de un envío. Las interfaces (web/panel y app móvil) son la próxima etapa — 
 4bahia/
 ├── apps/
 │   ├── api/        ← Backend (Node.js + Express + SQLite). FUNCIONAL.
-│   ├── web/        ← Web pública + panel superadmin/sucursales (próxima etapa)
+│   ├── web/        ← Web pública + paneles superadmin, sucursal y cliente (Next.js). FUNCIONAL.
 │   └── driver/     ← App del transportista, Android/iOS (próxima etapa)
 └── docs/
     ├── ARQUITECTURA.md   ← decisiones técnicas, modelo de datos, flujo de estados
@@ -27,8 +27,8 @@ Requiere Node.js 22.13 o superior (usa el SQLite integrado de Node, sin instalar
 ```bash
 npm install
 npm run seed     # crea apps/api/data/4bahia.db con datos de demostración
-npm run dev      # API en http://localhost:3000/api
-npm test         # tests de punta a punta
+npm run dev      # API en http://localhost:3000/api y web en http://localhost:3001
+npm test         # tests de punta a punta de la API
 ```
 
 ### Usuarios de demostración (contraseña `Demo1234!`)
@@ -72,7 +72,7 @@ curl -s localhost:3000/api/public/tracking/4B123456789X | jq
 | `PORT` | `3000` | Puerto HTTP |
 | `DB_PATH` | `data/4bahia.db` | Archivo SQLite |
 | `JWT_SECRET` | *(dev)* | **Cambiar en producción** |
-| `PUBLIC_BASE_URL` | `http://localhost:3000` | Base de los links de seguimiento en etiquetas y emails |
+| `PUBLIC_BASE_URL` | `http://localhost:3001` | Base de los links de seguimiento en etiquetas y emails |
 | `GPS_OFFLINE_MINUTES` | `10` | Minutos sin señal para marcar un vehículo como desconectado |
 | `GPS_RETENTION_DAYS` | `90` | Retención del historial GPS (privacidad) |
 | `WEBHOOKS_ENABLED` | `true` | Envío real de webhooks a tiendas |

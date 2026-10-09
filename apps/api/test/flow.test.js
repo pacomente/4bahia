@@ -159,6 +159,10 @@ test('dashboard, mapa en vivo, finanzas y auditoría', async () => {
   assert.equal(truck.connection, 'online');
   assert.ok(truck.eta.remaining_km > 0);
 
+  const opTar = await t.login('tar.operador@4bahia.test');
+  const drivers = await t.call('GET', '/fleet/drivers', { token: opTar });
+  assert.ok(drivers.data.length >= 2 && drivers.data.every((d) => d.branch_code));
+
   const shop = t.q("SELECT id FROM customers WHERE type = 'commercial'").id;
   const acct = await t.call('GET', `/finance/accounts/${shop}`, { token: admin });
   assert.ok(acct.data.balance_cents > 0);
