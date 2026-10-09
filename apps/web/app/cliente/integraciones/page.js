@@ -27,7 +27,7 @@ export default function Integraciones() {
 
   return (
     <>
-      <PageHead title="Integraciones" />
+      <PageHead title="Integraciones" sub="Conectá tu tienda o sistema" />
       <div className="stack">
         <div className="card">
           <h3>API para tu tienda o sistema</h3>

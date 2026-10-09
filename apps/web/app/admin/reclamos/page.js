@@ -15,7 +15,7 @@ export default function Reclamos() {
   const update = async (id, s) => { await api(`/admin/requests/${id}`, { method: 'PATCH', body: { status: s } }); reload(); };
   return (
     <>
-      <PageHead title="Contacto y reclamos">
+      <PageHead title="Contacto y reclamos" sub="Mensajes recibidos desde la web">
         <select value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">Todos</option>
           {Object.entries(STATUSES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}

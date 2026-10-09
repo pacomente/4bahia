@@ -3,8 +3,8 @@
 Prototipo (MVP) de la plataforma logística: superadmin, sucursales, app del transportista con GPS,
 web de clientes con seguimiento público, cotizador, administración comercial e integraciones.
 
-**Etapas hechas:** 1) estructura + backend, 2) web pública + panel superadmin + panel de sucursal + área de clientes.
-**Próxima:** app del transportista — ver [`docs/ROADMAP.md`](docs/ROADMAP.md).
+**Etapas hechas:** 1) estructura + backend, 2) web pública + paneles superadmin, sucursal y cliente, 3) app del transportista.
+**Próxima:** pasar a producción (PostgreSQL, archivos, emails reales) — ver [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Estructura
 
@@ -13,11 +13,12 @@ web de clientes con seguimiento público, cotizador, administración comercial e
 ├── apps/
 │   ├── api/        ← Backend (Node.js + Express + SQLite). FUNCIONAL.
 │   ├── web/        ← Web pública + paneles superadmin, sucursal y cliente (Next.js). FUNCIONAL.
-│   └── driver/     ← App del transportista, Android/iOS (próxima etapa)
+│   └── driver/     ← App del transportista, Android/iOS (Expo). FUNCIONAL. Ver su README
 └── docs/
     ├── ARQUITECTURA.md   ← decisiones técnicas, modelo de datos, flujo de estados
     ├── ROADMAP.md        ← las 9 áreas funcionales: qué entra en el MVP y qué después
-    └── API.md            ← referencia de endpoints
+    ├── API.md            ← referencia de endpoints
+    └── DEPLOY_RENDER.md  ← despliegue de prueba en Render
 ```
 
 ## Cómo correrlo
@@ -65,6 +66,10 @@ curl -s localhost:3000/api/public/quotes -H 'content-type: application/json' \
 curl -s localhost:3000/api/public/tracking/4B123456789X | jq
 ```
 
+## Despliegue de prueba
+
+Ver [`docs/DEPLOY_RENDER.md`](docs/DEPLOY_RENDER.md) (Blueprint `render.yaml`, plan gratuito).
+
 ## Variables de entorno
 
 | Variable | Default | Descripción |
@@ -76,3 +81,4 @@ curl -s localhost:3000/api/public/tracking/4B123456789X | jq
 | `GPS_OFFLINE_MINUTES` | `10` | Minutos sin señal para marcar un vehículo como desconectado |
 | `GPS_RETENTION_DAYS` | `90` | Retención del historial GPS (privacidad) |
 | `WEBHOOKS_ENABLED` | `true` | Envío real de webhooks a tiendas |
+| `DEMO_PASSWORD` | `Demo1234!` | Contraseña de los usuarios de demostración (cambiarla en despliegues públicos) |
