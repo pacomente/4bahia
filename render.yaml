@@ -1,0 +1,60 @@
+# Blueprint de Render para un despliegue DE PRUEBA (plan gratuito).
+# Render → New → Blueprint → elegir este repositorio. Crea la API y la web.
+#
+# Plan gratuito: los servicios se duermen tras 15 min sin uso (el primer acceso tarda ~1 min)
+# y el disco no es persistente: la base SQLite se recrea con datos de demostración en cada
+# reinicio o deploy. Para datos que persistan: plan pago + disco, o PostgreSQL (ver docs/DEPLOY_RENDER.md).
+#
+# Si Render asigna otra URL (porque el nombre ya existe), actualizar PUBLIC_BASE_URL y
+# NEXT_PUBLIC_API_URL con las URLs reales y volver a desplegar.
+
+services:
+  - type: web
+    name: expreso4bahia-api
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm ci
+    startCommand: npm start -w apps/api
+    healthCheckPath: /api/health
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - apps/api/**
+        - package.json
+        - package-lock.json
+        - render.yaml
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DEMO_PASSWORD
+        sync: false            # Render la pide al crear el Blueprint
+      - key: PUBLIC_BASE_URL
+        value: https://expreso4bahia-web.onrender.com
+      - key: DB_PATH
+        value: data/4bahia.db
+      - key: WEBHOOKS_ENABLED
+        value: "true"
+
+  - type: web
+    name: expreso4bahia-web
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm ci && npm run build -w apps/web
+    startCommand: npm start -w apps/web
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - apps/web/**
+        - package.json
+        - package-lock.json
+        - render.yaml
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Se incorpora al compilar: si cambia, hay que volver a desplegar la web.
+      - key: NEXT_PUBLIC_API_URL
+        value: https://expreso4bahia-api.onrender.com/api

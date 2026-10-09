@@ -39,7 +39,9 @@ export default function Ingresar() {
         </form>
       </div>
       <p className="small muted" style={{ marginTop: 12 }}>
-        Demo: <span className="mono">admin@4bahia.test</span>, <span className="mono">bhi.operador@4bahia.test</span> o <span className="mono">cliente@tiendademo.test</span> — contraseña <span className="mono">Demo1234!</span>
+        Demo: <span className="mono">admin@4bahia.test</span>, <span className="mono">bhi.operador@4bahia.test</span> o <span className="mono">cliente@tiendademo.test</span>
+        {/* La contraseña solo se muestra en desarrollo; en la demo pública la define DEMO_PASSWORD en la API. */}
+        {process.env.NODE_ENV === 'development' && <> — contraseña <span className="mono">Demo1234!</span></>}
       </p>
     </div>
   );

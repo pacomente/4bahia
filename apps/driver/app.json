@@ -47,7 +47,7 @@
       ]
     ],
     "extra": {
-      "apiUrl": "http://10.0.2.2:3000/api"
+      "apiUrl": "https://expreso4bahia-api.onrender.com/api"
     }
   }
 }
