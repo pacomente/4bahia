@@ -1,3 +1,5 @@
+> **Nuevo:** demo de plataforma de viajes para empresas de taxi (pasajero, conductor y panel) en [`taxi/`](taxi/README.md).
+
 # Expreso 4 Bahía — Plataforma logística integral
 
 Prototipo (MVP) de la plataforma logística: superadmin, sucursales, app del transportista con GPS,
