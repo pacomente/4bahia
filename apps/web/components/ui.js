@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
+import { Inbox, AlertCircle } from 'lucide-react';
 import { STATUS_LABELS, statusTone } from '@/lib/format';
 
 export function StatusBadge({ status, label }) {
@@ -17,9 +18,9 @@ export function Field({ label, children, hint }) {
   );
 }
 
-export const ErrorBox = ({ error }) => (error ? <div className="alert error" role="alert">{error.message ?? String(error)}</div> : null);
+export const ErrorBox = ({ error }) => (error ? <div className="alert error" role="alert"><AlertCircle size={18} style={{ flexShrink: 0 }} /><span>{error.message ?? String(error)}</span></div> : null);
 export const Loading = () => <div className="empty">Cargando…</div>;
-export const Empty = ({ children }) => <div className="empty">{children}</div>;
+export const Empty = ({ children, icon: Icon = Inbox }) => <div className="empty"><Icon size={28} /><span>{children}</span></div>;
 
 // Carga datos de la API; devuelve { data, error, loading, reload, setData }.
 export function useApi(path, { interval } = {}) {
@@ -72,12 +73,15 @@ export function useSubmit(fn) {
   return { run, busy, error, setError };
 }
 
-export function Kpi({ label, value, hint }) {
+export function Kpi({ label, value, hint, icon: Icon }) {
   return (
     <div className="card kpi">
-      <span className="label">{label}</span>
-      <span className="value">{value}</span>
-      {hint && <span className="hint">{hint}</span>}
+      {Icon && <span className="kpi-icon"><Icon size={20} /></span>}
+      <div className="kpi-body">
+        <span className="label">{label}</span>
+        <span className="value">{value}</span>
+        {hint && <span className="hint">{hint}</span>}
+      </div>
     </div>
   );
 }

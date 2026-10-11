@@ -1,11 +1,12 @@
 'use client';
+import { Package, PackagePlus, Wallet, Plug } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 
 const NAV = [{ items: [
-  { href: '/cliente', label: 'Mis envíos' },
-  { href: '/cliente/nuevo', label: 'Nuevo envío' },
-  { href: '/cliente/cuenta', label: 'Cuenta corriente' },
-  { href: '/cliente/integraciones', label: 'Integraciones (API)' },
+  { href: '/cliente', label: 'Mis envíos', icon: Package },
+  { href: '/cliente/nuevo', label: 'Nuevo envío', icon: PackagePlus },
+  { href: '/cliente/cuenta', label: 'Cuenta corriente', icon: Wallet },
+  { href: '/cliente/integraciones', label: 'Integraciones (API)', icon: Plug },
 ] }];
 
 export default function ClienteLayout({ children }) {

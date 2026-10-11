@@ -12,7 +12,7 @@ export default function Flota() {
   const [key, setKey] = useState(0);
   return (
     <>
-      <PageHead title="Flota y viajes" />
+      <PageHead title="Flota y viajes" sub="Vehículos, viajes troncales y repartos" />
       <div className="tabs">
         <button className={tab === 'trips' ? 'active' : ''} onClick={() => setTab('trips')}>Viajes</button>
         <button className={tab === 'new' ? 'active' : ''} onClick={() => setTab('new')}>Nuevo viaje</button>

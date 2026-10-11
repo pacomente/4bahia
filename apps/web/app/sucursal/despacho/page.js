@@ -12,7 +12,7 @@ export default function Despacho() {
   if (!branchId) return null;
   return (
     <>
-      <PageHead title="Despachos y repartos"><BranchPicker /></PageHead>
+      <PageHead title="Despachos y repartos" sub="Armá viajes a otras sucursales o repartos a domicilio"><BranchPicker /></PageHead>
       <div className="stack">
         <div className="tabs">
           <button className={type === 'transfer' ? 'active' : ''} onClick={() => setType('transfer')}>Transferencia a otra sucursal</button>

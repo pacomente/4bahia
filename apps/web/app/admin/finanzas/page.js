@@ -11,7 +11,7 @@ export default function Finanzas() {
   const [tab, setTab] = useState('accounts');
   return (
     <>
-      <PageHead title="Finanzas">
+      <PageHead title="Finanzas" sub="Cuentas corrientes, contrarreembolsos e ingresos">
         <button className="btn ghost" onClick={() => download('/finance/reports/revenue?format=csv', 'ingresos.csv')}>Exportar ingresos (CSV)</button>
       </PageHead>
       <div className="tabs">

@@ -20,7 +20,7 @@ export default function Usuarios() {
 
   return (
     <>
-      <PageHead title="Usuarios">
+      <PageHead title="Usuarios" sub="Accesos por rol y sucursal">
         <select value={role} onChange={(e) => setRole(e.target.value)}>
           <option value="">Todos los roles</option>
           {Object.entries(ROLE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}

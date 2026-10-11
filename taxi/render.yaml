@@ -1,0 +1,31 @@
+# Blueprint de Render para la demo de taxis (plan gratuito).
+# Render → New → Blueprint → repo pacomente/4bahia → Blueprint path: taxi/render.yaml
+#
+# Plan gratuito: el servicio se duerme tras 15 min sin uso (el primer acceso tarda ~1 min)
+# y la base se recrea con datos de demostración en cada reinicio o deploy.
+services:
+  - type: web
+    name: taxi-demo
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: taxi
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: BRAND_NAME
+        value: Movi              # nombre que se muestra en las apps
+      - key: CITY_NAME
+        value: Buenos Aires      # con lugares populares precargados
+      - key: CITY_LAT
+        value: "-34.6037"
+      - key: CITY_LNG
+        value: "-58.3816"
+      - key: DEMO_PASSWORD
+        sync: false              # Render la pide al crear el Blueprint
+      - key: DEMO_QUICK_LOGIN
+        value: "true"            # botones "Entrar con la cuenta demo"

@@ -3,7 +3,9 @@ import { useState } from 'react';
 import { api, openLabel } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { fmtMoney, fmtKg, fmtDate, fmtDateTime, STATUS_LABELS, INCIDENT_REASONS } from '@/lib/format';
+import { Printer, ExternalLink } from 'lucide-react';
 import Timeline from './Timeline';
+import ShipmentProgress from './ShipmentProgress';
 import QuoteBreakdown from './QuoteBreakdown';
 import { StatusBadge, ErrorBox, Loading, useApi, useSubmit, Field } from './ui';
 
@@ -22,19 +24,29 @@ export default function ShipmentDetail({ code }) {
 
   return (
     <div className="stack">
-      <div className="row between">
-        <div className="row">
-          <h2 className="mono" style={{ margin: 0 }}>{s.tracking_code}</h2>
-          <StatusBadge status={s.status} />
+      <div className="card" style={{ padding: 24 }}>
+        <div className="row between" style={{ alignItems: 'flex-start' }}>
+          <div>
+            <div className="small muted">Envío</div>
+            <div className="row" style={{ gap: 10 }}>
+              <h2 className="mono" style={{ margin: 0, fontSize: '1.5rem' }}>{s.tracking_code}</h2>
+              <StatusBadge status={s.status} />
+            </div>
+          </div>
+          <div className="row">
+            <button className="btn ghost" onClick={() => openLabel(s.tracking_code)}><Printer size={16} /> Imprimir etiqueta</button>
+            <a className="btn ghost" href={`/seguimiento/${s.tracking_code}`} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Seguimiento público</a>
+          </div>
         </div>
-        <div className="row">
-          <button className="btn ghost" onClick={() => openLabel(s.tracking_code)}>Imprimir etiqueta</button>
-          <a className="btn ghost" href={`/seguimiento/${s.tracking_code}`} target="_blank" rel="noreferrer">Ver seguimiento público</a>
+        <div style={{ marginTop: 22 }}>
+          <ShipmentProgress status={s.status} deliveryType={s.delivery_type} history={s.events.map((e) => e.status)} />
         </div>
       </div>
 
-      <div className="grid grid-2">
-        <div className="card">
+      <div className="form-layout">
+        <div className="stack">
+          <div className="grid grid-2">
+            <div className="card">
           <h3>Remitente</h3>
           <dl className="dl">
             <dt>Nombre</dt><dd>{s.sender_name}</dd>
@@ -43,7 +55,7 @@ export default function ShipmentDetail({ code }) {
             <dt>Dirección</dt><dd>{s.sender_address ?? '—'}</dd>
           </dl>
         </div>
-        <div className="card">
+            <div className="card">
           <h3>Destinatario</h3>
           <dl className="dl">
             <dt>Nombre</dt><dd>{s.recipient_name}</dd>
@@ -52,9 +64,10 @@ export default function ShipmentDetail({ code }) {
             <dt>Entrega</dt><dd>{s.delivery_type === 'home' ? `A domicilio: ${s.recipient_address ?? ''}` : 'Retira en sucursal'}</dd>
           </dl>
         </div>
-        <div className="card">
+          </div>
+          <div className="card">
           <h3>Paquete</h3>
-          <dl className="dl">
+          <dl className="dl" style={{ gridTemplateColumns: 'max-content 1fr max-content 1fr' }}>
             <dt>Bultos</dt><dd>{s.packages_count}</dd>
             <dt>Peso real</dt><dd>{fmtKg(s.weight_g)}</dd>
             <dt>Peso facturable</dt><dd>{fmtKg(s.chargeable_weight_g)}</dd>
@@ -67,21 +80,19 @@ export default function ShipmentDetail({ code }) {
             <dt>Entrega estimada</dt><dd>{fmtDate(s.estimated_delivery_at)}</dd>
           </dl>
         </div>
-        <div className="card">
-          <h3>Precio</h3>
-          <QuoteBreakdown quote={s.price_breakdown} />
-        </div>
-      </div>
-
-      <div className="grid grid-2">
-        <div className="card">
+          <div className="card">
           <h3>Historial</h3>
           <Timeline events={s.events.map((e) => ({
             id: e.id, label: e.status_label, note: e.note, reason: e.reason, at: e.occurred_at,
             place: e.branch_name, user: staff ? e.user_name : null, internal: e.internal_note,
           }))} />
         </div>
+        </div>
         <div className="stack">
+          <div className="card">
+          <h3>Precio</h3>
+          <QuoteBreakdown quote={s.price_breakdown} />
+        </div>
           {s.delivery_proof && (
             <div className="card">
               <h3>Comprobante de entrega</h3>

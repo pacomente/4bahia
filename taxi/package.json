@@ -1,0 +1,28 @@
+{
+  "name": "taxi-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Demo de plataforma de viajes tipo Uber para empresas de taxi: app de pasajero, app de conductor y panel de administración.",
+  "scripts": {
+    "dev": "node --disable-warning=ExperimentalWarning --watch server/index.js & vite",
+    "build": "vite build",
+    "start": "node --disable-warning=ExperimentalWarning server/index.js",
+    "test": "node --disable-warning=ExperimentalWarning --test 'test/*.test.js'"
+  },
+  "engines": { "node": ">=22.13" },
+  "dependencies": {
+    "express": "5.2.1",
+    "leaflet": "1.9.4",
+    "lucide-react": "1.47.0",
+    "qrcode": "1.5.4",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-leaflet": "5.0.0",
+    "react-router-dom": "7.18.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "6.1.1",
+    "vite": "8.3.1"
+  }
+}

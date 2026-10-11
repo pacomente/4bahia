@@ -12,7 +12,7 @@ export default function Catalogo() {
   const branchOpts = branches?.map((b) => ({ value: b.id, label: b.code })) ?? [];
   return (
     <>
-      <PageHead title="Sucursales, localidades y clientes" />
+      <PageHead title="Sucursales, localidades y clientes" sub="Cobertura de la red y clientes comerciales" />
       <div className="tabs">
         {[['branches', 'Sucursales'], ['localities', 'Localidades'], ['customers', 'Clientes']].map(([k, l]) => (
           <button key={k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>{l}</button>

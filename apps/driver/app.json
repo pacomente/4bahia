@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "4 Bahía Transportista",
+    "slug": "4bahia-driver",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#e1251b"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.expreso4bahia.driver"
+    },
+    "android": {
+      "package": "com.expreso4bahia.driver",
+      "adaptiveIcon": {
+        "backgroundColor": "#e1251b",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Usamos tu ubicación para informar la posición del vehículo durante los viajes y registrar dónde se entrega cada paquete.",
+          "locationAlwaysAndWhenInUsePermission": "Mientras tengas un viaje en curso compartimos la ubicación del vehículo con la central, aunque la app esté cerrada. Se detiene al finalizar el viaje.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true,
+          "locationAlwaysPermission": "Mientras tengas un viaje en curso compartimos la ubicación del vehículo con la central, aunque la app esté cerrada. Se detiene al finalizar el viaje."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Usamos la cámara para escanear etiquetas y sacar fotos de los comprobantes de entrega.",
+          "recordAudioAndroid": false
+        }
+      ]
+    ],
+    "extra": {
+      "apiUrl": "https://expreso4bahia-api.onrender.com/api"
+    }
+  }
+}

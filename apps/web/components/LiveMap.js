@@ -4,8 +4,8 @@ import { MapContainer, TileLayer, CircleMarker, Polyline, Tooltip, Popup } from 
 import { timeAgo } from '@/lib/format';
 
 const CONNECTION = {
-  online: { color: '#0ca30c', label: 'En línea' },
-  offline: { color: '#d03b3b', label: 'Sin señal' },
+  online: { color: '#12a150', label: 'En línea' },
+  offline: { color: '#d92d20', label: 'Sin señal' },
   never: { color: '#8f8e86', label: 'Sin datos' },
 };
 
@@ -20,11 +20,11 @@ export default function LiveMap({ branches = [], vehicles = [], track = [], onSe
       />
       {branches.filter((b) => b.lat != null).map((b) => (
         <CircleMarker key={`b${b.id}`} center={[b.lat, b.lng]} radius={7}
-          pathOptions={{ color: '#ffffff', weight: 2, fillColor: '#e2591f', fillOpacity: 1 }}>
+          pathOptions={{ color: '#ffffff', weight: 2, fillColor: '#17181c', fillOpacity: 1 }}>
           <Tooltip>{b.code} · {b.name}</Tooltip>
         </CircleMarker>
       ))}
-      {track.length > 1 && <Polyline positions={track.map((p) => [p.lat, p.lng])} pathOptions={{ color: '#2a78d6', weight: 3 }} />}
+      {track.length > 1 && <Polyline positions={track.map((p) => [p.lat, p.lng])} pathOptions={{ color: '#e1251b', weight: 4 }} />}
       {vehicles.filter((v) => v.last_lat != null).map((v) => {
         const c = CONNECTION[v.connection] ?? CONNECTION.never;
         return (

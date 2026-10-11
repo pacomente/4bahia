@@ -17,7 +17,7 @@ export default function Escaner() {
   const current = MODES.find((m) => m[0] === mode);
   return (
     <>
-      <PageHead title="Escáner"><BranchPicker /></PageHead>
+      <PageHead title="Escáner" sub="Funciona con lector de códigos USB o tipeando"><BranchPicker /></PageHead>
       <div className="tabs">
         {MODES.map(([k, l]) => <button key={k} className={mode === k ? 'active' : ''} onClick={() => setMode(k)}>{l}</button>)}
       </div>

@@ -9,7 +9,8 @@ import { createTrip, startTrip } from '../lib/trips.js';
 import { recordPositions } from '../lib/gps.js';
 import { config } from '../config.js';
 
-export const DEMO_PASSWORD = 'Demo1234!';
+// En un despliegue público definir DEMO_PASSWORD para no usar la contraseña conocida del repositorio.
+export const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'Demo1234!';
 
 const BRANCHES = [
   ['BHI', 'Casa Central Bahía Blanca', 'Bahía Blanca', 'Buenos Aires', -38.7183, -62.2663],

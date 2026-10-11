@@ -27,7 +27,7 @@ export default function NuevoEnvioCliente() {
   }
   return (
     <>
-      <PageHead title="Nuevo envío" />
+      <PageHead title="Nuevo envío" sub="Con tu tarifa especial aplicada" />
       <ShipmentForm
         initial={{ sender_name: user?.name ?? '' }}
         quotePath="/v1/quotes"

@@ -29,7 +29,7 @@ export default function Mostrador() {
 
   return (
     <>
-      <PageHead title="Entrega en mostrador"><BranchPicker /></PageHead>
+      <PageHead title="Entrega en mostrador" sub="Buscá el envío y registrá quién lo retira"><BranchPicker /></PageHead>
       <div className="stack" style={{ maxWidth: 720 }}>
         <form className="row" onSubmit={(e) => { e.preventDefault(); search.run(); }}>
           <input className="scan-input" style={{ flex: 1 }} autoFocus value={code} onChange={(e) => setCode(e.target.value)} placeholder="Código de seguimiento" />

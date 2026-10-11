@@ -31,16 +31,19 @@ function ContactForm() {
       </div>
       <Field label="Mensaje"><textarea required value={f.message} onChange={set('message')} /></Field>
       <ErrorBox error={error} />
-      <div><button className="btn accent" disabled={busy}>Enviar</button></div>
+      <div><button className="btn lg" disabled={busy}>{busy ? 'Enviando…' : 'Enviar mensaje'}</button></div>
     </form>
   );
 }
 
 export default function Contacto() {
   return (
-    <div className="container" style={{ marginTop: 28, maxWidth: 760 }}>
-      <h1>Contacto y reclamos</h1>
-      <p className="muted">Respondemos por email. Si es sobre un envío, incluí el código de seguimiento.</p>
+    <div className="container" style={{ maxWidth: 780 }}>
+      <div className="page-hero" style={{ marginBottom: 20 }}>
+        <span className="eyebrow">Soporte</span>
+        <h1>¿En qué te ayudamos?</h1>
+        <p>Consultas, reclamos o cotizaciones especiales. Si es sobre un envío, incluí el código de seguimiento.</p>
+      </div>
       <Suspense><ContactForm /></Suspense>
     </div>
   );

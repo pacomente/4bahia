@@ -13,7 +13,7 @@ export default function Auditoria() {
   const { data, loading } = useApi(`/admin/audit?${qs}`);
   return (
     <>
-      <PageHead title="Auditoría">
+      <PageHead title="Auditoría" sub="Quién hizo qué y cuándo">
         <select value={entity} onChange={(e) => { setEntity(e.target.value); setOffset(0); }}>
           <option value="">Todas las entidades</option>
           {['shipment', 'user', 'trip', 'tariffs', 'pricing_settings', 'ledger_entry', 'api_key', 'branch', 'customer'].map((e) => <option key={e}>{e}</option>)}

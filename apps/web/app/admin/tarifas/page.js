@@ -23,7 +23,7 @@ export default function Tarifas() {
   const zoneOpts = zones?.map((z) => ({ value: z.id, label: `${z.code} · ${z.name}` })) ?? [];
   return (
     <>
-      <PageHead title="Tarifas y servicios" />
+      <PageHead title="Tarifas y servicios" sub="Lo que usa el cotizador para calcular cada precio" />
       <div className="tabs">
         {[['tariffs', 'Tarifas por zona'], ['settings', 'Parámetros del cotizador'], ['services', 'Servicios'], ['zones', 'Zonas']].map(([k, l]) => (
           <button key={k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>{l}</button>
