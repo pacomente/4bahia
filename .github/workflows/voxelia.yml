@@ -1,6 +1,6 @@
 # Arma el instalador de Voxelia para Windows en una máquina Windows de GitHub.
 # - En cada push a main que toque voxelia/: deja el instalador como artefacto descargable (Actions → la corrida → Artifacts).
-# - Con un tag "voxelia-vX.Y.Z": además crea una Release pública con el instalador.
+# - Además publica una Release pública por versión (voxelia-vX.Y.Z, según package.json), con link permanente.
 name: Voxelia · instalador Windows
 
 on:
@@ -37,9 +37,14 @@ jobs:
             voxelia/release/*.zip
           if-no-files-found: error
           retention-days: 30
-      - name: Publicar release (solo con tag)
-        if: startsWith(github.ref, 'refs/tags/voxelia-v')
+      # Release pública (link permanente, sin cuenta de GitHub): una por versión de package.json.
+      # Se crea sola en main la primera vez que aparece una versión nueva; con un tag "voxelia-v*" usa ese tag.
+      - name: Publicar release
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/voxelia-v')
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" release/*.exe release/*.zip --title "Voxelia ${GITHUB_REF_NAME#voxelia-v}" --notes "Instalador para Windows (64 bits). Descargá el .exe, ejecutalo y abrí Voxelia desde el escritorio."
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then TAG="$GITHUB_REF_NAME"; else TAG="voxelia-v$(node -p "require('./package.json').version")"; fi
+          if gh release view "$TAG" >/dev/null 2>&1; then echo "La release $TAG ya existe"; exit 0; fi
+          gh release create "$TAG" release/*.exe release/*.zip --target "$GITHUB_SHA" --title "Voxelia ${TAG#voxelia-v}" --notes "Instalador para Windows (64 bits). Descargá Voxelia-Setup-${TAG#voxelia-v}.exe, ejecutalo y abrí Voxelia desde el escritorio. Si Windows muestra 'Windows protegió tu PC', tocá 'Más información' y luego 'Ejecutar de todas formas' (el instalador no está firmado con un certificado pago)."
