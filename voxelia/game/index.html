@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Voxelia</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='6' fill='%235fa339'/%3E%3Crect y='6' width='16' height='10' fill='%238a5a3b'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+
+    <!-- HUD -->
+    <div id="hud">
+      <div id="crosshair"></div>
+      <div id="break"></div>
+      <div id="top-left"><span id="world-title"></span> · <span id="clock"></span> <span id="fps"></span></div>
+      <pre id="debug"></pre>
+      <div id="toast" class="toast"></div>
+      <div id="item-name" class="toast item"></div>
+      <div id="status"><div id="bubbles"></div><div id="hearts"></div></div>
+      <div id="hotbar"></div>
+      <div id="underwater"></div>
+      <div id="hurt"></div>
+    </div>
+
+    <!-- Carga -->
+    <div id="loading" class="screen open dirt">
+      <div class="panel center">
+        <h1 class="logo">VOXELIA</h1>
+        <p id="loading-text">Generando el mundo…</p>
+        <div class="bar"><div id="loading-bar"></div></div>
+        <p class="tip" id="tip"></p>
+      </div>
+    </div>
+
+    <!-- Pantalla de título (solo en el navegador; el launcher abre el mundo directo) -->
+    <div id="title" class="screen dirt">
+      <div class="panel center" style="max-width:520px">
+        <h1 class="logo">VOXELIA</h1>
+        <p class="sub">Construí, explorá y sobreviví en un mundo infinito de bloques.</p>
+        <div id="title-worlds" class="world-list"></div>
+        <form id="new-world" class="stack">
+          <input id="nw-name" placeholder="Nombre del mundo" value="Mi mundo" required />
+          <div class="row">
+            <input id="nw-seed" placeholder="Semilla (opcional)" />
+            <select id="nw-mode"><option value="creative">Creativo</option><option value="survival">Supervivencia</option></select>
+          </div>
+          <button class="mc-btn primary">Crear mundo nuevo</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Pausa -->
+    <div id="pause" class="screen">
+      <div class="panel center">
+        <h2>Juego en pausa</h2>
+        <button class="mc-btn primary" id="btn-resume">Volver al juego</button>
+        <button class="mc-btn" id="btn-settings">Opciones…</button>
+        <button class="mc-btn" id="btn-controls">Controles</button>
+        <button class="mc-btn" id="btn-quit">Guardar y salir</button>
+        <div id="settings-box" class="settings" hidden>
+          <label>Distancia de renderizado: <b id="v-rd"></b><input type="range" id="s-rd" min="2" max="12" /></label>
+          <label>Campo de visión: <b id="v-fov"></b><input type="range" id="s-fov" min="50" max="110" /></label>
+          <label>Sensibilidad del mouse: <b id="v-sens"></b><input type="range" id="s-sens" min="0.2" max="3" step="0.1" /></label>
+          <label>Volumen: <b id="v-vol"></b><input type="range" id="s-vol" min="0" max="1" step="0.05" /></label>
+          <label class="check"><input type="checkbox" id="s-fps" /> Mostrar FPS</label>
+        </div>
+        <div id="controls-box" class="settings" hidden>
+          <table>
+            <tr><td>W A S D</td><td>Moverse</td></tr>
+            <tr><td>Espacio</td><td>Saltar · nadar · (creativo) doble espacio o F para volar</td></tr>
+            <tr><td>Shift</td><td>Bajar al volar</td></tr>
+            <tr><td>Ctrl / R</td><td>Correr</td></tr>
+            <tr><td>Clic izquierdo</td><td>Romper bloque</td></tr>
+            <tr><td>Clic derecho</td><td>Colocar bloque</td></tr>
+            <tr><td>Rueda / 1-9</td><td>Elegir bloque</td></tr>
+            <tr><td>Clic de rueda</td><td>Copiar el bloque apuntado (creativo)</td></tr>
+            <tr><td>E</td><td>Inventario</td></tr>
+            <tr><td>F3</td><td>Información de depuración</td></tr>
+            <tr><td>Esc</td><td>Pausa</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inventario -->
+    <div id="inventory" class="screen">
+      <div class="panel" style="max-width:720px">
+        <div class="row between"><h2 id="inv-title">Inventario</h2><span class="muted">Elegí un bloque para la casilla seleccionada · E para cerrar</span></div>
+        <div id="inv-grid"></div>
+      </div>
+    </div>
+
+    <!-- Muerte -->
+    <div id="death" class="screen red">
+      <div class="panel center">
+        <h1>¡Moriste!</h1>
+        <p id="death-reason"></p>
+        <button class="mc-btn primary" id="btn-respawn">Reaparecer</button>
+        <button class="mc-btn" id="btn-death-quit">Salir al menú</button>
+      </div>
+    </div>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

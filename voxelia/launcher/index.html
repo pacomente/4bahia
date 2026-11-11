@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+    <title>Voxelia Launcher</title>
+    <link rel="icon" href="assets/icon.png" />
+    <link rel="stylesheet" href="launcher.css" />
+  </head>
+  <body>
+    <aside class="side">
+      <div class="brand"><span class="cube"></span><div><b>VOXELIA</b><small>Launcher</small></div></div>
+      <nav>
+        <button class="nav active" data-view="play"><span>▶</span> Jugar</button>
+        <button class="nav" data-view="worlds"><span>▦</span> Mundos</button>
+        <button class="nav" data-view="news"><span>✦</span> Novedades</button>
+        <button class="nav" data-view="settings"><span>⚙</span> Ajustes</button>
+      </nav>
+      <div class="profile" id="profile">
+        <span class="avatar"></span>
+        <div class="grow"><b id="profile-name">Jugador</b><small>Perfil sin conexión</small></div>
+        <button class="icon" id="edit-profile" title="Editar perfil">✎</button>
+      </div>
+    </aside>
+
+    <main>
+      <!-- JUGAR -->
+      <section class="view active" id="view-play">
+        <div class="hero">
+          <div class="hero-text">
+            <span class="tag">Versión 0.1 · Beta</span>
+            <h1>VOXELIA</h1>
+            <p>Un mundo infinito de bloques para construir, explorar y sobrevivir.</p>
+          </div>
+        </div>
+        <div class="news-strip" id="news-strip"></div>
+        <div class="playbar">
+          <div class="world-pick">
+            <label for="world-select">Mundo</label>
+            <select id="world-select"></select>
+          </div>
+          <button class="play" id="play-btn">JUGAR</button>
+          <button class="secondary" id="new-world-btn">+ Nuevo mundo</button>
+        </div>
+      </section>
+
+      <!-- MUNDOS -->
+      <section class="view" id="view-worlds">
+        <header class="view-head"><h2>Mis mundos</h2><button class="secondary" id="new-world-btn2">+ Nuevo mundo</button></header>
+        <div id="world-list" class="world-grid"></div>
+      </section>
+
+      <!-- NOVEDADES -->
+      <section class="view" id="view-news">
+        <header class="view-head"><h2>Novedades</h2></header>
+        <div id="news-list" class="news-list"></div>
+      </section>
+
+      <!-- AJUSTES -->
+      <section class="view" id="view-settings">
+        <header class="view-head"><h2>Ajustes</h2></header>
+        <div class="settings-grid">
+          <div class="card">
+            <h3>Video</h3>
+            <label>Distancia de renderizado <b id="o-rd"></b><input type="range" min="2" max="12" id="i-rd" /></label>
+            <label>Campo de visión <b id="o-fov"></b><input type="range" min="50" max="110" id="i-fov" /></label>
+            <label class="check"><input type="checkbox" id="i-full" /> Abrir el juego en pantalla completa</label>
+            <label class="check"><input type="checkbox" id="i-fps" /> Mostrar FPS</label>
+          </div>
+          <div class="card">
+            <h3>Controles y sonido</h3>
+            <label>Sensibilidad del mouse <b id="o-sens"></b><input type="range" min="0.2" max="3" step="0.1" id="i-sens" /></label>
+            <label>Volumen <b id="o-vol"></b><input type="range" min="0" max="1" step="0.05" id="i-vol" /></label>
+          </div>
+          <div class="card">
+            <h3>Datos</h3>
+            <p class="muted">Los mundos se guardan en tu computadora.</p>
+            <p class="muted mono" id="data-path"></p>
+            <button class="secondary" id="open-data">Abrir carpeta de datos</button>
+            <p class="muted" id="app-version"></p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Diálogos -->
+    <dialog id="dlg-world">
+      <form method="dialog" id="form-world">
+        <h3>Nuevo mundo</h3>
+        <label>Nombre<input id="w-name" required maxlength="40" value="Mi mundo" /></label>
+        <label>Semilla <small>(vacía = al azar)</small><input id="w-seed" maxlength="40" /></label>
+        <label>Modo de juego</label>
+        <div class="modes">
+          <label class="mode"><input type="radio" name="mode" value="creative" checked /><b>Creativo</b><small>Bloques infinitos y vuelo.</small></label>
+          <label class="mode"><input type="radio" name="mode" value="survival" /><b>Supervivencia</b><small>Juntá bloques, cuidá tu vida.</small></label>
+        </div>
+        <div class="actions"><button value="cancel" class="secondary" formnovalidate>Cancelar</button><button value="ok" class="play small">Crear y jugar</button></div>
+      </form>
+    </dialog>
+    <dialog id="dlg-profile">
+      <form method="dialog" id="form-profile">
+        <h3>Perfil</h3>
+        <label>Nombre de jugador<input id="p-name" required maxlength="16" pattern="[A-Za-z0-9_ ]{3,16}" title="3 a 16 letras, números o _" /></label>
+        <div class="actions"><button value="cancel" class="secondary" formnovalidate>Cancelar</button><button value="ok" class="play small">Guardar</button></div>
+      </form>
+    </dialog>
+    <div class="toast" id="toast"></div>
+    <script src="launcher.js"></script>
+  </body>
+</html>

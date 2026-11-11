@@ -1,0 +1,45 @@
+# Arma el instalador de Voxelia para Windows en una máquina Windows de GitHub.
+# - En cada push a main que toque voxelia/: deja el instalador como artefacto descargable (Actions → la corrida → Artifacts).
+# - Con un tag "voxelia-vX.Y.Z": además crea una Release pública con el instalador.
+name: Voxelia · instalador Windows
+
+on:
+  push:
+    branches: [main]
+    paths: ['voxelia/**', '.github/workflows/voxelia.yml']
+    tags: ['voxelia-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: voxelia
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: voxelia/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run dist:win
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Voxelia-Windows
+          path: |
+            voxelia/release/*.exe
+            voxelia/release/*.zip
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publicar release (solo con tag)
+        if: startsWith(github.ref, 'refs/tags/voxelia-v')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" release/*.exe release/*.zip --title "Voxelia ${GITHUB_REF_NAME#voxelia-v}" --notes "Instalador para Windows (64 bits). Descargá el .exe, ejecutalo y abrí Voxelia desde el escritorio."
