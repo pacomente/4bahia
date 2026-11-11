@@ -1,4 +1,6 @@
-> **Nuevo:** demo de plataforma de viajes para empresas de taxi (pasajero, conductor y panel) en [`taxi/`](taxi/README.md).
+> **Nuevo:** [Voxelia](voxelia/README.md), juego de bloques para PC con su launcher.
+>
+> Demo de plataforma de viajes para empresas de taxi (pasajero, conductor y panel) en [`taxi/`](taxi/README.md).
 
 # Expreso 4 Bahía — Plataforma logística integral
 
