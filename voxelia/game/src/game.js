@@ -9,14 +9,15 @@ import { Sky } from './sky.js';
 import { Sound } from './audio.js';
 import { UI } from './ui.js';
 import { saveWorld, saveSettings, exitToLauncher } from './storage.js';
-import { I, ITEMS, isItem, mineSpeed, attackDamage } from './items.js';
-import { craft } from './recipes.js';
+import { I, ITEMS, isItem, mineSpeed, attackDamage, maxUses } from './items.js';
+import { craft, craftableTimes } from './recipes.js';
+import { Hand } from './hand.js';
 import { emptyStats, missionStatus } from './missions.js';
-import { Shadows } from './mobs.js';
+import { Shadows, nearLight } from './mobs.js';
 import { Animals } from './animals.js';
 import { MiniMap } from './minimap.js';
 
-export const VERSION = '0.3.0';
+export const VERSION = '0.4.0';
 
 const DEFAULT_HOTBAR = [B.GRASS, B.DIRT, B.STONE, B.COBBLE, B.PLANKS, B.LOG, B.GLASS, B.BRICK, B.LAMP];
 
@@ -54,6 +55,11 @@ export class Game {
     this.beams = new Map();
     this.attackCooldown = 0;
     this.craftOpen = false;
+    this.toolWear = save?.toolWear ?? {};   // herramienta -> usos gastados de la que está en uso
+    this.craftCat = 'all'; this.craftSel = null; this.nearBench = false;
+    // Cámara viva: balanceo al caminar, hundida al aterrizar, temblor al recibir daño y FOV al correr.
+    this.bob = 0; this.bobAmt = 0; this.landDip = 0; this.shake = 0; this.fovCur = settings.fov;
+    this.mouseD = { x: 0, y: 0 }; this.handLight = 1; this.handLightT = 0;
 
     this.world = new World(seed, save?.mods ?? {});
     this.initRenderer();
@@ -72,11 +78,12 @@ export class Game {
     this.shadows = new Shadows(this.scene, this.world, this.sound);
     this.animals = new Animals(this.scene, this.world, this.sound);
     this.minimap = new MiniMap(this.atlasCanvas, this.world);
+    this.hand = new Hand(this.atlasTex);
     for (const f of this.faros) this.addBeam(f);
     this.lastMission = missionStatus(this.stats).done;
     this.initHighlight();
     this.bindInput();
-    this.ui.renderHotbar(this.hotbar, this.selected);
+    this.renderHotbar();
     this.ui.renderHearts(this.health, this.maxHealth);
     this.ui.renderMission(missionStatus(this.stats));
     document.querySelector('#world-title').textContent = name;
@@ -241,6 +248,7 @@ export class Game {
     document.addEventListener('mousemove', (e) => {
       if (this.paused || document.pointerLockElement !== this.canvas) return;
       const s = 0.0022 * this.settings.sensitivity;
+      this.mouseD.x += e.movementX; this.mouseD.y += e.movementY;
       this.player.yaw -= e.movementX * s;
       this.player.pitch = Math.max(-1.55, Math.min(1.55, this.player.pitch - e.movementY * s));
     });
@@ -248,6 +256,7 @@ export class Game {
       if (this.paused) return;
       if (document.pointerLockElement !== this.canvas) { this.lock(); return; }
       if (e.button === 0) {
+        this.hand.swing();
         if (this.attackMob()) return;
         this.mouse.left = true;
         if (this.mode === 'creative') this.breakTarget();
@@ -264,7 +273,27 @@ export class Game {
   }
 
   lock() { this.canvas.requestPointerLock?.(); }
-  select(i) { this.selected = i; this.ui.renderHotbar(this.hotbar, this.selected); this.sound.click(); }
+  select(i) { this.selected = i; this.renderHotbar(); this.sound.click(); }
+  renderHotbar() { this.ui.renderHotbar(this.hotbar, this.selected, (id) => this.wearOf(id)); }
+
+  // Desgaste de la herramienta (0 = nueva, 1 = por romperse) o null si no se gasta.
+  wearOf(id) { const max = maxUses(id); return max && this.mode === 'survival' ? (this.toolWear[id] ?? 0) / max : null; }
+
+  // Gasta un uso de la herramienta en la mano; al llegar al máximo se rompe (se pierde una).
+  useTool() {
+    const id = this.held(); const max = maxUses(id);
+    if (!max || this.mode !== 'survival') return;
+    this.toolWear[id] = (this.toolWear[id] ?? 0) + 1;
+    if (this.toolWear[id] >= max) {
+      this.toolWear[id] = 0;
+      this.inventory[id] = (this.inventory[id] ?? 1) - 1;
+      if (this.inventory[id] <= 0) delete this.inventory[id];
+      this.ui.toast(`Se rompió: ${ITEMS[id].name}`, 2200);
+      this.sound.noise(0.3, { freq: 1800, q: 2, gain: 0.5 }); this.sound.tone(220, 0.2, 0.15, 'square');
+      this.syncHotbar();
+    } else if (this.toolWear[id] / max > 0.9 && (this.toolWear[id] - 1) / max <= 0.9) this.ui.toast(`${ITEMS[id].name}: está por romperse`, 2000);
+    this.renderHotbar();
+  }
 
   pause(on) {
     this.paused = on;
@@ -284,14 +313,22 @@ export class Game {
         // Si el ítem ya estaba en otra casilla, se mueve (no se duplica).
         this.hotbar = this.hotbar.map((s) => (s?.id === id ? null : s));
         this.hotbar[this.selected] = { id, count: this.mode === 'survival' ? this.inventory[id] : 1 };
-        this.ui.renderHotbar(this.hotbar, this.selected);
+        this.renderHotbar();
         this.toggleInventory();
       }, this.inventory);
     } else { this.paused = false; this.lock(); }
   }
 
+  // ¿Hay una Mesa de trabajo a 4 bloques o menos?
+  findBench() {
+    const p = this.player.pos; const bx = Math.floor(p.x); const by = Math.floor(p.y); const bz = Math.floor(p.z);
+    for (let dx = -4; dx <= 4; dx++) for (let dy = -3; dy <= 4; dy++) for (let dz = -4; dz <= 4; dz++) if (this.world.getBlock(bx + dx, by + dy, bz + dz) === B.WORKBENCH) return true;
+    return false;
+  }
+
   toggleCraft() {
     this.craftOpen = !this.craftOpen;
+    if (this.craftOpen) this.nearBench = this.findBench();
     this.ui.show('#craft', this.craftOpen);
     if (this.craftOpen) {
       this.paused = true;
@@ -317,17 +354,30 @@ export class Game {
   }
 
   renderCraft() {
-    this.ui.renderCraft(this.inventory, { maxHealth: this.maxHealth }, (recipe) => {
-      const res = craft(recipe, this.inventory, { maxHealth: this.maxHealth });
-      if (!res) return;
-      this.stats.crafted[recipe.id] = (this.stats.crafted[recipe.id] ?? 0) + 1;
-      if (res.special === 'heart') { this.maxHealth = Math.min(30, this.maxHealth + 2); this.health = Math.min(this.maxHealth, this.health + 2); this.ui.renderHearts(this.health, this.maxHealth); this.ui.toast('¡Corazón extra! Tu vida máxima aumentó.'); }
-      for (const id of Object.keys(res.out).map(Number)) this.autoSlot(id);
-      if (this.inventory[I.GLIDER]) this.player.hasGlider = true;
-      this.sound.tone(660, 0.08, 0.15, 'sine'); setTimeout(() => this.sound.tone(880, 0.12, 0.15, 'sine'), 70);
-      this.syncHotbar();
-      this.checkMissions();
-      this.renderCraft();
+    const state = { maxHealth: this.maxHealth, nearBench: this.nearBench };
+    this.ui.renderCraft(this.inventory, state, {
+      cat: this.craftCat, sel: this.craftSel,
+      onCat: (c) => { this.craftCat = c; this.renderCraft(); },
+      onSelect: (id) => { this.craftSel = id; this.renderCraft(); },
+      onCraft: (recipe, times) => {
+        let made = 0;
+        for (let k = 0; k < times; k++) {
+          const res = craft(recipe, this.inventory, state);
+          if (!res) break;
+          made++;
+          this.stats.crafted[recipe.id] = (this.stats.crafted[recipe.id] ?? 0) + 1;
+          if (res.special === 'heart') { this.maxHealth = Math.min(30, this.maxHealth + 2); this.health = Math.min(this.maxHealth, this.health + 2); this.ui.renderHearts(this.health, this.maxHealth); this.ui.toast('¡Corazón extra! Tu vida máxima aumentó.'); }
+          for (const id of Object.keys(res.out).map(Number)) this.autoSlot(id);
+        }
+        if (!made) return;
+        if (this.inventory[I.GLIDER]) this.player.hasGlider = true;
+        this.sound.tone(660, 0.08, 0.15, 'sine'); setTimeout(() => this.sound.tone(880, 0.12, 0.15, 'sine'), 70);
+        if (made > 1) this.ui.toast(`Fabricaste ${recipe.name} ×${made}`, 1500);
+        this.syncHotbar();
+        this.checkMissions();
+        this.renderCraft();
+      },
+      maxTimes: (r) => craftableTimes(r, this.inventory, state),
     });
   }
 
@@ -342,7 +392,7 @@ export class Game {
   syncHotbar() {
     if (this.mode !== 'survival') return;
     this.hotbar = this.hotbar.map((s) => (s && (this.inventory[s.id] ?? 0) > 0 ? { id: s.id, count: this.inventory[s.id] } : null));
-    this.ui.renderHotbar(this.hotbar, this.selected);
+    this.renderHotbar();
   }
 
   checkMissions() {
@@ -363,7 +413,7 @@ export class Game {
     const eye = this.player.eye(); const dir = this.player.look(); const dmg = attackDamage(this.held());
     const hit = (this.shadows.list.length && this.shadows.hit(eye, dir, 3.6, dmg, this.mobCtx()))
       || (this.animals.list.length && this.animals.hit(eye, dir, 3.6, dmg, { onKilled: () => { if (this.mode === 'survival') { this.addItem(B.WOOL_WHITE, 2); this.checkMissions(); } } }));
-    if (hit) this.attackCooldown = 0.35;
+    if (hit) { this.attackCooldown = 0.35; this.useTool(); }
     return !!hit;
   }
   attackShadow() { return this.attackMob(); }
@@ -403,14 +453,16 @@ export class Game {
     this.sound.dig(t.block.sound);
     this.spawnParticles(t);
     if (t.id === B.FARO) this.removeBeam(t.x, t.y, t.z);
-    if (this.mode === 'survival') { this.addItem(t.block.drop); this.checkMissions(); }
+    if (this.mode === 'survival') { this.addItem(t.block.drop); this.useTool(); this.checkMissions(); }
   }
 
   placeBlock() {
     const slot = this.hotbar[this.selected];
-    if (!slot?.id || isItem(slot.id)) return;   // herramientas y materiales no se colocan
     const t = this.target();
     if (!t) return;
+    // Clic derecho sobre una Mesa de trabajo: abre el Taller con todas las recetas (agachado, coloca).
+    if (t.id === B.WORKBENCH && this.mode === 'survival' && !this.player.sneaking) { this.toggleCraft(); return; }
+    if (!slot?.id || isItem(slot.id)) return;   // herramientas y materiales no se colocan
     const x = t.x + t.face[0]; const y = t.y + t.face[1]; const z = t.z + t.face[2];
     const cur = this.world.getBlock(x, y, z);
     if (cur !== B.AIR && cur !== B.WATER) return;
@@ -418,6 +470,7 @@ export class Game {
     if (y < 0 || y >= H) return;
     this.world.setBlock(x, y, z, slot.id);
     this.sound.place(BLOCKS[slot.id].sound);
+    this.hand.swing();
     if (slot.id === B.FARO) {
       this.faros.push({ x, y, z });
       this.addBeam({ x, y, z });
@@ -437,7 +490,7 @@ export class Game {
     const t = this.target();
     if (!t || this.mode !== 'creative' || !PLACEABLE.includes(t.id)) return;
     this.hotbar[this.selected] = { id: t.id, count: 1 };
-    this.ui.renderHotbar(this.hotbar, this.selected);
+    this.renderHotbar();
   }
 
   addItem(id, n = 1) {
@@ -493,6 +546,7 @@ export class Game {
     if (this.mode !== 'survival' || n <= 0 || this.dead) return;
     this.health = Math.max(0, this.health - n);
     this.sound.hurt();
+    this.shake = 0.35;
     this.ui.renderHearts(this.health, this.maxHealth);
     document.querySelector('#hurt').classList.remove('flash'); void document.querySelector('#hurt').offsetWidth; document.querySelector('#hurt').classList.add('flash');
     if (this.health <= 0) this.die(reason);
@@ -522,7 +576,7 @@ export class Game {
       player: { x: this.player.pos.x, y: this.player.pos.y, z: this.player.pos.z, yaw: this.player.yaw, pitch: this.player.pitch, flying: this.player.flying },
       spawn: this.spawn, time: this.sky.time, health: this.health, inventory: this.inventory, hotbar: this.hotbar, selected: this.selected,
       playTime: this.playTime, mods: this.world.serializeMods(), savedAt: new Date().toISOString(),
-      stats: this.stats, maxHealth: this.maxHealth, faros: this.faros,
+      stats: this.stats, maxHealth: this.maxHealth, faros: this.faros, toolWear: this.toolWear,
     };
   }
   async save() {
@@ -538,6 +592,7 @@ export class Game {
     if (!this.started || this.dead || this.player.headInWater) return null;
     try {
       this.renderer.render(this.scene, this.camera);
+    this.updateHand(dt, hSpeed);
       const c = document.createElement('canvas'); c.width = 320; c.height = 180;
       const src = this.renderer.domElement;
       const ratio = src.width / src.height; const sw = ratio > 16 / 9 ? src.height * 16 / 9 : src.width; const sh = ratio > 16 / 9 ? src.height : src.width * 9 / 16;
@@ -578,6 +633,7 @@ export class Game {
       this.playTime += dt;
       const ev = this.player.update(dt);
       if (ev.step) this.sound.step(BLOCKS[ev.step]?.sound);
+      if (ev.landed) { this.landDip = Math.min(0.3, ev.landed * 0.016); if (ev.landed > 6) this.sound.step(BLOCKS[this.world.getBlock(Math.floor(this.player.pos.x), Math.floor(this.player.pos.y - 0.5), Math.floor(this.player.pos.z))]?.sound); }
       if (ev.fallDamage) this.damage(ev.fallDamage, 'Te caíste desde muy alto');
       if (ev.void) { if (this.mode === 'survival') this.damage(20, 'Caíste al vacío'); else { this.player.pos.set(this.spawn.x, this.spawn.y + 10, this.spawn.z); this.player.vel.set(0, 0, 0); } }
       if (this.player.headInWater !== this.wasUnder) { if (this.player.headInWater) this.sound.splash(); this.wasUnder = this.player.headInWater; }
@@ -610,10 +666,27 @@ export class Game {
     const ppx = Math.floor(this.player.pos.x); const ppz = Math.floor(this.player.pos.z);
     this.sound.updateMusic(this.paused ? 0 : dt, { night: this.sky.daylight < 0.4, underground: this.player.pos.y < this.world.topAt(ppx, ppz) - 4 && this.player.pos.y < 30 });
 
-    // Cámara
+    // Cámara: balanceo al caminar, hundida al aterrizar, temblor al recibir daño y FOV más abierto al correr o planear.
     const eye = this.player.eye();
-    this.camera.position.copy(eye);
-    this.camera.rotation.set(this.player.pitch, this.player.yaw, 0, 'YXZ');
+    const pl = this.player;
+    const hSpeed = Math.hypot(pl.vel.x, pl.vel.z);
+    const walking = pl.onGround && !pl.flying && hSpeed > 0.6 && !this.paused;
+    const bobOn = this.settings.viewBob !== false;
+    this.bobAmt += ((walking && bobOn ? Math.min(1.3, hSpeed / 4.3) : 0) - this.bobAmt) * Math.min(1, dt * 7);
+    if (walking) this.bob += dt * hSpeed * 1.75;
+    this.landDip *= Math.exp(-dt * 7);
+    this.shake = Math.max(0, this.shake - dt);
+    const sx = Math.sin(this.bob) * 0.04 * this.bobAmt; const sy = Math.abs(Math.cos(this.bob)) * 0.055 * this.bobAmt;
+    const sh = this.shake * 0.25;
+    this.camera.position.set(
+      eye.x + Math.cos(pl.yaw) * sx + (Math.random() - 0.5) * sh,
+      eye.y + sy - 0.03 * this.bobAmt - this.landDip + (Math.random() - 0.5) * sh,
+      eye.z - Math.sin(pl.yaw) * sx + (Math.random() - 0.5) * sh,
+    );
+    this.camera.rotation.set(pl.pitch - this.landDip * 0.25, pl.yaw, Math.sin(this.bob) * 0.012 * this.bobAmt + (Math.random() - 0.5) * sh * 0.2, 'YXZ');
+    const fovTarget = this.settings.fov + (pl.sprinting && hSpeed > 4 ? 8 : 0) + (pl.gliding ? 12 : 0) + (pl.flying && pl.input.sprint ? 10 : 0);
+    this.fovCur += (fovTarget - this.fovCur) * Math.min(1, dt * 8);
+    if (Math.abs(this.camera.fov - this.fovCur) > 0.05) { this.camera.fov = this.fovCur; this.camera.updateProjectionMatrix(); }
 
     // Cielo, luz y niebla
     const skyColor = this.sky.update(this.paused ? 0 : dt, this.camera, this.player.headInWater);
@@ -633,11 +706,35 @@ export class Game {
     if (t) this.highlight.position.set(t.x + 0.5, t.y + 0.5, t.z + 0.5);
 
     this.renderer.render(this.scene, this.camera);
+    this.updateHand(dt, hSpeed);
 
     // FPS y depuración
     this.fpsFrames++; this.fpsTime += dt;
     if (this.fpsTime >= 0.5) { this.fps = Math.round(this.fpsFrames / this.fpsTime); this.fpsFrames = 0; this.fpsTime = 0; this.updateHud(); }
     if (performance.now() - this.lastSave > 30000 && !this.paused) this.save();
+  }
+
+  // Mano en primera persona: ítem actual, animación y luz del lugar donde estás.
+  updateHand(dt, hSpeed) {
+    if (this.dead) return;
+    this.hand.setItem(this.held());
+    this.handLightT -= dt;
+    if (this.handLightT <= 0) {
+      this.handLightT = 0.25;
+      const e = this.player.eye(); const ex = Math.floor(e.x); const ez = Math.floor(e.z);
+      const depth = this.world.topAt(ex, ez) - Math.floor(e.y);
+      const sky = depth <= 0 ? 1 : depth <= 6 ? 0.6 : Math.max(0.12, 0.6 - (depth - 6) * 0.06);
+      const lamp = nearLight(this.world, e.x, e.y, e.z, 5);
+      const block = lamp ? Math.max(0.35, 1 - Math.hypot(lamp.x - e.x, lamp.y - e.y, lamp.z - e.z) / 12) : 0;
+      this.handLight = Math.max(this.sky.daylight * sky, block);
+    }
+    this.hand.update({
+      dt, moveSpeed: this.player.onGround && !this.player.flying ? hSpeed : 0, onGround: this.player.onGround, sprinting: this.player.sprinting,
+      light: this.handLight, mouseDX: this.mouseD.x, mouseDY: this.mouseD.y, aspect: window.innerWidth / window.innerHeight,
+      breaking: !!this.breaking && this.mouse.left && !this.paused,
+    });
+    this.mouseD.x = 0; this.mouseD.y = 0;
+    if (this.settings.showHand !== false) this.hand.render(this.renderer);
   }
 
   updateHud() {

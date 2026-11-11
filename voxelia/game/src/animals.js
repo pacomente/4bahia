@@ -19,6 +19,8 @@ export class Animals {
     this.geo = {
       body: new THREE.BoxGeometry(0.95, 0.85, 1.05),
       tuft: new THREE.BoxGeometry(0.3, 0.22, 0.3),
+      tail: new THREE.BoxGeometry(0.22, 0.22, 0.2),
+      ear: new THREE.BoxGeometry(0.2, 0.08, 0.12),
       head: new THREE.BoxGeometry(0.46, 0.46, 0.42),
       leg: new THREE.BoxGeometry(0.18, 0.4, 0.18),
       eye: new THREE.PlaneGeometry(0.08, 0.08),
@@ -36,9 +38,14 @@ export class Animals {
     const e2 = new THREE.Mesh(this.geo.eye, eyeMat); e2.position.set(0.11, 0.06, 0.215);
     const legs = [[-0.28, 0.35], [0.28, 0.35], [-0.28, -0.38], [0.28, -0.38]].map(([x, z]) => { const l = new THREE.Mesh(this.geo.leg, skin); l.position.set(x, 0.2, z); return l; });
     // Mechón de pelo sobre la cabeza (rasgo propio de los Lanudos).
-    const tuft = new THREE.Mesh(this.geo.tuft, wool); tuft.position.set(0, 0.27, -0.02); head.add(tuft, e1, e2);
-    g.add(body, head, ...legs);
-    g.userData = { mats: [wool, skin, eyeMat], base: [new THREE.Color(color), new THREE.Color(0x3b2f2a), new THREE.Color(0xffffff)], legs, head };
+    const tuft = new THREE.Mesh(this.geo.tuft, wool); tuft.position.set(0, 0.27, -0.02);
+    // Orejas caídas que se mueven y colita esponjosa que se sacude.
+    const earL = new THREE.Mesh(this.geo.ear, skin); earL.position.set(-0.29, 0.1, -0.02);
+    const earR = new THREE.Mesh(this.geo.ear, skin); earR.position.set(0.29, 0.1, -0.02);
+    head.add(tuft, e1, e2, earL, earR);
+    const tail = new THREE.Mesh(this.geo.tail, wool); tail.position.set(0, 0.95, -0.6);
+    g.add(body, head, tail, ...legs);
+    g.userData = { mats: [wool, skin, eyeMat], base: [new THREE.Color(color), new THREE.Color(0x3b2f2a), new THREE.Color(0xffffff)], legs, head, body, tail, ears: [earL, earR], eyes: [e1, e2] };
     return g;
   }
 
@@ -116,7 +123,15 @@ export class Animals {
       // Animación: patas que se mueven al caminar, cabeza que pasta cuando está quieto.
       const swing = a.walk ? Math.sin(this.t * (a.flee ? 16 : 9) + a.phase) * 0.5 : 0;
       a.mesh.userData.legs.forEach((l, i) => { l.rotation.x = i % 2 ? swing : -swing; });
-      a.mesh.userData.head.position.y = a.walk ? 0.92 : 0.8 + Math.sin(this.t * 2 + a.phase) * 0.05;
+      const ud0 = a.mesh.userData;
+      // Cabeza: alta al caminar; baja a pastar (con mordiditas) cuando está quieto.
+      const graze = !a.walk && Math.sin(this.t * 0.7 + a.phase) > 0;
+      ud0.head.position.y += ((a.walk ? 0.92 : graze ? 0.6 : 0.88) - ud0.head.position.y) * Math.min(1, dt * 5);
+      ud0.head.rotation.x = graze ? 0.5 + Math.sin(this.t * 9 + a.phase) * 0.08 : 0;
+      ud0.body.position.y = 0.78 + (a.walk ? Math.abs(Math.sin(this.t * (a.flee ? 16 : 9) + a.phase)) * 0.05 : Math.sin(this.t * 1.6 + a.phase) * 0.012);   // respira
+      ud0.tail.rotation.y = Math.sin(this.t * (a.flee ? 18 : 5) + a.phase) * 0.5;
+      ud0.ears.forEach((e, i) => { e.rotation.z = (i ? -1 : 1) * (0.35 + Math.sin(this.t * 2.2 + a.phase + i) * 0.15); });
+      for (const e of ud0.eyes) e.scale.y = Math.sin(this.t * 0.8 + a.phase * 3) > 0.96 ? 0.15 : 1;   // parpadeo
       a.mesh.rotation.y += (((a.heading - a.mesh.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * Math.min(1, dt * 8);
       // Iluminación: siguen la luz del día; destello blanco al recibir un golpe.
       a.flash = Math.max(0, a.flash - dt);

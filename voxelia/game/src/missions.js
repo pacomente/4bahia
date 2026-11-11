@@ -5,7 +5,7 @@ import { I } from './items.js';
 // stats: { collected: {id: n}, crafted: {recipeId: n}, placed: {id: n}, nights: n, kills: n }
 export const MISSIONS = [
   { id: 'wood', title: 'Juntá 5 troncos', hint: 'Rompé árboles con clic izquierdo (mantené apretado).', goal: 5, progress: (s) => (s.collected[B.LOG] ?? 0) + (s.collected[B.BIRCH_LOG] ?? 0) },
-  { id: 'pick', title: 'Fabricá un pico de madera', hint: 'Abrí el Taller con la tecla C: Tronco → Tablas → Pico.', goal: 1, progress: (s) => s.crafted.pick_wood ?? 0 },
+  { id: 'pick', title: 'Armá una Mesa y fabricá un pico', hint: 'Taller (C): Tronco → Tablas → Mesa de trabajo. Colocala, hacé clic derecho y fabricá el pico.', goal: 1, progress: (s) => s.crafted.pick_wood ?? 0 },
   { id: 'cobble', title: 'Juntá 10 adoquines', hint: 'Con el pico en la mano la piedra se rompe mucho más rápido.', goal: 10, progress: (s) => s.collected[B.COBBLE] ?? 0 },
   { id: 'coal', title: 'Encontrá 3 de carbón', hint: 'El carbón son las manchas negras en la piedra.', goal: 3, progress: (s) => s.collected[I.COAL] ?? 0 },
   { id: 'lamp', title: 'Iluminá tu refugio', hint: 'Taller: carbón + tablas = antorchas (o vidrio + carbón = lámparas). Las Sombras odian la luz.', goal: 1, progress: (s) => (s.placed[B.LAMP] ?? 0) + (s.placed[B.TORCH] ?? 0) },

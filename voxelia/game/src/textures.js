@@ -5,7 +5,7 @@ import { BLOCKS } from './blocks.js';
 const S = 16;
 const NAMES = ['grass_top', 'grass_side', 'dirt', 'stone', 'sand', 'water', 'log_top', 'log_side', 'leaves', 'planks',
   'cobble', 'glass', 'snow', 'snow_side', 'brick', 'coal', 'cactus_top', 'cactus_side', 'bedrock', 'gravel', 'iron',
-  'birch_top', 'birch_side', 'birch_leaves', 'clay', 'lamp', 'wool_red', 'wool_blue', 'wool_white', 'crystal', 'faro_top', 'faro_side', 'torch'];
+  'birch_top', 'birch_side', 'birch_leaves', 'clay', 'lamp', 'wool_red', 'wool_blue', 'wool_white', 'crystal', 'faro_top', 'faro_side', 'torch', 'bench_top', 'bench_side'];
 const COLS = 8;
 export const ATLAS_COLS = COLS;
 export const ATLAS_ROWS = Math.ceil(NAMES.length / COLS);
@@ -112,6 +112,24 @@ function paint(name, px) {
       for (let y = 6; y < S; y++) for (let x = 7; x < 9; x++) set(x, y, shade(hex('#7a5230'), x === 7 ? 1.1 : 0.85));
       for (let y = 3; y < 6; y++) for (let x = 7; x < 9; x++) set(x, y, y === 3 ? hex('#fff6c2') : y === 4 ? hex('#ffd34d') : hex('#ff9a2e'));
       set(7, 2, hex('#ffe98a')); set(8, 2, hex('#ffb347'), 200);
+      break;
+    case 'bench_top': {
+      // Tablero de madera con cuadrícula de trabajo y borde oscuro.
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const edge = x === 0 || y === 0 || x === S - 1 || y === S - 1;
+        const grid = (x === 5 || x === 10 || y === 5 || y === 10) && !edge;
+        set(x, y, edge ? hex('#5b3d22') : grid ? hex('#7a5230') : shade(hex('#c49a62'), 0.9 + r() * 0.15));
+      }
+      break;
+    }
+    case 'bench_side':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, shade(hex('#a77a45'), (y % 4 === 3 ? 0.72 : 1) * (0.92 + r() * 0.12)));
+      for (let x = 0; x < S; x++) { set(x, 0, hex('#5b3d22')); set(x, 1, hex('#c49a62')); }
+      // Herramientas colgadas: un martillo y una sierra.
+      for (let y = 4; y < 12; y++) set(4, y, hex('#5b3d22'));
+      for (let x = 2; x < 7; x++) { set(x, 4, hex('#9a9a9a')); set(x, 5, hex('#7d7d7d')); }
+      for (let y = 4; y < 12; y++) for (let x = 9; x < 13; x++) if (x - 9 <= (y - 4) / 2) set(x, y, y % 2 ? hex('#cfcfcf') : hex('#a9a9a9'));
+      for (let y = 3; y < 5; y++) for (let x = 9; x < 13; x++) set(x, y, hex('#5b3d22'));
       break;
     default: noise(hex('#ff00ff'), 0);
   }

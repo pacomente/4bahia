@@ -26,15 +26,16 @@ Juego de mundo abierto de bloques para PC, con su propio **launcher**. Todo el c
 - **Modo Creativo**: bloques infinitos y vuelo (doble espacio o F).
 - **Modo Supervivencia**: romper lleva tiempo según el bloque, lo que rompés va al inventario, hay vida con daño por caída, aire bajo el agua y reaparición. Ver abajo lo que lo hace distinto.
 - **Ciclo de día y noche** con sol, luna, estrellas y nubes. Hay oclusión ambiental y sombras bajo techos y árboles, niebla a distancia y vista bajo el agua.
-- **Física**: gravedad, saltos, colisiones, nado y correr.
+- **Movimiento**: gravedad, saltos con margen, colisiones, nado, correr y agacharse (Shift, sin caerte de los bordes). La cámara se balancea al caminar, abre el campo de visión al correr y se hunde al aterrizar.
+- **Mano en primera persona**: ves lo que tenés agarrado (bloques, antorchas, herramientas en relieve) con animación al golpear, al caminar y al cambiar de ítem.
 - **Partículas y sonido**: partículas al romper y sonidos sintetizados al romper, colocar y caminar.
 - **Interfaz**: barra rápida, inventario (E), menú de pausa con opciones y controles, e información de depuración (F3).
 - **Guardado** automático cada 30 s y al salir.
 
 ## Supervivencia: qué tiene de distinto
 
-- **Taller (C)**: no hay grillas ni recetas para memorizar. Ves la lista de todo lo que se puede fabricar, con los materiales que tenés y los que faltan, y fabricás con un clic.
-- **Herramientas por nivel**: picos, hachas y palas de madera, piedra y hierro. Cada una acelera su tipo de bloque y pega más fuerte.
+- **Taller (C) y Mesa de trabajo**: no hay grillas ni recetas para memorizar. El Taller muestra todo por categorías, con lo que tenés y lo que falta, y fabricás con un clic (o "Fabricar todo"). A mano se hacen las cosas básicas; con una Mesa de trabajo cerca (clic derecho sobre ella) se desbloquean herramientas, armas y mejoras.
+- **Herramientas por nivel**: picos, hachas, palas y espadas de madera, piedra, hierro y **cristal** (la más rápida, brilla en la mano). Cada una acelera su tipo de bloque, pega más fuerte y se gasta con el uso (barra de durabilidad).
 - **Energía en lugar de hambre**: correr y saltar gastan energía, y se recupera sola al caminar o quedarte quieto. No hay que andar buscando comida.
 - **Sombras**: criaturas nocturnas que flotan hacia vos y le temen a la luz. Cerca de lámparas, cristales o faros se queman y huyen. De día se disuelven. Al vencerlas sueltan **esencia**. Cada noche que sobrevivís aparecen algunas más.
 - **Cristales**: brillan en las cuevas profundas (por debajo de la altura 20). Iluminan y sirven para fabricar.
@@ -51,13 +52,14 @@ Juego de mundo abierto de bloques para PC, con su propio **launcher**. Todo el c
 |---|---|
 | W A S D | Moverse |
 | Espacio | Saltar / nadar · doble espacio o F: volar (creativo) |
-| Shift | Bajar al volar |
+| Shift | Agacharse · bajar al volar |
 | Ctrl o R | Correr |
 | Clic izquierdo / derecho | Romper / colocar bloque |
 | Rueda o 1-9 | Elegir bloque |
 | Clic de rueda | Copiar el bloque apuntado (creativo) |
 | E | Inventario |
 | C | Taller (supervivencia) |
+| Clic derecho en la Mesa | Taller completo |
 | M | Mapa |
 | Espacio en el aire | Planear (con planeador) |
 | F3 | Depuración |

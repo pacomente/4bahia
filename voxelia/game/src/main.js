@@ -50,6 +50,10 @@ function bindMenus(game, settings) {
   bind('#s-sens', '#v-sens', 'sensitivity', (v) => `${Number(v).toFixed(1)}x`);
   bind('#s-vol', '#v-vol', 'volume', (v) => `${Math.round(v * 100)}%`);
   bind('#s-mus', '#v-mus', 'music', (v) => `${Math.round(v * 100)}%`);
+  for (const [sel, key] of [['#s-bob', 'viewBob'], ['#s-hand', 'showHand']]) {
+    $(sel).checked = settings[key] !== false;
+    $(sel).onchange = (e) => { settings[key] = e.target.checked; game.applySettings(settings); saveSettings(settings); };
+  }
   $('#s-mini').checked = settings.minimap !== false;
   $('#s-mini').onchange = (e) => { settings.minimap = e.target.checked; game.applySettings(settings); saveSettings(settings); };
   game.applySettings(settings);

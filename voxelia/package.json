@@ -1,7 +1,7 @@
 {
   "name": "voxelia",
   "productName": "Voxelia",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Juego de mundo abierto de bloques con su launcher.",
   "author": "Voxelia",
   "license": "UNLICENSED",
@@ -16,7 +16,7 @@
     "dist:win": "npm run build && electron-builder --win --x64 --publish never",
     "dist:linux": "npm run build && electron-builder --linux --publish never",
     "dist:mac": "npm run build && electron-builder --mac --publish never",
-    "test": "node --test game/test/world.test.js game/test/survival.test.js game/test/v03.test.js"
+    "test": "node --test game/test/world.test.js game/test/survival.test.js game/test/v03.test.js game/test/v04.test.js"
   },
   "devDependencies": {
     "electron": "45.0.0",

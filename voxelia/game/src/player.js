@@ -9,6 +9,10 @@ const JUMP = 8.6;
 const WALK = 4.3;
 const SPRINT = 6.2;
 const FLY = 11;
+const SNEAK = 1.7;
+const EYE_SNEAK = 1.38;
+const COYOTE = 0.12;     // se puede saltar un instante después de pisar el borde
+const JUMP_BUFFER = 0.14; // y apretar salto un instante antes de tocar el suelo también cuenta
 
 export class Player {
   constructor(world, pos) {
@@ -29,9 +33,14 @@ export class Player {
     this.stamina = 100;
     this.hasGlider = false;
     this.gliding = false;
+    // Agacharse (Shift en el suelo): más lento, la cámara baja y no te caés de los bordes.
+    this.sneaking = false;
+    this.eyeHeight = EYE;
+    this.coyote = 0; this.jumpBuffer = 0; this.prevJump = false;
+    this.sprinting = false;
   }
 
-  eye() { return new THREE.Vector3(this.pos.x, this.pos.y + EYE, this.pos.z); }
+  eye() { return new THREE.Vector3(this.pos.x, this.pos.y + this.eyeHeight, this.pos.z); }
   look() {
     return new THREE.Vector3(-Math.sin(this.yaw) * Math.cos(this.pitch), Math.sin(this.pitch), -Math.cos(this.yaw) * Math.cos(this.pitch)).normalize();
   }
@@ -65,13 +74,20 @@ export class Player {
     const fwd = i.f - i.b;
     const side = i.r - i.l;
     const sin = Math.sin(this.yaw); const cos = Math.cos(this.yaw);
-    const canSprint = i.sprint && (!this.useStamina || this.stamina > 2);
-    let speed = this.flying ? FLY * (i.sprint ? 1.8 : 1) : canSprint ? SPRINT : WALK;
+    this.sneaking = i.down && !this.flying && !this.inWater;
+    const canSprint = i.sprint && !this.sneaking && (!this.useStamina || this.stamina > 2);
+    let speed = this.flying ? FLY * (i.sprint ? 1.8 : 1) : this.sneaking ? SNEAK : canSprint ? SPRINT : WALK;
+    this.eyeHeight += ((this.sneaking ? EYE_SNEAK : EYE) - this.eyeHeight) * Math.min(1, dt * 14);
     if (this.inWater && !this.flying) speed *= 0.55;
     let mx = -sin * fwd + cos * side;
     let mz = -cos * fwd - sin * side;
     const len = Math.hypot(mx, mz);
     if (len > 0) { mx = (mx / len) * speed; mz = (mz / len) * speed; }
+    this.sprinting = canSprint && len > 0 && !this.flying;
+    // Salto con margen: "coyote time" y salto anticipado.
+    this.coyote = this.onGround ? COYOTE : Math.max(0, this.coyote - dt);
+    if (i.jump && !this.prevJump) this.jumpBuffer = JUMP_BUFFER; else this.jumpBuffer = Math.max(0, this.jumpBuffer - dt);
+    this.prevJump = i.jump;
     // Aceleración suave (más control en el suelo).
     const accel = this.onGround || this.flying ? 18 : this.inWater ? 6 : 6;
     this.vel.x += (mx - this.vel.x) * Math.min(1, accel * dt);
@@ -86,9 +102,11 @@ export class Player {
       this.vel.y = Math.max(this.vel.y, -3);
     } else {
       this.vel.y -= GRAVITY * dt;
-      if (i.jump && this.onGround) {
+      if ((this.jumpBuffer > 0 || (i.jump && this.onGround)) && this.coyote > 0 && this.vel.y <= 0.01) {
         this.vel.y = this.useStamina && this.stamina < 6 ? JUMP * 0.75 : JUMP;
         if (this.useStamina) this.stamina = Math.max(0, this.stamina - 6);
+        this.coyote = 0; this.jumpBuffer = 0;
+        events.jumped = true;
       }
       this.vel.y = Math.max(this.vel.y, -55);
       // Planeador: con Espacio apretado en caída se planea hacia donde se mira.
@@ -109,6 +127,7 @@ export class Player {
 
     // Movimiento eje por eje con colisiones.
     const wasGround = this.onGround;
+    const vyBefore = this.vel.y;
     this.onGround = false;
     const move = (axis, d) => {
       if (!d) return;
@@ -118,6 +137,11 @@ export class Player {
         const nx = this.pos.x + (axis === 0 ? s : 0);
         const ny = this.pos.y + (axis === 1 ? s : 0);
         const nz = this.pos.z + (axis === 2 ? s : 0);
+        // Agachado sobre el suelo: no deja avanzar si debajo no quedaría nada que pisar.
+        if (axis !== 1 && this.sneaking && wasGround && !this.collides(nx, ny - 0.1, nz)) {
+          if (axis === 0) this.vel.x = 0; else this.vel.z = 0;
+          return;
+        }
         if (this.collides(nx, ny, nz)) {
           if (axis === 1) { if (s < 0) this.onGround = true; this.vel.y = 0; }
           else if (axis === 0) this.vel.x = 0; else this.vel.z = 0;
@@ -129,6 +153,7 @@ export class Player {
     move(1, this.vel.y * dt);
     move(0, this.vel.x * dt);
     move(2, this.vel.z * dt);
+    if (this.onGround && !wasGround && vyBefore < -2) events.landed = -vyBefore;
 
     // Daño por caída (supervivencia): altura caída al tocar el suelo.
     if (!this.onGround && !this.inWater && !this.flying && !this.gliding && this.vel.y < 0 && this.fallStart === null) this.fallStart = this.pos.y;

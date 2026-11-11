@@ -83,15 +83,6 @@ input:focus, select:focus { outline: none; border-color: #fff; }
 #mission .m-count { color: #5ff2e6; font-weight: 700; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
 .m-bar { height: 6px; background: #333; } .m-bar > div { height: 100%; background: #5ff2e6; transition: width .3s; }
 #glide-tag { display: none; position: absolute; left: 50%; top: 58%; transform: translateX(-50%); color: #5ff2e6; font-weight: 800; letter-spacing: .1em; text-shadow: 2px 2px 0 #000; }
-#craft-list { display: flex; flex-direction: column; gap: 6px; background: #c6c6c6; border: 3px solid #555; padding: 10px; max-height: 64vh; overflow-y: auto; }
-.recipe { display: flex; align-items: center; gap: 12px; background: #8b8b8b; border: 2px solid #373737; border-right-color: #fff; border-bottom-color: #fff; padding: 6px 10px; }
-.recipe.locked { opacity: .55; }
-.r-out img { width: 40px; height: 40px; image-rendering: pixelated; display: block; }
-.r-body { flex: 1; text-shadow: 1px 1px 0 #333; }
-.ings { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
-.ing { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; }
-.ing img { width: 22px; height: 22px; image-rendering: pixelated; }
-.ing.miss { color: #ffb4b4; } .ing.ok { color: #c9ffbf; }
 .heart.big { display: inline-block; width: 36px; height: 32px; transform: scale(1); clip-path: path('M18 30 L2 14 Q-2 6 6 2 Q12 0 18 6 Q24 0 30 2 Q38 6 34 14 Z'); }
 .mc-btn:disabled { opacity: .6; cursor: not-allowed; filter: grayscale(1); }
 #day { color: #ffe066; margin-left: 6px; }
@@ -100,3 +91,45 @@ input:focus, select:focus { outline: none; border-color: #fff; }
 #minimap { position: absolute; top: 34px; left: 12px; width: 144px; height: 144px; border: 3px solid #000; outline: 2px solid #8b8b8b; background: #0006; image-rendering: pixelated; }
 #bigmap { width: min(80vh, 90vw); height: min(80vh, 90vw); border: 4px solid #000; outline: 3px solid #8b8b8b; background: #111; image-rendering: pixelated; }
 #map-screen { background: rgba(0,0,0,.7); }
+
+/* Durabilidad en la barra rápida */
+.slot .dura { position: absolute; left: 6px; right: 6px; bottom: 4px; height: 4px; background: #000; }
+.slot .dura i { display: block; height: 100%; }
+
+/* Taller */
+.craft-panel { max-width: 940px !important; }
+#craft-station .station { display: inline-block; font-size: 13px; padding: 5px 10px; background: #0008; border: 2px solid #000; color: #ffd7a0; }
+#craft-station .station.on { color: #b9ffad; }
+#craft-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.tab { font: inherit; font-weight: 700; font-size: 13px; color: #fff; cursor: pointer; padding: 7px 12px; background: #6c6c6c; border: 2px solid #1a1a1a; box-shadow: inset 2px 2px 0 #9a9a9a; text-shadow: 1px 1px 0 #333; }
+.tab.on { background: #c6c6c6; color: #222; text-shadow: none; box-shadow: inset 2px 2px 0 #fff; }
+.tab em { font-style: normal; margin-left: 6px; background: #3e8f22; color: #fff; padding: 0 6px; border-radius: 8px; font-size: 11px; }
+.craft-body { display: grid; grid-template-columns: 1fr 320px; gap: 10px; background: #c6c6c6; border: 3px solid #555; padding: 10px; height: min(62vh, 520px); }
+#craft-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; align-content: start; overflow-y: auto; padding-right: 4px; }
+.rcard { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 4px 6px; background: #8b8b8b; border: 2px solid #373737; border-right-color: #fff; border-bottom-color: #fff; cursor: pointer; color: #fff; font: inherit; }
+.rcard img { width: 40px; height: 40px; image-rendering: pixelated; }
+.rcard .rname { font-size: 11px; line-height: 1.15; text-align: center; text-shadow: 1px 1px 0 #333; }
+.rcard .count { position: absolute; top: 34px; right: 22px; font-weight: 800; font-size: 13px; text-shadow: 2px 2px 0 #000; }
+.rcard .lock { position: absolute; top: 3px; right: 5px; font-size: 12px; color: #ffd7a0; }
+.rcard:not(.ok) { opacity: .55; }
+.rcard.ok { box-shadow: inset 0 0 0 2px #5fbf3b; }
+.rcard.sel { background: #a7b9e8; opacity: 1; outline: 2px solid #fff; }
+.rcard:hover { filter: brightness(1.1); }
+#craft-detail { background: #8b8b8b; border: 2px solid #373737; border-right-color: #fff; border-bottom-color: #fff; padding: 12px; display: flex; flex-direction: column; gap: 10px; text-shadow: 1px 1px 0 #333; overflow-y: auto; }
+.d-head { display: flex; gap: 12px; align-items: center; }
+.d-head img { width: 64px; height: 64px; image-rendering: pixelated; flex: none; }
+.d-head h3 { margin: 0 0 4px; font-size: 18px; }
+.d-head p { margin: 0; font-size: 13px; color: #f1f1f1; line-height: 1.35; }
+.d-ings { display: flex; flex-direction: column; gap: 4px; }
+.d-ings small { color: #eee; font-weight: 700; text-transform: uppercase; font-size: 11px; letter-spacing: .06em; }
+.ing { display: flex; align-items: center; gap: 8px; font-size: 13px; background: #0002; padding: 3px 6px; }
+.ing img { width: 24px; height: 24px; image-rendering: pixelated; }
+.ing span { flex: 1; } .ing b { font-size: 14px; }
+.ing.miss b { color: #ffb4b4; } .ing.ok b { color: #c9ffbf; }
+.why { margin: 0; color: #ffd7a0; font-size: 13px; }
+.d-actions { margin-top: auto; display: flex; flex-direction: column; gap: 6px; }
+.heart.mid { display: inline-block; width: 36px; height: 32px; clip-path: path('M18 30 L2 14 Q-2 6 6 2 Q12 0 18 6 Q24 0 30 2 Q38 6 34 14 Z'); margin: 4px 0; }
+@media (max-width: 760px) { .craft-body { grid-template-columns: 1fr; height: auto; } }
+
+/* Con una pantalla abierta (Taller, mapa, inventario) se ocultan los paneles del HUD que quedarían encima. */
+body:has(.screen.open) #mission, body:has(.screen.open) #minimap { visibility: hidden; }
