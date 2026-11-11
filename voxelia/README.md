@@ -72,8 +72,8 @@ npm test             # generación del mundo, física, guardado
 ## Instalador para Windows
 
 - **Automático (recomendado):** cada cambio en `voxelia/` que llega a `main` dispara el workflow `.github/workflows/voxelia.yml`, que arma el instalador en una máquina Windows. Se descarga desde GitHub → **Actions** → *Voxelia · instalador Windows* → la última corrida → **Artifacts** → `Voxelia-Windows`.
-- **Release pública:** creá un tag `voxelia-v0.1.0` y el workflow publica una Release con el `.exe`.
-- **A mano en Windows:** `npm install && npm run dist:win` deja `release/Voxelia Setup 0.1.0.exe` y una versión portable `.zip`.
+- **Release pública (link permanente, sin cuenta):** cuando llega a `main` una versión nueva de `package.json`, el workflow publica la Release `voxelia-vX.Y.Z` con el `.exe`. Se descarga desde GitHub → **Releases**. Para sacar otra, subí `version` en `package.json`.
+- **A mano en Windows:** `npm install && npm run dist:win` deja `release/Voxelia-Setup-0.2.0.exe` y una versión portable `.zip`.
 
 El instalador no está firmado digitalmente, así que Windows SmartScreen puede mostrar "Windows protegió su PC". Se sigue con **Más información → Ejecutar de todas formas**. Para distribuirlo al público conviene un certificado de firma de código.
 

@@ -55,6 +55,7 @@
       "icon": "build/icon.png"
     },
     "nsis": {
+      "artifactName": "Voxelia-Setup-${version}.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
