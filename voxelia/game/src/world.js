@@ -151,6 +151,7 @@ export class World {
             const r = hash3(this.seed, x, y, z);
             if (r < 0.012) id = B.COAL;
             else if (y < 28 && r < 0.017) id = B.IRON;
+            else if (y < 20 && r < 0.0195) id = B.CRYSTAL;   // cristales luminosos, solo en lo profundo
           }
           // Cuevas: túneles donde dos ruidos 3D se acercan a cero.
           if (id !== B.BEDROCK && id !== B.WATER && id !== B.AIR && y > 3 && y < h - 3) {

@@ -71,3 +71,27 @@ input:focus, select:focus { outline: none; border-color: #fff; }
 .world-item:hover { border-color: #fff; }
 .world-item .grow { flex: 1; }
 .settings[hidden] { display: none; }
+
+/* Supervivencia: energía, misiones, taller, planeador */
+.status-row { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 12px; }
+#stamina { display: none; width: 150px; height: 9px; background: #0009; border: 2px solid #000; }
+#stamina > div { height: 100%; background: linear-gradient(90deg, #ffd23f, #ffe98a); transition: width .1s; }
+#stamina.low > div { background: #ff7a3d; }
+#mission { display: none; position: absolute; top: 10px; right: 12px; width: 280px; background: #000a; border: 2px solid #000; padding: 10px 12px; font-size: 13px; }
+#mission b { display: block; font-size: 15px; margin: 2px 0 6px; }
+#mission small { color: #cfc6a2; display: block; margin-top: 6px; line-height: 1.35; }
+#mission .m-count { color: #5ff2e6; font-weight: 700; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+.m-bar { height: 6px; background: #333; } .m-bar > div { height: 100%; background: #5ff2e6; transition: width .3s; }
+#glide-tag { display: none; position: absolute; left: 50%; top: 58%; transform: translateX(-50%); color: #5ff2e6; font-weight: 800; letter-spacing: .1em; text-shadow: 2px 2px 0 #000; }
+#craft-list { display: flex; flex-direction: column; gap: 6px; background: #c6c6c6; border: 3px solid #555; padding: 10px; max-height: 64vh; overflow-y: auto; }
+.recipe { display: flex; align-items: center; gap: 12px; background: #8b8b8b; border: 2px solid #373737; border-right-color: #fff; border-bottom-color: #fff; padding: 6px 10px; }
+.recipe.locked { opacity: .55; }
+.r-out img { width: 40px; height: 40px; image-rendering: pixelated; display: block; }
+.r-body { flex: 1; text-shadow: 1px 1px 0 #333; }
+.ings { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.ing { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; }
+.ing img { width: 22px; height: 22px; image-rendering: pixelated; }
+.ing.miss { color: #ffb4b4; } .ing.ok { color: #c9ffbf; }
+.heart.big { display: inline-block; width: 36px; height: 32px; transform: scale(1); clip-path: path('M18 30 L2 14 Q-2 6 6 2 Q12 0 18 6 Q24 0 30 2 Q38 6 34 14 Z'); }
+.mc-btn:disabled { opacity: .6; cursor: not-allowed; filter: grayscale(1); }
+#day { color: #ffe066; margin-left: 6px; }

@@ -45,11 +45,44 @@ export class Sky {
     this.clouds.rotation.x = -Math.PI / 2;
     scene.add(this.clouds);
     this.color = new THREE.Color();
+    // Lluvia: gotas que caen alrededor de la cámara. Alterna períodos secos y lluviosos.
+    const drops = 1400;
+    const pos = new Float32Array(drops * 3);
+    for (let i = 0; i < drops; i++) { pos[i * 3] = (Math.random() - 0.5) * 50; pos[i * 3 + 1] = Math.random() * 30; pos[i * 3 + 2] = (Math.random() - 0.5) * 50; }
+    const rg = new THREE.BufferGeometry();
+    rg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    this.rainPoints = new THREE.Points(rg, new THREE.PointsMaterial({ color: 0xa9c4ff, size: 0.09, transparent: true, opacity: 0, depthWrite: false }));
+    this.rainPoints.frustumCulled = false;
+    scene.add(this.rainPoints);
+    this.rain = 0;            // intensidad actual 0..1
+    this.raining = false;
+    this.weatherTimer = 150 + Math.random() * 150;
+  }
+
+  updateWeather(dt, camera) {
+    this.weatherTimer -= dt;
+    if (this.weatherTimer <= 0) {
+      this.raining = !this.raining;
+      this.weatherTimer = this.raining ? 70 + Math.random() * 90 : 180 + Math.random() * 200;
+    }
+    this.rain += ((this.raining ? 1 : 0) - this.rain) * Math.min(1, dt * 0.25);
+    const pts = this.rainPoints;
+    pts.visible = this.rain > 0.02;
+    if (!pts.visible) return;
+    pts.material.opacity = 0.7 * this.rain;
+    pts.position.set(camera.position.x, camera.position.y - 12, camera.position.z);
+    const a = pts.geometry.attributes.position;
+    for (let i = 0; i < a.count; i++) {
+      let y = a.getY(i) - dt * 22;
+      if (y < 0) y += 30;
+      a.setY(i, y);
+    }
+    a.needsUpdate = true;
   }
 
   get daylight() {
     const s = Math.sin(this.time * Math.PI * 2);
-    return Math.max(0.16, Math.min(1, s * 1.6 + 0.35));
+    return Math.max(0.16, Math.min(1, s * 1.6 + 0.35) * (1 - 0.3 * (this.rain ?? 0)));
   }
 
   get clock() {
@@ -59,10 +92,12 @@ export class Sky {
 
   update(dt, camera, underwater) {
     this.time = (this.time + dt / DAY_LENGTH) % 1;
+    this.updateWeather(dt, camera);
     const s = Math.sin(this.time * Math.PI * 2);
     const dl = this.daylight;
     const dusk = Math.max(0, 1 - Math.abs(s) * 4) * (this.time < 0.1 || (this.time > 0.4 && this.time < 0.6) || this.time > 0.9 ? 1 : 0);
     this.color.copy(NIGHT).lerp(DAY, (dl - 0.16) / 0.84).lerp(DUSK, dusk * 0.55);
+    if (this.rain > 0.02) this.color.lerp(new THREE.Color(0x6f7782).multiplyScalar(Math.max(0.2, dl)), this.rain * 0.7);
     if (underwater) this.color.copy(WATER_FOG).multiplyScalar(Math.max(0.3, dl));
     this.group.position.copy(camera.position);
     const ang = this.time * Math.PI * 2;

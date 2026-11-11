@@ -9,6 +9,10 @@ import { Sky } from './sky.js';
 import { Sound } from './audio.js';
 import { UI } from './ui.js';
 import { saveWorld, saveSettings, exitToLauncher } from './storage.js';
+import { I, ITEMS, isItem, mineSpeed, attackDamage } from './items.js';
+import { craft } from './recipes.js';
+import { emptyStats, missionStatus } from './missions.js';
+import { Shadows } from './mobs.js';
 
 const DEFAULT_HOTBAR = [B.GRASS, B.DIRT, B.STONE, B.COBBLE, B.PLANKS, B.LOG, B.GLASS, B.BRICK, B.LAMP];
 
@@ -37,6 +41,13 @@ export class Game {
     this.lastSave = performance.now();
     this.fpsFrames = 0; this.fpsTime = 0; this.fps = 0;
     this.playTime = save?.playTime ?? 0;
+    // Progreso de supervivencia propio de Voxelia.
+    this.stats = { ...emptyStats(), ...(save?.stats ?? {}) };
+    this.maxHealth = save?.maxHealth ?? 20;
+    this.faros = save?.faros ?? [];
+    this.beams = new Map();
+    this.attackCooldown = 0;
+    this.craftOpen = false;
 
     this.world = new World(seed, save?.mods ?? {});
     this.initRenderer();
@@ -49,11 +60,17 @@ export class Game {
     this.spawn = save?.spawn ?? this.world.spawnPoint();
     this.player = new Player(this.world, spawn);
     this.player.flying = save?.player?.flying ?? false;
+    this.player.useStamina = mode === 'survival';
+    this.player.hasGlider = (this.inventory[I.GLIDER] ?? 0) > 0;
     this.ui = new UI(this.atlasCanvas, mode);
+    this.shadows = new Shadows(this.scene, this.world, this.sound);
+    for (const f of this.faros) this.addBeam(f);
+    this.lastMission = missionStatus(this.stats).done;
     this.initHighlight();
     this.bindInput();
     this.ui.renderHotbar(this.hotbar, this.selected);
-    this.ui.renderHearts(this.health);
+    this.ui.renderHearts(this.health, this.maxHealth);
+    this.ui.renderMission(missionStatus(this.stats));
     document.querySelector('#world-title').textContent = name;
   }
 
@@ -188,7 +205,8 @@ export class Game {
     let lastSpace = 0;
     document.addEventListener('keydown', (e) => {
       if (e.code === 'Escape') return;
-      if (e.code === 'KeyE' && this.started) { this.toggleInventory(); return; }
+      if (e.code === 'KeyE' && this.started && !this.craftOpen) { this.toggleInventory(); return; }
+      if (e.code === 'KeyC' && this.started && this.mode === 'survival' && !this.inventoryOpen) { this.toggleCraft(); return; }
       if (this.paused) return;
       if (keymap[e.code]) this.player.input[keymap[e.code]] = 1;
       if (e.code === 'Space') {
@@ -220,7 +238,11 @@ export class Game {
     this.canvas.addEventListener('mousedown', (e) => {
       if (this.paused) return;
       if (document.pointerLockElement !== this.canvas) { this.lock(); return; }
-      if (e.button === 0) { this.mouse.left = true; if (this.mode === 'creative') this.breakTarget(); }
+      if (e.button === 0) {
+        if (this.attackShadow()) return;
+        this.mouse.left = true;
+        if (this.mode === 'creative') this.breakTarget();
+      }
       if (e.button === 2) this.placeBlock();
       if (e.button === 1) this.pickBlock();
     });
@@ -228,7 +250,7 @@ export class Game {
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     document.addEventListener('wheel', (e) => { if (!this.paused) this.select((this.selected + (e.deltaY > 0 ? 1 : 8)) % 9); }, { passive: true });
     document.addEventListener('pointerlockchange', () => {
-      if (document.pointerLockElement !== this.canvas && this.started && !this.inventoryOpen && !this.dead) this.pause(true);
+      if (document.pointerLockElement !== this.canvas && this.started && !this.inventoryOpen && !this.craftOpen && !this.dead) this.pause(true);
     });
   }
 
@@ -250,11 +272,96 @@ export class Game {
       if (document.pointerLockElement) document.exitPointerLock();
       this.ui.renderInventory((id) => {
         // Pone el bloque elegido en la casilla seleccionada.
+        // Si el ítem ya estaba en otra casilla, se mueve (no se duplica).
+        this.hotbar = this.hotbar.map((s) => (s?.id === id ? null : s));
         this.hotbar[this.selected] = { id, count: this.mode === 'survival' ? this.inventory[id] : 1 };
         this.ui.renderHotbar(this.hotbar, this.selected);
         this.toggleInventory();
       }, this.inventory);
     } else { this.paused = false; this.lock(); }
+  }
+
+  toggleCraft() {
+    this.craftOpen = !this.craftOpen;
+    this.ui.show('#craft', this.craftOpen);
+    if (this.craftOpen) {
+      this.paused = true;
+      if (document.pointerLockElement) document.exitPointerLock();
+      this.renderCraft();
+    } else { this.paused = false; this.lock(); }
+  }
+
+  renderCraft() {
+    this.ui.renderCraft(this.inventory, { maxHealth: this.maxHealth }, (recipe) => {
+      const res = craft(recipe, this.inventory, { maxHealth: this.maxHealth });
+      if (!res) return;
+      this.stats.crafted[recipe.id] = (this.stats.crafted[recipe.id] ?? 0) + 1;
+      if (res.special === 'heart') { this.maxHealth = Math.min(30, this.maxHealth + 2); this.health = Math.min(this.maxHealth, this.health + 2); this.ui.renderHearts(this.health, this.maxHealth); this.ui.toast('¡Corazón extra! Tu vida máxima aumentó.'); }
+      for (const id of Object.keys(res.out).map(Number)) this.autoSlot(id);
+      if (this.inventory[I.GLIDER]) this.player.hasGlider = true;
+      this.sound.tone(660, 0.08, 0.15, 'sine'); setTimeout(() => this.sound.tone(880, 0.12, 0.15, 'sine'), 70);
+      this.syncHotbar();
+      this.checkMissions();
+      this.renderCraft();
+    });
+  }
+
+  // Pone un ítem nuevo en una casilla libre de la barra rápida.
+  autoSlot(id) {
+    if (this.hotbar.some((s) => s?.id === id)) return;
+    const free = this.hotbar.findIndex((s) => !s);
+    if (free >= 0) this.hotbar[free] = { id, count: this.inventory[id] ?? 0 };
+  }
+
+  // La barra rápida refleja las cantidades del inventario.
+  syncHotbar() {
+    if (this.mode !== 'survival') return;
+    this.hotbar = this.hotbar.map((s) => (s && (this.inventory[s.id] ?? 0) > 0 ? { id: s.id, count: this.inventory[s.id] } : null));
+    this.ui.renderHotbar(this.hotbar, this.selected);
+  }
+
+  checkMissions() {
+    const st = missionStatus(this.stats);
+    if (st.done > this.lastMission) {
+      this.ui.toast('¡Misión cumplida!', 2500);
+      this.sound.tone(523, 0.1, 0.15, 'sine'); setTimeout(() => this.sound.tone(659, 0.1, 0.15, 'sine'), 100); setTimeout(() => this.sound.tone(784, 0.2, 0.15, 'sine'), 200);
+    }
+    this.lastMission = st.done;
+    this.ui.renderMission(st);
+  }
+
+  held() { return this.hotbar[this.selected]?.id ?? null; }
+
+  attackShadow() {
+    if (this.attackCooldown > 0 || !this.shadows.list.length) return false;
+    const hit = this.shadows.hit(this.player.eye(), this.player.look(), 3.6, attackDamage(this.held()), this.mobCtx());
+    if (hit) this.attackCooldown = 0.35;
+    return hit;
+  }
+
+  mobCtx() {
+    return {
+      player: this.player, daylight: this.sky.daylight, enabled: this.mode === 'survival' && !this.dead, nights: this.stats.nights,
+      onHitPlayer: (dmg, dir) => { this.damage(dmg, 'Una Sombra te atrapó en la oscuridad'); this.player.vel.x += dir.x * 7; this.player.vel.z += dir.z * 7; this.player.vel.y = 4; },
+      onKilled: (_pos, byPlayer) => { if (byPlayer) { this.stats.kills += 1; this.addItem(I.ESSENCE); this.checkMissions(); } },
+    };
+  }
+
+  // Faro: rayo de luz visible desde lejos y punto de reaparición.
+  addBeam(f) {
+    const key = `${f.x},${f.y},${f.z}`;
+    if (this.beams.has(key)) return;
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 90, 8, 1, true), new THREE.MeshBasicMaterial({ color: 0x5ff2e6, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+    beam.position.set(f.x + 0.5, f.y + 46, f.z + 0.5);
+    this.scene.add(beam);
+    this.beams.set(key, beam);
+  }
+
+  removeBeam(x, y, z) {
+    const key = `${x},${y},${z}`;
+    const beam = this.beams.get(key);
+    if (beam) { this.scene.remove(beam); beam.geometry.dispose(); beam.material.dispose(); this.beams.delete(key); }
+    this.faros = this.faros.filter((f) => `${f.x},${f.y},${f.z}` !== key);
   }
 
   // ───────── Bloques ─────────
@@ -266,12 +373,13 @@ export class Game {
     this.world.setBlock(t.x, t.y, t.z, B.AIR);
     this.sound.dig(t.block.sound);
     this.spawnParticles(t);
-    if (this.mode === 'survival') this.addItem(t.block.drop);
+    if (t.id === B.FARO) this.removeBeam(t.x, t.y, t.z);
+    if (this.mode === 'survival') { this.addItem(t.block.drop); this.checkMissions(); }
   }
 
   placeBlock() {
     const slot = this.hotbar[this.selected];
-    if (!slot?.id) return;
+    if (!slot?.id || isItem(slot.id)) return;   // herramientas y materiales no se colocan
     const t = this.target();
     if (!t) return;
     const x = t.x + t.face[0]; const y = t.y + t.face[1]; const z = t.z + t.face[2];
@@ -281,11 +389,18 @@ export class Game {
     if (y < 0 || y >= H) return;
     this.world.setBlock(x, y, z, slot.id);
     this.sound.place(BLOCKS[slot.id].sound);
+    if (slot.id === B.FARO) {
+      this.faros.push({ x, y, z });
+      this.addBeam({ x, y, z });
+      this.spawn = { x: x + 0.5, y: y + 1, z: z + 0.5 };
+      this.ui.toast('Faro encendido: vas a reaparecer acá');
+    }
     if (this.mode === 'survival') {
       this.inventory[slot.id] = (this.inventory[slot.id] ?? 1) - 1;
-      slot.count -= 1;
-      if (slot.count <= 0) this.hotbar[this.selected] = null;
-      this.ui.renderHotbar(this.hotbar, this.selected);
+      if (this.inventory[slot.id] <= 0) delete this.inventory[slot.id];
+      this.stats.placed[slot.id] = (this.stats.placed[slot.id] ?? 0) + 1;
+      this.syncHotbar();
+      this.checkMissions();
     }
   }
 
@@ -296,12 +411,12 @@ export class Game {
     this.ui.renderHotbar(this.hotbar, this.selected);
   }
 
-  addItem(id) {
-    if (!PLACEABLE.includes(id)) return;
-    this.inventory[id] = (this.inventory[id] ?? 0) + 1;
-    let slot = this.hotbar.findIndex((s) => s?.id === id);
-    if (slot < 0) slot = this.hotbar.findIndex((s) => !s);
-    if (slot >= 0) { this.hotbar[slot] = { id, count: this.inventory[id] }; this.ui.renderHotbar(this.hotbar, this.selected); }
+  addItem(id, n = 1) {
+    if (!PLACEABLE.includes(id) && !ITEMS[id]) return;
+    this.inventory[id] = (this.inventory[id] ?? 0) + n;
+    this.stats.collected[id] = (this.stats.collected[id] ?? 0) + n;
+    this.autoSlot(id);
+    this.syncHotbar();
   }
 
   // Supervivencia: romper lleva tiempo según la dureza del bloque.
@@ -311,7 +426,7 @@ export class Game {
     if (!t || !t.block.breakable) { this.breaking = null; this.ui.setBreakProgress(0); return; }
     const key = `${t.x},${t.y},${t.z}`;
     if (!this.breaking || this.breaking.key !== key) this.breaking = { key, progress: 0, tick: 0 };
-    const time = Math.max(0.15, t.block.hardness * 0.75);
+    const time = Math.max(0.12, (t.block.hardness * 0.75) / mineSpeed(this.held(), t.block));
     this.breaking.progress += dt / time;
     this.breaking.tick += dt;
     if (this.breaking.tick > 0.25) { this.breaking.tick = 0; this.sound.step(t.block.sound); }
@@ -349,7 +464,7 @@ export class Game {
     if (this.mode !== 'survival' || n <= 0 || this.dead) return;
     this.health = Math.max(0, this.health - n);
     this.sound.hurt();
-    this.ui.renderHearts(this.health);
+    this.ui.renderHearts(this.health, this.maxHealth);
     document.querySelector('#hurt').classList.remove('flash'); void document.querySelector('#hurt').offsetWidth; document.querySelector('#hurt').classList.add('flash');
     if (this.health <= 0) this.die(reason);
   }
@@ -363,10 +478,10 @@ export class Game {
 
   respawn() {
     this.dead = false;
-    this.health = 20; this.air = 10;
+    this.health = this.maxHealth; this.air = 10; this.player.stamina = 100;
     this.player.pos.set(this.spawn.x, this.spawn.y, this.spawn.z);
     this.player.vel.set(0, 0, 0);
-    this.ui.renderHearts(this.health);
+    this.ui.renderHearts(this.health, this.maxHealth);
     this.ui.show('#death', false);
     this.lock();
   }
@@ -378,6 +493,7 @@ export class Game {
       player: { x: this.player.pos.x, y: this.player.pos.y, z: this.player.pos.z, yaw: this.player.yaw, pitch: this.player.pitch, flying: this.player.flying },
       spawn: this.spawn, time: this.sky.time, health: this.health, inventory: this.inventory, hotbar: this.hotbar, selected: this.selected,
       playTime: this.playTime, mods: this.world.serializeMods(), savedAt: new Date().toISOString(),
+      stats: this.stats, maxHealth: this.maxHealth, faros: this.faros,
     };
   }
   async save() { this.lastSave = performance.now(); await saveWorld(this.worldId, this.snapshot()); }
@@ -420,9 +536,20 @@ export class Game {
         this.ui.renderAir(this.air, this.player.headInWater || this.air < 10);
         // Regeneración lenta.
         this.regen = (this.regen ?? 0) + dt;
-        if (this.regen > 6 && this.health < 20 && this.health > 0) { this.regen = 0; this.health += 1; this.ui.renderHearts(this.health); }
+        if (this.regen > 6 && this.health < this.maxHealth && this.health > 0) { this.regen = 0; this.health += 1; this.ui.renderHearts(this.health, this.maxHealth); }
       }
       this.updateBreaking(dt);
+      this.attackCooldown = Math.max(0, this.attackCooldown - dt);
+      this.shadows.update(dt, this.mobCtx());
+      // Cada amanecer cuenta como una noche sobrevivida.
+      if (this.prevTime !== undefined && this.prevTime > 0.9 && this.sky.time < 0.1 && this.mode === 'survival') {
+        this.stats.nights += 1;
+        this.ui.toast(`Amaneció · Día ${this.stats.nights + 1}`, 3000);
+        this.checkMissions();
+      }
+      this.prevTime = this.sky.time;
+      this.ui.renderStamina(this.player.stamina, this.mode === 'survival');
+      document.querySelector('#glide-tag').style.display = this.player.gliding ? 'block' : 'none';
     }
     this.updateParticles(dt);
 
@@ -460,6 +587,7 @@ export class Game {
     const p = this.player.pos;
     document.querySelector('#fps').textContent = this.settings.showFps ? `${this.fps} FPS` : '';
     document.querySelector('#clock').textContent = this.sky.clock;
+    document.querySelector('#day').textContent = this.mode === 'survival' ? ` · Día ${this.stats.nights + 1}` : '';
     if (this.showDebug) {
       this.ui.debug([
         `Voxelia 0.1 · ${this.fps} FPS`,

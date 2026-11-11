@@ -24,6 +24,11 @@ export class Player {
     this.fallStart = null;
     this.input = { f: 0, b: 0, l: 0, r: 0, jump: false, down: false, sprint: false };
     this.stepDist = 0;
+    // Energía (supervivencia): correr y saltar la gastan; se recupera descansando.
+    this.useStamina = false;
+    this.stamina = 100;
+    this.hasGlider = false;
+    this.gliding = false;
   }
 
   eye() { return new THREE.Vector3(this.pos.x, this.pos.y + EYE, this.pos.z); }
@@ -60,7 +65,8 @@ export class Player {
     const fwd = i.f - i.b;
     const side = i.r - i.l;
     const sin = Math.sin(this.yaw); const cos = Math.cos(this.yaw);
-    let speed = this.flying ? FLY * (i.sprint ? 1.8 : 1) : i.sprint ? SPRINT : WALK;
+    const canSprint = i.sprint && (!this.useStamina || this.stamina > 2);
+    let speed = this.flying ? FLY * (i.sprint ? 1.8 : 1) : canSprint ? SPRINT : WALK;
     if (this.inWater && !this.flying) speed *= 0.55;
     let mx = -sin * fwd + cos * side;
     let mz = -cos * fwd - sin * side;
@@ -80,8 +86,25 @@ export class Player {
       this.vel.y = Math.max(this.vel.y, -3);
     } else {
       this.vel.y -= GRAVITY * dt;
-      if (i.jump && this.onGround) this.vel.y = JUMP;
+      if (i.jump && this.onGround) {
+        this.vel.y = this.useStamina && this.stamina < 6 ? JUMP * 0.75 : JUMP;
+        if (this.useStamina) this.stamina = Math.max(0, this.stamina - 6);
+      }
       this.vel.y = Math.max(this.vel.y, -55);
+      // Planeador: con Espacio apretado en caída se planea hacia donde se mira.
+      this.gliding = this.hasGlider && i.jump && !this.onGround && this.vel.y < 0;
+      if (this.gliding) {
+        this.vel.y = Math.max(this.vel.y, -2.2);
+        const gx = -Math.sin(this.yaw) * 8.5; const gz = -Math.cos(this.yaw) * 8.5;
+        this.vel.x += (gx - this.vel.x) * Math.min(1, 2.5 * dt);
+        this.vel.z += (gz - this.vel.z) * Math.min(1, 2.5 * dt);
+        this.fallStart = null;
+      }
+    }
+    if (this.useStamina) {
+      const moving = len > 0;
+      if (canSprint && moving && !this.flying) this.stamina = Math.max(0, this.stamina - 16 * dt);
+      else this.stamina = Math.min(100, this.stamina + (moving ? 12 : 22) * dt);
     }
 
     // Movimiento eje por eje con colisiones.
@@ -108,7 +131,7 @@ export class Player {
     move(2, this.vel.z * dt);
 
     // Daño por caída (supervivencia): altura caída al tocar el suelo.
-    if (!this.onGround && !this.inWater && !this.flying && this.vel.y < 0 && this.fallStart === null) this.fallStart = this.pos.y;
+    if (!this.onGround && !this.inWater && !this.flying && !this.gliding && this.vel.y < 0 && this.fallStart === null) this.fallStart = this.pos.y;
     if ((this.onGround || this.inWater || this.flying) && this.fallStart !== null) {
       const dist = this.fallStart - this.pos.y;
       if (this.onGround && !wasGround && dist > 3.5) events.fallDamage = Math.floor(dist - 3);

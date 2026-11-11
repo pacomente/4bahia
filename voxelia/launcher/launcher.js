@@ -6,9 +6,10 @@ let worlds = [];
 let settings = {};
 
 const NEWS = [
+  { date: '11/11/2026', title: 'Voxelia 0.2 — Supervivencia', items: ['Taller: fabricá con un clic, sin recetas para memorizar', 'Sombras nocturnas que le temen a la luz', 'Energía en lugar de hambre', 'Cristales en cuevas profundas, faro y planeador', 'Misiones guiadas, herramientas por nivel, corazones extra y lluvia'] },
   { date: '11/11/2026', title: 'Voxelia 0.1 — primera beta', items: ['Mundo infinito con biomas: llanuras, bosques, desierto, nieve y montañas', 'Cuevas con carbón y hierro', 'Modos Creativo y Supervivencia', 'Ciclo de día y noche con nubes y estrellas', '22 bloques para construir'] },
-  { date: 'Próximamente', title: 'En desarrollo', items: ['Mesa de crafteo y herramientas', 'Animales y criaturas nocturnas', 'Multijugador en red local', 'Paquetes de texturas'] },
-  { date: 'Consejo', title: 'Cómo empezar', items: ['Creá un mundo en Creativo para explorar volando (doble espacio)', 'Usá E para elegir bloques y la rueda del mouse para cambiar', 'F3 muestra tu posición, bioma y semilla'] },
+  { date: 'Próximamente', title: 'En desarrollo', items: ['Animales', 'Multijugador en red local', 'Paquetes de texturas'] },
+  { date: 'Consejo', title: 'Cómo empezar', items: ['Creá un mundo en Creativo para explorar volando (doble espacio)', 'Usá E para elegir bloques y la rueda del mouse para cambiar', 'En Supervivencia, C abre el Taller y la luz te protege de las Sombras', 'F3 muestra tu posición, bioma y semilla'] },
 ];
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -140,7 +141,7 @@ function browserApi() {
       const p = JSON.parse(localStorage.getItem('voxelia_profile') ?? '{"name":"Jugador"}');
       location.href = `../dist/game/index.html?${new URLSearchParams({ world: w.id, name: w.name, seed: w.seed, mode: w.mode, player: p.name, from: 'launcher' })}`;
     },
-    info: async () => ({ version: '0.1.0', dataPath: 'Navegador (localStorage)', platform: 'web' }),
+    info: async () => ({ version: '0.2.0', dataPath: 'Navegador (localStorage)', platform: 'web' }),
     openDataFolder: async () => toast('Disponible en la app de escritorio'),
   };
 }

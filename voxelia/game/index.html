@@ -14,11 +14,13 @@
     <div id="hud">
       <div id="crosshair"></div>
       <div id="break"></div>
-      <div id="top-left"><span id="world-title"></span> · <span id="clock"></span> <span id="fps"></span></div>
+      <div id="top-left"><span id="world-title"></span> · <span id="clock"></span><span id="day"></span> <span id="fps"></span></div>
       <pre id="debug"></pre>
       <div id="toast" class="toast"></div>
       <div id="item-name" class="toast item"></div>
-      <div id="status"><div id="bubbles"></div><div id="hearts"></div></div>
+      <div id="status"><div id="bubbles"></div><div class="status-row"><div id="hearts"></div><div id="stamina" title="Energía"><div></div></div></div></div>
+      <div id="mission"></div>
+      <div id="glide-tag">Planeando</div>
       <div id="hotbar"></div>
       <div id="underwater"></div>
       <div id="hurt"></div>
@@ -77,6 +79,8 @@
             <tr><td>Rueda / 1-9</td><td>Elegir bloque</td></tr>
             <tr><td>Clic de rueda</td><td>Copiar el bloque apuntado (creativo)</td></tr>
             <tr><td>E</td><td>Inventario</td></tr>
+            <tr><td>C</td><td>Taller: fabricar herramientas y mejoras (supervivencia)</td></tr>
+            <tr><td>Espacio en el aire</td><td>Planear (con Planeador)</td></tr>
             <tr><td>F3</td><td>Información de depuración</td></tr>
             <tr><td>Esc</td><td>Pausa</td></tr>
           </table>
@@ -89,6 +93,14 @@
       <div class="panel" style="max-width:720px">
         <div class="row between"><h2 id="inv-title">Inventario</h2><span class="muted">Elegí un bloque para la casilla seleccionada · E para cerrar</span></div>
         <div id="inv-grid"></div>
+      </div>
+    </div>
+
+    <!-- Taller -->
+    <div id="craft" class="screen">
+      <div class="panel" style="max-width:760px">
+        <div class="row between"><h2>Taller</h2><span class="muted">Fabricá con un clic · C para cerrar</span></div>
+        <div id="craft-list"></div>
       </div>
     </div>
 

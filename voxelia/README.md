@@ -20,12 +20,25 @@ Juego de mundo abierto de bloques para PC, con su propio **launcher**. Todo el c
   - cuevas con carbón y hierro.
 - **22 bloques** para construir: madera, piedra, vidrio, ladrillo, lana, lámparas que brillan de noche y más.
 - **Modo Creativo**: bloques infinitos y vuelo (doble espacio o F).
-- **Modo Supervivencia**: romper lleva tiempo según el bloque, lo que rompés va al inventario, hay vida con daño por caída, aire bajo el agua y reaparición.
+- **Modo Supervivencia**: romper lleva tiempo según el bloque, lo que rompés va al inventario, hay vida con daño por caída, aire bajo el agua y reaparición. Ver abajo lo que lo hace distinto.
 - **Ciclo de día y noche** con sol, luna, estrellas y nubes. Hay oclusión ambiental y sombras bajo techos y árboles, niebla a distancia y vista bajo el agua.
 - **Física**: gravedad, saltos, colisiones, nado y correr.
 - **Partículas y sonido**: partículas al romper y sonidos sintetizados al romper, colocar y caminar.
 - **Interfaz**: barra rápida, inventario (E), menú de pausa con opciones y controles, e información de depuración (F3).
 - **Guardado** automático cada 30 s y al salir.
+
+## Supervivencia: qué tiene de distinto
+
+- **Taller (C)**: no hay grillas ni recetas para memorizar. Ves la lista de todo lo que se puede fabricar, con los materiales que tenés y los que faltan, y fabricás con un clic.
+- **Herramientas por nivel**: picos, hachas y palas de madera, piedra y hierro. Cada una acelera su tipo de bloque y pega más fuerte.
+- **Energía en lugar de hambre**: correr y saltar gastan energía, y se recupera sola al caminar o quedarte quieto. No hay que andar buscando comida.
+- **Sombras**: criaturas nocturnas que flotan hacia vos y le temen a la luz. Cerca de lámparas, cristales o faros se queman y huyen. De día se disuelven. Al vencerlas sueltan **esencia**. Cada noche que sobrevivís aparecen algunas más.
+- **Cristales**: brillan en las cuevas profundas (por debajo de la altura 20). Iluminan y sirven para fabricar.
+- **Faro**: marca tu punto de reaparición y proyecta un haz de luz visible desde lejos para volver a casa.
+- **Planeador**: se fabrica con esencia. Mantené espacio en el aire para planear sin daño por caída.
+- **Corazones extra**: con esencia y cristal subís la vida máxima, hasta 15 corazones.
+- **Misiones guiadas**: 10 objetivos que te enseñan a jugar, desde juntar madera hasta fabricar el planeador.
+- **Contador de días y lluvia**: el clima cambia y la lluvia oscurece el día.
 
 ## Controles
 
@@ -39,6 +52,8 @@ Juego de mundo abierto de bloques para PC, con su propio **launcher**. Todo el c
 | Rueda o 1-9 | Elegir bloque |
 | Clic de rueda | Copiar el bloque apuntado (creativo) |
 | E | Inventario |
+| C | Taller (supervivencia) |
+| Espacio en el aire | Planear (con planeador) |
 | F3 | Depuración |
 | Esc | Pausa |
 
@@ -72,4 +87,4 @@ build/      icon.png
 
 ## Próximos pasos posibles
 
-Crafteo y herramientas, animales y criaturas, iluminación por bloques (antorchas), multijugador en red local, mods y paquetes de texturas, y actualizaciones automáticas desde el launcher.
+Animales, iluminación por bloques (antorchas), multijugador en red local, mods y paquetes de texturas, y actualizaciones automáticas desde el launcher.

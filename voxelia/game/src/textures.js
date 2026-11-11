@@ -5,7 +5,7 @@ import { BLOCKS } from './blocks.js';
 const S = 16;
 const NAMES = ['grass_top', 'grass_side', 'dirt', 'stone', 'sand', 'water', 'log_top', 'log_side', 'leaves', 'planks',
   'cobble', 'glass', 'snow', 'snow_side', 'brick', 'coal', 'cactus_top', 'cactus_side', 'bedrock', 'gravel', 'iron',
-  'birch_top', 'birch_side', 'birch_leaves', 'clay', 'lamp', 'wool_red', 'wool_blue', 'wool_white'];
+  'birch_top', 'birch_side', 'birch_leaves', 'clay', 'lamp', 'wool_red', 'wool_blue', 'wool_white', 'crystal', 'faro_top', 'faro_side'];
 const COLS = 8;
 export const ATLAS_COLS = COLS;
 export const ATLAS_ROWS = Math.ceil(NAMES.length / COLS);
@@ -90,6 +90,22 @@ function paint(name, px) {
     case 'wool_red': noise(hex('#b8352f'), 0.15); break;
     case 'wool_blue': noise(hex('#2f4fb8'), 0.15); break;
     case 'wool_white': noise(hex('#eae8e4'), 0.08); break;
+    case 'crystal': {
+      noise(hex('#4a4f5c'), 0.25);
+      // Vetas de cristal turquesa brillante.
+      for (let k = 0; k < 5; k++) {
+        let x = Math.floor(r() * 12) + 2; let y = Math.floor(r() * 12) + 2;
+        for (let i = 0; i < 5; i++) { set(x, y, shade(hex('#5ff2e6'), 0.85 + r() * 0.3)); x += r() < 0.5 ? 1 : 0; y += r() < 0.5 ? -1 : 1; if (x >= S || y < 0 || y >= S) break; }
+      }
+      break;
+    }
+    case 'faro_top': for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) { const d = Math.max(Math.abs(x - 7.5), Math.abs(y - 7.5)); set(x, y, d < 3 ? hex('#bffcf6') : d < 5 ? shade(hex('#5ff2e6'), 0.9 + r() * 0.2) : shade(hex('#7d7f88'), 0.85 + r() * 0.2)); } break;
+    case 'faro_side':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const frame = x < 2 || x > 13 || y < 2 || y > 13;
+        set(x, y, frame ? shade(hex('#7d7f88'), 0.85 + r() * 0.2) : shade(hex('#5ff2e6'), (y % 4 < 2 ? 0.8 : 1) * (0.9 + r() * 0.15)));
+      }
+      break;
     default: noise(hex('#ff00ff'), 0);
   }
 }

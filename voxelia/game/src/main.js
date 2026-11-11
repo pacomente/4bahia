@@ -49,6 +49,7 @@ function bindMenus(game, settings) {
   document.addEventListener('keydown', (e) => {
     if (e.code !== 'Escape') return;
     if (game.inventoryOpen) { game.toggleInventory(); return; }
+    if (game.craftOpen) { game.toggleCraft(); return; }
     if (!game.dead) game.pause(!game.paused);
   });
 }
