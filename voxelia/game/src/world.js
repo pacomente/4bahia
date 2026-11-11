@@ -34,7 +34,7 @@ export class Chunk {
   set(x, y, z, id) { this.data[idx(x, y, z)] = id; }
   recomputeTop(x, z) {
     let t = -1;
-    for (let y = H - 1; y >= 0; y--) { const id = this.data[idx(x, y, z)]; if (id && id !== B.WATER && id !== B.GLASS) { t = y; break; } }
+    for (let y = H - 1; y >= 0; y--) { const id = this.data[idx(x, y, z)]; if (id && id !== B.WATER && id !== B.GLASS && id !== B.TORCH) { t = y; break; } }
     this.top[x + z * CS] = t;
   }
 }
@@ -70,6 +70,7 @@ export class World {
     const c = this.getChunk(cx, cz);
     if (!c) return false;
     const lx = x - cx * CS; const lz = z - cz * CS;
+    const old = c.get(lx, y, lz);
     c.set(lx, y, lz, id);
     c.recomputeTop(lx, lz);
     c.dirty = true;
@@ -81,6 +82,8 @@ export class World {
     if (lx === CS - 1) mark(1, 0);
     if (lz === 0) mark(0, -1);
     if (lz === CS - 1) mark(0, 1);
+    // Una fuente de luz ilumina hasta 14 bloques: los 8 vecinos deben recalcular su luz.
+    if (BLOCKS[old]?.light || BLOCKS[id]?.light) for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) mark(dx, dz);
     return true;
   }
 

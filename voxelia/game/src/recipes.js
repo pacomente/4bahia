@@ -16,6 +16,7 @@ export const RECIPES = [
   { id: 'shovel_iron', name: 'Pala de hierro', in: { [I.IRON]: 1, [B.PLANKS]: 2 }, out: { [I.SHOVEL_IRON]: 1 } },
   { id: 'glass', name: 'Vidrio', in: { [B.SAND]: 2, [I.COAL]: 1 }, out: { [B.GLASS]: 2 } },
   { id: 'brick', name: 'Ladrillo', in: { [B.CLAY]: 2, [I.COAL]: 1 }, out: { [B.BRICK]: 4 } },
+  { id: 'torch', name: 'Antorchas', in: { [I.COAL]: 1, [B.PLANKS]: 1 }, out: { [B.TORCH]: 4 } },
   { id: 'lamp', name: 'Lámpara', in: { [B.GLASS]: 1, [I.COAL]: 2 }, out: { [B.LAMP]: 2 } },
   { id: 'faro', name: 'Faro', in: { [I.CRYSTAL]: 3, [B.COBBLE]: 4 }, out: { [B.FARO]: 1 } },
   { id: 'glider', name: 'Planeador', in: { [I.CRYSTAL]: 4, [I.ESSENCE]: 2, [B.PLANKS]: 4 }, out: { [I.GLIDER]: 1 }, once: true },

@@ -8,8 +8,8 @@ Juego de mundo abierto de bloques para PC, con su propio **launcher**. Todo el c
 
 **Launcher (app de escritorio)**
 - Perfil del jugador (nombre).
-- Mis mundos: crear (nombre, semilla, modo), jugar y eliminar, con la última vez jugada y el tiempo total.
-- Novedades y ajustes: distancia de renderizado, campo de visión, sensibilidad, volumen, pantalla completa y FPS.
+- Mis mundos: crear (nombre, semilla, modo), jugar y eliminar, con una foto de cada mundo, la última vez jugada y el tiempo total.
+- Novedades y ajustes: distancia de renderizado, campo de visión, sensibilidad, volumen, música, minimapa, pantalla completa y FPS.
 - Botón **JUGAR**: abre el juego en su ventana. Al salir vuelve al launcher.
 - Los mundos se guardan como archivos en la carpeta de datos del usuario (en Windows, `%APPDATA%\Voxelia`).
 
@@ -18,7 +18,11 @@ Juego de mundo abierto de bloques para PC, con su propio **launcher**. Todo el c
   - biomas: llanuras, bosque, desierto, nieve y montañas;
   - árboles (roble y abedul), cactus, playas, lagos y mar;
   - cuevas con carbón y hierro.
-- **22 bloques** para construir: madera, piedra, vidrio, ladrillo, lana, lámparas que brillan de noche y más.
+- **Más de 25 bloques** para construir: madera, piedra, vidrio, ladrillo, lana, lámparas, antorchas y más.
+- **Iluminación real**: lámparas, antorchas, cristales y faros iluminan a su alrededor con luz cálida, y la luz no atraviesa paredes. Bajo tierra está oscuro de verdad.
+- **Minimapa y mapa** (M) de lo explorado, con tus faros y el punto de reaparición.
+- **Lanudos**: animales pacíficos de pelaje pastel que pastan de día, huyen si les pegás y sueltan lana.
+- **Música ambiental** generada en el momento: luminosa de día, más grave de noche y bajo tierra.
 - **Modo Creativo**: bloques infinitos y vuelo (doble espacio o F).
 - **Modo Supervivencia**: romper lleva tiempo según el bloque, lo que rompés va al inventario, hay vida con daño por caída, aire bajo el agua y reaparición. Ver abajo lo que lo hace distinto.
 - **Ciclo de día y noche** con sol, luna, estrellas y nubes. Hay oclusión ambiental y sombras bajo techos y árboles, niebla a distancia y vista bajo el agua.
@@ -38,6 +42,7 @@ Juego de mundo abierto de bloques para PC, con su propio **launcher**. Todo el c
 - **Planeador**: se fabrica con esencia. Mantené espacio en el aire para planear sin daño por caída.
 - **Corazones extra**: con esencia y cristal subís la vida máxima, hasta 15 corazones.
 - **Misiones guiadas**: 10 objetivos que te enseñan a jugar, desde juntar madera hasta fabricar el planeador.
+- **Antorchas**: carbón + tablas = 4 antorchas, la forma barata de mantener lejos a las Sombras.
 - **Contador de días y lluvia**: el clima cambia y la lluvia oscurece el día.
 
 ## Controles
@@ -53,6 +58,7 @@ Juego de mundo abierto de bloques para PC, con su propio **launcher**. Todo el c
 | Clic de rueda | Copiar el bloque apuntado (creativo) |
 | E | Inventario |
 | C | Taller (supervivencia) |
+| M | Mapa |
 | Espacio en el aire | Planear (con planeador) |
 | F3 | Depuración |
 | Esc | Pausa |
@@ -87,4 +93,4 @@ build/      icon.png
 
 ## Próximos pasos posibles
 
-Animales, iluminación por bloques (antorchas), multijugador en red local, mods y paquetes de texturas, y actualizaciones automáticas desde el launcher.
+Más animales y biomas, cofres, multijugador en red local, mods y paquetes de texturas, y actualizaciones automáticas desde el launcher.

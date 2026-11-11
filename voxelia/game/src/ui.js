@@ -95,7 +95,7 @@ export class UI {
     el.style.display = 'block';
     if (!status.current) { el.innerHTML = `<b>¡Completaste todas las misiones!</b><small>${status.done}/${status.total} · Seguí explorando y construyendo.</small>`; return; }
     const m = status.current;
-    el.innerHTML = `<span class="m-count">Misión ${status.done + 1}/${status.total}</span><b>${m.title}</b><div class="m-bar"><div style="width:${(status.value / m.goal) * 100}%"></div></div><small>${m.hint}</small>`;
+    el.innerHTML = `<span class="m-count">Misión ${status.number}/${status.total} · ${status.done} cumplidas</span><b>${m.title}</b><div class="m-bar"><div style="width:${(status.value / m.goal) * 100}%"></div></div><small>${m.hint}</small>`;
   }
 
   renderStamina(v, show) {

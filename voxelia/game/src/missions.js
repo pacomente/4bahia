@@ -8,7 +8,7 @@ export const MISSIONS = [
   { id: 'pick', title: 'Fabricá un pico de madera', hint: 'Abrí el Taller con la tecla C: Tronco → Tablas → Pico.', goal: 1, progress: (s) => s.crafted.pick_wood ?? 0 },
   { id: 'cobble', title: 'Juntá 10 adoquines', hint: 'Con el pico en la mano la piedra se rompe mucho más rápido.', goal: 10, progress: (s) => s.collected[B.COBBLE] ?? 0 },
   { id: 'coal', title: 'Encontrá 3 de carbón', hint: 'El carbón son las manchas negras en la piedra.', goal: 3, progress: (s) => s.collected[I.COAL] ?? 0 },
-  { id: 'lamp', title: 'Fabricá y colocá una lámpara', hint: 'Arena + carbón = vidrio; vidrio + carbón = lámparas. Las Sombras odian la luz.', goal: 1, progress: (s) => s.placed[B.LAMP] ?? 0 },
+  { id: 'lamp', title: 'Iluminá tu refugio', hint: 'Taller: carbón + tablas = antorchas (o vidrio + carbón = lámparas). Las Sombras odian la luz.', goal: 1, progress: (s) => (s.placed[B.LAMP] ?? 0) + (s.placed[B.TORCH] ?? 0) },
   { id: 'night', title: 'Sobreviví a tu primera noche', hint: 'De noche aparecen las Sombras. Quedate cerca de la luz o pelealas.', goal: 1, progress: (s) => s.nights },
   { id: 'essence', title: 'Conseguí 2 Esencias de sombra', hint: 'Golpeá a las Sombras con clic izquierdo. Las herramientas pegan más fuerte.', goal: 2, progress: (s) => s.collected[I.ESSENCE] ?? 0 },
   { id: 'crystal', title: 'Encontrá 4 Cristales', hint: 'Brillan en las cuevas profundas (debajo de la altura 20).', goal: 4, progress: (s) => s.collected[I.CRYSTAL] ?? 0 },
@@ -22,5 +22,6 @@ export const emptyStats = () => ({ collected: {}, crafted: {}, placed: {}, night
 export function missionStatus(stats) {
   const done = MISSIONS.filter((m) => m.progress(stats) >= m.goal).length;
   const current = MISSIONS.find((m) => m.progress(stats) < m.goal) ?? null;
-  return { done, total: MISSIONS.length, current, value: current ? Math.min(current.goal, current.progress(stats)) : 0 };
+  // number: posición de la misión actual en la lista (no la cantidad de terminadas: se pueden cumplir fuera de orden).
+  return { done, total: MISSIONS.length, current, number: current ? MISSIONS.indexOf(current) + 1 : MISSIONS.length, value: current ? Math.min(current.goal, current.progress(stats)) : 0 };
 }

@@ -70,7 +70,9 @@ ipcMain.handle('worlds:list', async () => {
     const w = await readJson(full, null);
     if (!w) continue;
     const stat = await fs.stat(full);
-    out.push({ id: w.id, name: w.name, seed: w.seed, mode: w.mode, savedAt: w.savedAt, playTime: w.playTime ?? 0, size: stat.size });
+    // Foto del mundo (la guarda el juego): solo se acepta una imagen JPEG/PNG embebida.
+    const thumb = typeof w.thumb === 'string' && /^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(w.thumb) ? w.thumb : null;
+    out.push({ id: w.id, name: w.name, seed: w.seed, mode: w.mode, savedAt: w.savedAt, playTime: w.playTime ?? 0, size: stat.size, thumb, nights: w.stats?.nights ?? 0 });
   }
   return out.sort((a, b) => String(b.savedAt).localeCompare(String(a.savedAt)));
 });

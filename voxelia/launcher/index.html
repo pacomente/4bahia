@@ -28,7 +28,7 @@
       <section class="view active" id="view-play">
         <div class="hero">
           <div class="hero-text">
-            <span class="tag">Versión 0.1 · Beta</span>
+            <span class="tag" id="hero-version">Beta</span>
             <h1>VOXELIA</h1>
             <p>Un mundo infinito de bloques para construir, explorar y sobrevivir.</p>
           </div>
@@ -66,11 +66,13 @@
             <label>Campo de visión <b id="o-fov"></b><input type="range" min="50" max="110" id="i-fov" /></label>
             <label class="check"><input type="checkbox" id="i-full" /> Abrir el juego en pantalla completa</label>
             <label class="check"><input type="checkbox" id="i-fps" /> Mostrar FPS</label>
+            <label class="check"><input type="checkbox" id="i-mini" /> Mostrar minimapa</label>
           </div>
           <div class="card">
             <h3>Controles y sonido</h3>
             <label>Sensibilidad del mouse <b id="o-sens"></b><input type="range" min="0.2" max="3" step="0.1" id="i-sens" /></label>
             <label>Volumen <b id="o-vol"></b><input type="range" min="0" max="1" step="0.05" id="i-vol" /></label>
+            <label>Música <b id="o-mus"></b><input type="range" min="0" max="1" step="0.05" id="i-mus" /></label>
           </div>
           <div class="card">
             <h3>Datos</h3>
@@ -92,7 +94,7 @@
         <label>Modo de juego</label>
         <div class="modes">
           <label class="mode"><input type="radio" name="mode" value="creative" checked /><b>Creativo</b><small>Bloques infinitos y vuelo.</small></label>
-          <label class="mode"><input type="radio" name="mode" value="survival" /><b>Supervivencia</b><small>Juntá bloques, cuidá tu vida.</small></label>
+          <label class="mode"><input type="radio" name="mode" value="survival" /><b>Supervivencia</b><small>Taller, Sombras, faros y misiones.</small></label>
         </div>
         <div class="actions"><button value="cancel" class="secondary" formnovalidate>Cancelar</button><button value="ok" class="play small">Crear y jugar</button></div>
       </form>

@@ -5,7 +5,7 @@ import { BLOCKS } from './blocks.js';
 const S = 16;
 const NAMES = ['grass_top', 'grass_side', 'dirt', 'stone', 'sand', 'water', 'log_top', 'log_side', 'leaves', 'planks',
   'cobble', 'glass', 'snow', 'snow_side', 'brick', 'coal', 'cactus_top', 'cactus_side', 'bedrock', 'gravel', 'iron',
-  'birch_top', 'birch_side', 'birch_leaves', 'clay', 'lamp', 'wool_red', 'wool_blue', 'wool_white', 'crystal', 'faro_top', 'faro_side'];
+  'birch_top', 'birch_side', 'birch_leaves', 'clay', 'lamp', 'wool_red', 'wool_blue', 'wool_white', 'crystal', 'faro_top', 'faro_side', 'torch'];
 const COLS = 8;
 export const ATLAS_COLS = COLS;
 export const ATLAS_ROWS = Math.ceil(NAMES.length / COLS);
@@ -106,6 +106,13 @@ function paint(name, px) {
         set(x, y, frame ? shade(hex('#7d7f88'), 0.85 + r() * 0.2) : shade(hex('#5ff2e6'), (y % 4 < 2 ? 0.8 : 1) * (0.9 + r() * 0.15)));
       }
       break;
+    case 'torch':
+      // Palito de madera con llama (el resto transparente). El mesher usa la franja x 7-8.
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, [0, 0, 0], 0);
+      for (let y = 6; y < S; y++) for (let x = 7; x < 9; x++) set(x, y, shade(hex('#7a5230'), x === 7 ? 1.1 : 0.85));
+      for (let y = 3; y < 6; y++) for (let x = 7; x < 9; x++) set(x, y, y === 3 ? hex('#fff6c2') : y === 4 ? hex('#ffd34d') : hex('#ff9a2e'));
+      set(7, 2, hex('#ffe98a')); set(8, 2, hex('#ffb347'), 200);
+      break;
     default: noise(hex('#ff00ff'), 0);
   }
 }
@@ -149,6 +156,11 @@ export function blockIcon(atlas, id, size = 48) {
   c.width = c.height = size;
   const ctx = c.getContext('2d');
   ctx.imageSmoothingEnabled = false;
+  if (b.shape === 'torch') {
+    const i = TEX_INDEX[b.tex[1]];
+    ctx.drawImage(atlas, (i % COLS) * S, Math.floor(i / COLS) * S, S, S, 0, 0, size, size);
+    return c.toDataURL();
+  }
   const src = (name) => { const i = TEX_INDEX[name]; return [(i % COLS) * S, Math.floor(i / COLS) * S]; };
   const h = size / 2;
   const q = size / 4;

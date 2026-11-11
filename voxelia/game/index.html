@@ -15,6 +15,7 @@
       <div id="crosshair"></div>
       <div id="break"></div>
       <div id="top-left"><span id="world-title"></span> · <span id="clock"></span><span id="day"></span> <span id="fps"></span></div>
+      <canvas id="minimap" width="144" height="144"></canvas>
       <pre id="debug"></pre>
       <div id="toast" class="toast"></div>
       <div id="item-name" class="toast item"></div>
@@ -66,6 +67,8 @@
           <label>Campo de visión: <b id="v-fov"></b><input type="range" id="s-fov" min="50" max="110" /></label>
           <label>Sensibilidad del mouse: <b id="v-sens"></b><input type="range" id="s-sens" min="0.2" max="3" step="0.1" /></label>
           <label>Volumen: <b id="v-vol"></b><input type="range" id="s-vol" min="0" max="1" step="0.05" /></label>
+          <label>Música: <b id="v-mus"></b><input type="range" id="s-mus" min="0" max="1" step="0.05" /></label>
+          <label class="check"><input type="checkbox" id="s-mini" /> Mostrar minimapa</label>
           <label class="check"><input type="checkbox" id="s-fps" /> Mostrar FPS</label>
         </div>
         <div id="controls-box" class="settings" hidden>
@@ -81,6 +84,8 @@
             <tr><td>E</td><td>Inventario</td></tr>
             <tr><td>C</td><td>Taller: fabricar herramientas y mejoras (supervivencia)</td></tr>
             <tr><td>Espacio en el aire</td><td>Planear (con Planeador)</td></tr>
+            <tr><td>M</td><td>Mapa: faros y punto de reaparición</td></tr>
+            <tr><td>Clic izquierdo a una criatura</td><td>Atacar (Sombras y Lanudos)</td></tr>
             <tr><td>F3</td><td>Información de depuración</td></tr>
             <tr><td>Esc</td><td>Pausa</td></tr>
           </table>
@@ -101,6 +106,14 @@
       <div class="panel" style="max-width:760px">
         <div class="row between"><h2>Taller</h2><span class="muted">Fabricá con un clic · C para cerrar</span></div>
         <div id="craft-list"></div>
+      </div>
+    </div>
+
+    <!-- Mapa -->
+    <div id="map-screen" class="screen">
+      <div class="panel center" style="max-width:none;width:auto">
+        <div class="row between"><h2>Mapa</h2><span class="muted">Turquesa: faros · Amarillo: reaparición · M para cerrar</span></div>
+        <canvas id="bigmap" width="600" height="600"></canvas>
       </div>
     </div>
 

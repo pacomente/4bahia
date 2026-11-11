@@ -13,6 +13,10 @@ import { I, ITEMS, isItem, mineSpeed, attackDamage } from './items.js';
 import { craft } from './recipes.js';
 import { emptyStats, missionStatus } from './missions.js';
 import { Shadows } from './mobs.js';
+import { Animals } from './animals.js';
+import { MiniMap } from './minimap.js';
+
+export const VERSION = '0.3.0';
 
 const DEFAULT_HOTBAR = [B.GRASS, B.DIRT, B.STONE, B.COBBLE, B.PLANKS, B.LOG, B.GLASS, B.BRICK, B.LAMP];
 
@@ -30,6 +34,8 @@ export class Game {
     this.showDebug = false;
     this.sound = new Sound();
     this.sound.volume = settings.volume;
+    this.sound.musicVolume = settings.music ?? 0.5;
+    this.mapOpen = false;
     this.health = save?.health ?? 20;
     this.air = 10;
     this.inventory = save?.inventory ?? {};     // supervivencia: id -> cantidad
@@ -64,6 +70,8 @@ export class Game {
     this.player.hasGlider = (this.inventory[I.GLIDER] ?? 0) > 0;
     this.ui = new UI(this.atlasCanvas, mode);
     this.shadows = new Shadows(this.scene, this.world, this.sound);
+    this.animals = new Animals(this.scene, this.world, this.sound);
+    this.minimap = new MiniMap(this.atlasCanvas, this.world);
     for (const f of this.faros) this.addBeam(f);
     this.lastMission = missionStatus(this.stats).done;
     this.initHighlight();
@@ -207,6 +215,7 @@ export class Game {
       if (e.code === 'Escape') return;
       if (e.code === 'KeyE' && this.started && !this.craftOpen) { this.toggleInventory(); return; }
       if (e.code === 'KeyC' && this.started && this.mode === 'survival' && !this.inventoryOpen) { this.toggleCraft(); return; }
+      if (e.code === 'KeyM' && this.started && !this.inventoryOpen && !this.craftOpen && !this.dead) { this.toggleMap(); return; }
       if (this.paused) return;
       if (keymap[e.code]) this.player.input[keymap[e.code]] = 1;
       if (e.code === 'Space') {
@@ -239,7 +248,7 @@ export class Game {
       if (this.paused) return;
       if (document.pointerLockElement !== this.canvas) { this.lock(); return; }
       if (e.button === 0) {
-        if (this.attackShadow()) return;
+        if (this.attackMob()) return;
         this.mouse.left = true;
         if (this.mode === 'creative') this.breakTarget();
       }
@@ -250,7 +259,7 @@ export class Game {
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     document.addEventListener('wheel', (e) => { if (!this.paused) this.select((this.selected + (e.deltaY > 0 ? 1 : 8)) % 9); }, { passive: true });
     document.addEventListener('pointerlockchange', () => {
-      if (document.pointerLockElement !== this.canvas && this.started && !this.inventoryOpen && !this.craftOpen && !this.dead) this.pause(true);
+      if (document.pointerLockElement !== this.canvas && this.started && !this.inventoryOpen && !this.craftOpen && !this.mapOpen && !this.dead) this.pause(true);
     });
   }
 
@@ -289,6 +298,22 @@ export class Game {
       if (document.pointerLockElement) document.exitPointerLock();
       this.renderCraft();
     } else { this.paused = false; this.lock(); }
+  }
+
+  // Mapa grande (M): muestra lo explorado alrededor, faros y punto de reaparición.
+  toggleMap() {
+    this.mapOpen = !this.mapOpen;
+    this.ui.show('#map-screen', this.mapOpen);
+    if (this.mapOpen) {
+      this.paused = true;
+      if (document.pointerLockElement) document.exitPointerLock();
+      this.minimap.timer = 0;
+      this.minimap.update(0, this.mapCtx(), true);
+    } else { this.paused = false; this.lock(); }
+  }
+
+  mapCtx() {
+    return { player: this.player, spawn: this.spawn, faros: this.faros, radius: (this.settings.renderDistance + 1) * CS, showMini: this.settings.minimap !== false };
   }
 
   renderCraft() {
@@ -332,12 +357,16 @@ export class Game {
 
   held() { return this.hotbar[this.selected]?.id ?? null; }
 
-  attackShadow() {
-    if (this.attackCooldown > 0 || !this.shadows.list.length) return false;
-    const hit = this.shadows.hit(this.player.eye(), this.player.look(), 3.6, attackDamage(this.held()), this.mobCtx());
+  // Golpe a una criatura (Sombra o Lanudo) delante del jugador. Devuelve true si le pegó a alguna.
+  attackMob() {
+    if (this.attackCooldown > 0) return false;
+    const eye = this.player.eye(); const dir = this.player.look(); const dmg = attackDamage(this.held());
+    const hit = (this.shadows.list.length && this.shadows.hit(eye, dir, 3.6, dmg, this.mobCtx()))
+      || (this.animals.list.length && this.animals.hit(eye, dir, 3.6, dmg, { onKilled: () => { if (this.mode === 'survival') { this.addItem(B.WOOL_WHITE, 2); this.checkMissions(); } } }));
     if (hit) this.attackCooldown = 0.35;
-    return hit;
+    return !!hit;
   }
+  attackShadow() { return this.attackMob(); }
 
   mobCtx() {
     return {
@@ -496,13 +525,36 @@ export class Game {
       stats: this.stats, maxHealth: this.maxHealth, faros: this.faros,
     };
   }
-  async save() { this.lastSave = performance.now(); await saveWorld(this.worldId, this.snapshot()); }
+  async save() {
+    this.lastSave = performance.now();
+    const snap = this.snapshot();
+    const thumb = this.captureThumb();
+    if (thumb) snap.thumb = thumb; else if (this.saveData?.thumb) snap.thumb = this.saveData.thumb;
+    await saveWorld(this.worldId, snap);
+  }
+
+  // Foto chica del mundo para la lista del launcher (se toma justo después de dibujar el cuadro).
+  captureThumb() {
+    if (!this.started || this.dead || this.player.headInWater) return null;
+    try {
+      this.renderer.render(this.scene, this.camera);
+      const c = document.createElement('canvas'); c.width = 320; c.height = 180;
+      const src = this.renderer.domElement;
+      const ratio = src.width / src.height; const sw = ratio > 16 / 9 ? src.height * 16 / 9 : src.width; const sh = ratio > 16 / 9 ? src.height : src.width * 9 / 16;
+      c.getContext('2d').drawImage(src, (src.width - sw) / 2, (src.height - sh) / 2, sw, sh, 0, 0, 320, 180);
+      const url = c.toDataURL('image/jpeg', 0.72);
+      this.saveData = { ...(this.saveData ?? {}), thumb: url };
+      return url;
+    } catch { return null; }
+  }
   async saveAndExit() { await this.save(); await saveSettings(this.settings); exitToLauncher(); }
 
   applySettings(s) {
     this.settings = s;
     this.camera.fov = s.fov; this.camera.updateProjectionMatrix();
     this.sound.volume = s.volume;
+    this.sound.musicVolume = s.music ?? 0.5;
+    document.querySelector('#minimap').style.display = s.minimap === false ? 'none' : '';
   }
 
   // ───────── Bucle principal ─────────
@@ -541,6 +593,7 @@ export class Game {
       this.updateBreaking(dt);
       this.attackCooldown = Math.max(0, this.attackCooldown - dt);
       this.shadows.update(dt, this.mobCtx());
+      this.animals.update(dt, { player: this.player, daylight: this.sky.daylight });
       // Cada amanecer cuenta como una noche sobrevivida.
       if (this.prevTime !== undefined && this.prevTime > 0.9 && this.sky.time < 0.1 && this.mode === 'survival') {
         this.stats.nights += 1;
@@ -552,6 +605,10 @@ export class Game {
       document.querySelector('#glide-tag').style.display = this.player.gliding ? 'block' : 'none';
     }
     this.updateParticles(dt);
+    this.minimap.update(dt, this.mapCtx(), this.mapOpen);
+    // Música: más grave bajo tierra (techo opaco muy por encima y lejos del cielo).
+    const ppx = Math.floor(this.player.pos.x); const ppz = Math.floor(this.player.pos.z);
+    this.sound.updateMusic(this.paused ? 0 : dt, { night: this.sky.daylight < 0.4, underground: this.player.pos.y < this.world.topAt(ppx, ppz) - 4 && this.player.pos.y < 30 });
 
     // Cámara
     const eye = this.player.eye();
@@ -590,7 +647,7 @@ export class Game {
     document.querySelector('#day').textContent = this.mode === 'survival' ? ` · Día ${this.stats.nights + 1}` : '';
     if (this.showDebug) {
       this.ui.debug([
-        `Voxelia 0.1 · ${this.fps} FPS`,
+        `Voxelia ${VERSION} · ${this.fps} FPS`,
         `XYZ: ${p.x.toFixed(1)} / ${p.y.toFixed(1)} / ${p.z.toFixed(1)}`,
         `Chunk: ${Math.floor(p.x / CS)}, ${Math.floor(p.z / CS)} · cargados ${this.world.chunks.size}`,
         `Bioma: ${this.world.biome(Math.floor(p.x), Math.floor(p.z))}`,
