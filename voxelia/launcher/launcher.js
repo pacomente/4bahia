@@ -6,9 +6,12 @@ let worlds = [];
 let settings = {};
 
 const NEWS = [
+  { date: '13/11/2026', title: 'Voxelia 0.5 — Aldeas vivas', items: ['Aldeas medievales (con torre de vigilancia), del bosque, del desierto y de la nieve', 'Aldeanos con nombre, oficio y personalidad: charlan, saludan y hacen trueques', 'De noche se esconden en sus casas; los guardias patrullan con antorchas', 'La población crece y el constructor levanta casas nuevas bloque por bloque', 'Zombis nocturnos que al amanecer se esconden en la sombra o se queman', 'Arco y flechas, escudo, y el herrero repara herramientas'] },
+  { date: '11/11/2026', title: 'Voxelia 0.4 — Movimiento, mano y Mesa de trabajo', items: ['La cámara se balancea al caminar, se abre al correr y se hunde al aterrizar', 'Ves tu mano y lo que tenés agarrado, con animación al golpear', 'Agachate con Shift para no caerte de los bordes; salto más preciso', 'Mesa de trabajo y un Taller nuevo con categorías y "Fabricar todo"', 'Espadas y herramientas de cristal; las herramientas se gastan', 'Sombras con estela de humo y Lanudos que pastan, parpadean y mueven la cola'] },
+  { date: '11/11/2026', title: 'Voxelia 0.3 — Luz, mapa y vida', items: ['Iluminación real: lámparas, antorchas, cristales y faros alumbran de noche y en las cuevas', 'Antorchas baratas (carbón + tablas)', 'Minimapa y mapa completo (M) con tus faros', 'Lanudos: animales que pastan de día y sueltan lana', 'Música ambiental generada, distinta de día, de noche y bajo tierra', 'El launcher muestra una foto de cada mundo'] },
   { date: '11/11/2026', title: 'Voxelia 0.2 — Supervivencia', items: ['Taller: fabricá con un clic, sin recetas para memorizar', 'Sombras nocturnas que le temen a la luz', 'Energía en lugar de hambre', 'Cristales en cuevas profundas, faro y planeador', 'Misiones guiadas, herramientas por nivel, corazones extra y lluvia'] },
   { date: '11/11/2026', title: 'Voxelia 0.1 — primera beta', items: ['Mundo infinito con biomas: llanuras, bosques, desierto, nieve y montañas', 'Cuevas con carbón y hierro', 'Modos Creativo y Supervivencia', 'Ciclo de día y noche con nubes y estrellas', '22 bloques para construir'] },
-  { date: 'Próximamente', title: 'En desarrollo', items: ['Animales', 'Multijugador en red local', 'Paquetes de texturas'] },
+  { date: 'Próximamente', title: 'En desarrollo', items: ['Más animales y biomas', 'Cofres y mascotas', 'Multijugador en red local', 'Paquetes de texturas'] },
   { date: 'Consejo', title: 'Cómo empezar', items: ['Creá un mundo en Creativo para explorar volando (doble espacio)', 'Usá E para elegir bloques y la rueda del mouse para cambiar', 'En Supervivencia, C abre el Taller y la luz te protege de las Sombras', 'F3 muestra tu posición, bioma y semilla'] },
 ];
 
@@ -21,6 +24,7 @@ const ago = (iso) => {
   const h = Math.round(m / 60); if (h < 48) return `hace ${h} h`;
   return `hace ${Math.round(h / 24)} días`;
 };
+const safeThumb = (t) => typeof t === 'string' && /^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(t);
 const playTime = (s) => (s < 3600 ? `${Math.round(s / 60)} min` : `${(s / 3600).toFixed(1)} h`);
 function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 2200); }
 
@@ -42,11 +46,11 @@ async function refreshWorlds() {
   $('#play-btn').textContent = worlds.length ? 'JUGAR' : 'CREAR MUNDO';
   $('#world-list').innerHTML = worlds.length ? worlds.map((w) => `
     <div class="world-card">
-      <div class="thumb ${w.mode}"></div>
+      <div class="thumb ${w.mode}" ${safeThumb(w.thumb) ? `style="background-image:url('${w.thumb}')"` : ''}></div>
       <div class="body">
         <b>${esc(w.name)}</b>
         <span><span class="badge ${w.mode}">${modeLabel(w.mode)}</span></span>
-        <small class="muted">Semilla ${esc(w.seed)} · jugado ${ago(w.savedAt)} · ${playTime(w.playTime ?? 0)}</small>
+        <small class="muted">Semilla ${esc(w.seed)} · jugado ${ago(w.savedAt)} · ${playTime(w.playTime ?? 0)}${w.mode === 'survival' ? ` · día ${(w.nights ?? 0) + 1}` : ''}</small>
         <div class="row"><button class="play small" data-play="${esc(w.id)}">Jugar</button><button class="danger" data-del="${esc(w.id)}">Eliminar</button></div>
       </div>
     </div>`).join('') : '<p class="empty">No hay mundos todavía. Creá el primero con “Nuevo mundo”.</p>';
@@ -90,7 +94,7 @@ $('#dlg-profile').addEventListener('close', async () => {
 
 // Ajustes
 async function loadSettings() {
-  settings = { renderDistance: 6, fov: 75, sensitivity: 1, volume: 0.6, showFps: false, fullscreen: false, ...(await api.getSettings()) };
+  settings = { renderDistance: 6, fov: 75, sensitivity: 1, volume: 0.6, music: 0.5, minimap: true, showFps: false, fullscreen: false, ...(await api.getSettings()) };
   const bind = (id, out, key, fmt) => {
     $(id).value = settings[key]; $(out).textContent = fmt(settings[key]);
     $(id).addEventListener('input', (e) => { settings[key] = Number(e.target.value); $(out).textContent = fmt(settings[key]); api.saveSettings(settings); });
@@ -99,13 +103,15 @@ async function loadSettings() {
   bind('#i-fov', '#o-fov', 'fov', (v) => `${v}°`);
   bind('#i-sens', '#o-sens', 'sensitivity', (v) => `${Number(v).toFixed(1)}x`);
   bind('#i-vol', '#o-vol', 'volume', (v) => `${Math.round(v * 100)}%`);
-  for (const [id, key] of [['#i-full', 'fullscreen'], ['#i-fps', 'showFps']]) {
+  bind('#i-mus', '#o-mus', 'music', (v) => `${Math.round(v * 100)}%`);
+  for (const [id, key] of [['#i-full', 'fullscreen'], ['#i-fps', 'showFps'], ['#i-mini', 'minimap']]) {
     $(id).checked = !!settings[key];
     $(id).addEventListener('change', (e) => { settings[key] = e.target.checked; api.saveSettings(settings); });
   }
   const info = await api.info();
   $('#data-path').textContent = info.dataPath;
   $('#app-version').textContent = `Voxelia ${info.version} · ${info.platform}`;
+  $('#hero-version').textContent = `Versión ${info.version} · Beta`;
   $('#open-data').addEventListener('click', () => api.openDataFolder());
 }
 
@@ -141,7 +147,7 @@ function browserApi() {
       const p = JSON.parse(localStorage.getItem('voxelia_profile') ?? '{"name":"Jugador"}');
       location.href = `../dist/game/index.html?${new URLSearchParams({ world: w.id, name: w.name, seed: w.seed, mode: w.mode, player: p.name, from: 'launcher' })}`;
     },
-    info: async () => ({ version: '0.2.0', dataPath: 'Navegador (localStorage)', platform: 'web' }),
+    info: async () => ({ version: '0.5.0', dataPath: 'Navegador (localStorage)', platform: 'web' }),
     openDataFolder: async () => toast('Disponible en la app de escritorio'),
   };
 }

@@ -8,8 +8,8 @@ Juego de mundo abierto de bloques para PC, con su propio **launcher**. Todo el c
 
 **Launcher (app de escritorio)**
 - Perfil del jugador (nombre).
-- Mis mundos: crear (nombre, semilla, modo), jugar y eliminar, con la última vez jugada y el tiempo total.
-- Novedades y ajustes: distancia de renderizado, campo de visión, sensibilidad, volumen, pantalla completa y FPS.
+- Mis mundos: crear (nombre, semilla, modo), jugar y eliminar, con una foto de cada mundo, la última vez jugada y el tiempo total.
+- Novedades y ajustes: distancia de renderizado, campo de visión, sensibilidad, volumen, música, minimapa, pantalla completa y FPS.
 - Botón **JUGAR**: abre el juego en su ventana. Al salir vuelve al launcher.
 - Los mundos se guardan como archivos en la carpeta de datos del usuario (en Windows, `%APPDATA%\Voxelia`).
 
@@ -18,19 +18,24 @@ Juego de mundo abierto de bloques para PC, con su propio **launcher**. Todo el c
   - biomas: llanuras, bosque, desierto, nieve y montañas;
   - árboles (roble y abedul), cactus, playas, lagos y mar;
   - cuevas con carbón y hierro.
-- **22 bloques** para construir: madera, piedra, vidrio, ladrillo, lana, lámparas que brillan de noche y más.
+- **Más de 25 bloques** para construir: madera, piedra, vidrio, ladrillo, lana, lámparas, antorchas y más.
+- **Iluminación real**: lámparas, antorchas, cristales y faros iluminan a su alrededor con luz cálida, y la luz no atraviesa paredes. Bajo tierra está oscuro de verdad.
+- **Minimapa y mapa** (M) de lo explorado, con tus faros y el punto de reaparición.
+- **Lanudos**: animales pacíficos de pelaje pastel que pastan de día, huyen si les pegás y sueltan lana.
+- **Música ambiental** generada en el momento: luminosa de día, más grave de noche y bajo tierra.
 - **Modo Creativo**: bloques infinitos y vuelo (doble espacio o F).
 - **Modo Supervivencia**: romper lleva tiempo según el bloque, lo que rompés va al inventario, hay vida con daño por caída, aire bajo el agua y reaparición. Ver abajo lo que lo hace distinto.
 - **Ciclo de día y noche** con sol, luna, estrellas y nubes. Hay oclusión ambiental y sombras bajo techos y árboles, niebla a distancia y vista bajo el agua.
-- **Física**: gravedad, saltos, colisiones, nado y correr.
+- **Movimiento**: gravedad, saltos con margen, colisiones, nado, correr y agacharse (Shift, sin caerte de los bordes). La cámara se balancea al caminar, abre el campo de visión al correr y se hunde al aterrizar.
+- **Mano en primera persona**: ves lo que tenés agarrado (bloques, antorchas, herramientas en relieve) con animación al golpear, al caminar y al cambiar de ítem.
 - **Partículas y sonido**: partículas al romper y sonidos sintetizados al romper, colocar y caminar.
 - **Interfaz**: barra rápida, inventario (E), menú de pausa con opciones y controles, e información de depuración (F3).
 - **Guardado** automático cada 30 s y al salir.
 
 ## Supervivencia: qué tiene de distinto
 
-- **Taller (C)**: no hay grillas ni recetas para memorizar. Ves la lista de todo lo que se puede fabricar, con los materiales que tenés y los que faltan, y fabricás con un clic.
-- **Herramientas por nivel**: picos, hachas y palas de madera, piedra y hierro. Cada una acelera su tipo de bloque y pega más fuerte.
+- **Taller (C) y Mesa de trabajo**: no hay grillas ni recetas para memorizar. El Taller muestra todo por categorías, con lo que tenés y lo que falta, y fabricás con un clic (o "Fabricar todo"). A mano se hacen las cosas básicas; con una Mesa de trabajo cerca (clic derecho sobre ella) se desbloquean herramientas, armas y mejoras.
+- **Herramientas por nivel**: picos, hachas, palas y espadas de madera, piedra, hierro y **cristal** (la más rápida, brilla en la mano). Cada una acelera su tipo de bloque, pega más fuerte y se gasta con el uso (barra de durabilidad).
 - **Energía en lugar de hambre**: correr y saltar gastan energía, y se recupera sola al caminar o quedarte quieto. No hay que andar buscando comida.
 - **Sombras**: criaturas nocturnas que flotan hacia vos y le temen a la luz. Cerca de lámparas, cristales o faros se queman y huyen. De día se disuelven. Al vencerlas sueltan **esencia**. Cada noche que sobrevivís aparecen algunas más.
 - **Cristales**: brillan en las cuevas profundas (por debajo de la altura 20). Iluminan y sirven para fabricar.
@@ -38,7 +43,18 @@ Juego de mundo abierto de bloques para PC, con su propio **launcher**. Todo el c
 - **Planeador**: se fabrica con esencia. Mantené espacio en el aire para planear sin daño por caída.
 - **Corazones extra**: con esencia y cristal subís la vida máxima, hasta 15 corazones.
 - **Misiones guiadas**: 10 objetivos que te enseñan a jugar, desde juntar madera hasta fabricar el planeador.
+- **Antorchas**: carbón + tablas = 4 antorchas, la forma barata de mantener lejos a las Sombras.
 - **Contador de días y lluvia**: el clima cambia y la lluvia oscurece el día.
+
+## Aldeas y aldeanos
+
+- **Aldeas generadas** según el bioma: **medievales** en la llanura (casas de piedra y madera con techos de tejas, torre de vigilancia con almenas), **del bosque** (techos de paja), **del desierto** (adobe y techos planos) y **de la nieve** (troncos y techos nevados). Tienen plaza con pozo, caminos, faroles y chimeneas que echan humo. Siempre hay una cerca del inicio y aparecen en el mapa (M).
+- **Aldeanos con personalidad**: nombre, oficio (constructor, guardia, granjero, herrero, mercader) y carácter (valiente, tímido, charlatán, gruñón, alegre, trabajador). Pasean, charlan entre ellos con globitos de diálogo, te saludan y te miran cuando pasás. La ropa cambia con el estilo de la aldea.
+- **De noche se esconden** en sus casas (los tímidos, antes; los valientes, último). Los **guardias** salen a patrullar con antorchas y pelean contra los zombis.
+- **La población crece**: cada mañana puede nacer alguien si hay lugar, y los chicos crecen y eligen el oficio que falta. Cuando la aldea se llena, el **constructor levanta una casa nueva bloque por bloque** (se lo ve trabajar). Si le donás materiales, termina más rápido.
+- **Trueques** con clic derecho: tejas, paja y adobe del constructor; flechas, arco y escudo del guardia; el **herrero repara** tu herramienta; el mercader del desierto cambia esencia por cristales. Ayudar a la aldea (trueques, donaciones, matar zombis cerca) mejora tu reputación; pegarles a los aldeanos la empeora.
+- **Zombis** de noche: caminan con los brazos estirados y persiguen al jugador y a los aldeanos que quedaron afuera. Al amanecer **buscan sombra para esconderse** y, si el sol los agarra, se queman.
+- **Arco y flechas** (clic derecho) y **escudo** (en la mano, los golpes sacan 60% menos).
 
 ## Controles
 
@@ -46,13 +62,17 @@ Juego de mundo abierto de bloques para PC, con su propio **launcher**. Todo el c
 |---|---|
 | W A S D | Moverse |
 | Espacio | Saltar / nadar · doble espacio o F: volar (creativo) |
-| Shift | Bajar al volar |
+| Shift | Agacharse · bajar al volar |
 | Ctrl o R | Correr |
 | Clic izquierdo / derecho | Romper / colocar bloque |
 | Rueda o 1-9 | Elegir bloque |
 | Clic de rueda | Copiar el bloque apuntado (creativo) |
 | E | Inventario |
 | C | Taller (supervivencia) |
+| Clic derecho en la Mesa | Taller completo |
+| M | Mapa |
+| Clic derecho a un aldeano | Hablar y hacer trueques |
+| Clic derecho con el arco | Disparar |
 | Espacio en el aire | Planear (con planeador) |
 | F3 | Depuración |
 | Esc | Pausa |
@@ -87,4 +107,4 @@ build/      icon.png
 
 ## Próximos pasos posibles
 
-Animales, iluminación por bloques (antorchas), multijugador en red local, mods y paquetes de texturas, y actualizaciones automáticas desde el launcher.
+Más animales y biomas, cofres, mascotas, multijugador en red local, mods y paquetes de texturas, y actualizaciones automáticas desde el launcher.

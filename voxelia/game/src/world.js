@@ -1,5 +1,6 @@
 import { createNoise2D, createNoise3D } from 'simplex-noise';
 import { B, BLOCKS } from './blocks.js';
+import { placeVillages, insideVillage } from './villages.js';
 
 export const CS = 16;          // tamaño de chunk (x, z)
 export const H = 96;           // altura del mundo
@@ -16,7 +17,7 @@ export function mulberry32(seed) {
   return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 // Hash determinista de una posición (árboles, minerales): mismo mundo, mismo resultado.
-function hash3(seed, x, y, z) {
+export function hash3(seed, x, y, z) {
   let h = seed ^ Math.imul(x, 374761393) ^ Math.imul(y, 668265263) ^ Math.imul(z, 2147483647);
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
@@ -34,7 +35,7 @@ export class Chunk {
   set(x, y, z, id) { this.data[idx(x, y, z)] = id; }
   recomputeTop(x, z) {
     let t = -1;
-    for (let y = H - 1; y >= 0; y--) { const id = this.data[idx(x, y, z)]; if (id && id !== B.WATER && id !== B.GLASS) { t = y; break; } }
+    for (let y = H - 1; y >= 0; y--) { const id = this.data[idx(x, y, z)]; if (id && id !== B.WATER && id !== B.GLASS && id !== B.TORCH) { t = y; break; } }
     this.top[x + z * CS] = t;
   }
 }
@@ -70,6 +71,7 @@ export class World {
     const c = this.getChunk(cx, cz);
     if (!c) return false;
     const lx = x - cx * CS; const lz = z - cz * CS;
+    const old = c.get(lx, y, lz);
     c.set(lx, y, lz, id);
     c.recomputeTop(lx, lz);
     c.dirty = true;
@@ -81,6 +83,8 @@ export class World {
     if (lx === CS - 1) mark(1, 0);
     if (lz === 0) mark(0, -1);
     if (lz === CS - 1) mark(0, 1);
+    // Una fuente de luz ilumina hasta 14 bloques: los 8 vecinos deben recalcular su luz.
+    if (BLOCKS[old]?.light || BLOCKS[id]?.light) for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) mark(dx, dz);
     return true;
   }
 
@@ -164,6 +168,7 @@ export class World {
       }
     }
     this.decorate(c);
+    placeVillages(this, c);
     // Modificaciones guardadas del jugador.
     const mods = this.mods.get(this.key(cx, cz));
     if (mods) for (const [i, id] of mods) c.data[i] = id;
@@ -189,6 +194,7 @@ export class World {
         const density = { forest: 0.045, plains: 0.006, snow: 0.012, mountains: 0.004, desert: 0.006 }[biome];
         const r = hash3(this.seed, x, 7, z);
         if (r >= density) continue;
+        if (insideVillage(this, x, z)) continue;   // sin árboles dentro de las aldeas
         const h = this.heightAt(x, z);
         if (h <= SEA + 1) continue;
         if (biome === 'desert') {

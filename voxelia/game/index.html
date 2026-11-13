@@ -15,6 +15,7 @@
       <div id="crosshair"></div>
       <div id="break"></div>
       <div id="top-left"><span id="world-title"></span> · <span id="clock"></span><span id="day"></span> <span id="fps"></span></div>
+      <canvas id="minimap" width="144" height="144"></canvas>
       <pre id="debug"></pre>
       <div id="toast" class="toast"></div>
       <div id="item-name" class="toast item"></div>
@@ -66,21 +67,30 @@
           <label>Campo de visión: <b id="v-fov"></b><input type="range" id="s-fov" min="50" max="110" /></label>
           <label>Sensibilidad del mouse: <b id="v-sens"></b><input type="range" id="s-sens" min="0.2" max="3" step="0.1" /></label>
           <label>Volumen: <b id="v-vol"></b><input type="range" id="s-vol" min="0" max="1" step="0.05" /></label>
+          <label>Música: <b id="v-mus"></b><input type="range" id="s-mus" min="0" max="1" step="0.05" /></label>
+          <label class="check"><input type="checkbox" id="s-mini" /> Mostrar minimapa</label>
+          <label class="check"><input type="checkbox" id="s-bob" /> Balanceo de cámara al caminar</label>
+          <label class="check"><input type="checkbox" id="s-hand" /> Mostrar la mano</label>
           <label class="check"><input type="checkbox" id="s-fps" /> Mostrar FPS</label>
         </div>
         <div id="controls-box" class="settings" hidden>
           <table>
             <tr><td>W A S D</td><td>Moverse</td></tr>
             <tr><td>Espacio</td><td>Saltar · nadar · (creativo) doble espacio o F para volar</td></tr>
-            <tr><td>Shift</td><td>Bajar al volar</td></tr>
+            <tr><td>Shift</td><td>Agacharse (no te caés de los bordes) · bajar al volar</td></tr>
             <tr><td>Ctrl / R</td><td>Correr</td></tr>
             <tr><td>Clic izquierdo</td><td>Romper bloque</td></tr>
             <tr><td>Clic derecho</td><td>Colocar bloque</td></tr>
             <tr><td>Rueda / 1-9</td><td>Elegir bloque</td></tr>
             <tr><td>Clic de rueda</td><td>Copiar el bloque apuntado (creativo)</td></tr>
             <tr><td>E</td><td>Inventario</td></tr>
-            <tr><td>C</td><td>Taller: fabricar herramientas y mejoras (supervivencia)</td></tr>
+            <tr><td>C</td><td>Taller (supervivencia). Con una Mesa de trabajo cerca, todas las recetas</td></tr>
+            <tr><td>Clic derecho en la Mesa</td><td>Abrir el Taller completo (agachado coloca bloques)</td></tr>
             <tr><td>Espacio en el aire</td><td>Planear (con Planeador)</td></tr>
+            <tr><td>M</td><td>Mapa: faros, aldeas y punto de reaparición</td></tr>
+            <tr><td>Clic derecho a un aldeano</td><td>Hablar y hacer trueques</td></tr>
+            <tr><td>Clic derecho con el arco</td><td>Disparar una flecha</td></tr>
+            <tr><td>Clic izquierdo a una criatura</td><td>Atacar (Sombras y Lanudos)</td></tr>
             <tr><td>F3</td><td>Información de depuración</td></tr>
             <tr><td>Esc</td><td>Pausa</td></tr>
           </table>
@@ -98,9 +108,36 @@
 
     <!-- Taller -->
     <div id="craft" class="screen">
-      <div class="panel" style="max-width:760px">
-        <div class="row between"><h2>Taller</h2><span class="muted">Fabricá con un clic · C para cerrar</span></div>
-        <div id="craft-list"></div>
+      <div class="panel craft-panel">
+        <div class="row between"><h2>Taller</h2><span class="muted">Elegí una receta · doble clic fabrica · C o Esc para cerrar</span></div>
+        <div id="craft-station"></div>
+        <div id="craft-tabs"></div>
+        <div class="craft-body">
+          <div id="craft-list"></div>
+          <div id="craft-detail"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mapa -->
+    <div id="map-screen" class="screen">
+      <div class="panel center" style="max-width:none;width:auto">
+        <div class="row between"><h2>Mapa</h2><span class="muted">Turquesa: faros · Naranja: aldeas · Amarillo: reaparición · M para cerrar</span></div>
+        <canvas id="bigmap" width="600" height="600"></canvas>
+      </div>
+    </div>
+
+    <!-- Aldeano -->
+    <div id="villager-screen" class="screen">
+      <div class="panel vpanel">
+        <div class="v-head">
+          <div id="v-portrait"></div>
+          <div class="grow"><h2 id="v-name"></h2><div id="v-sub"></div><div id="v-village" class="muted"></div></div>
+        </div>
+        <p id="v-line" class="v-line"></p>
+        <h3 class="v-title">Trueques</h3>
+        <div id="v-trades"></div>
+        <div class="row v-actions"><button class="mc-btn" id="v-donate">Donar tablas y adoquines para la obra</button><button class="mc-btn primary" id="v-close">Chau</button></div>
       </div>
     </div>
 

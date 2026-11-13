@@ -29,6 +29,7 @@ export class Shadows {
       body: new THREE.BoxGeometry(0.7, 1.1, 0.7),
       aura: new THREE.BoxGeometry(1.0, 1.4, 1.0),
       eye: new THREE.PlaneGeometry(0.16, 0.1),
+      wisp: new THREE.BoxGeometry(0.34, 0.34, 0.34),
     };
   }
 
@@ -39,8 +40,12 @@ export class Shadows {
     const eyeMat = new THREE.MeshBasicMaterial({ color: 0xd9c6ff, transparent: true, opacity: 1 });
     const e1 = new THREE.Mesh(this.geo.eye, eyeMat); e1.position.set(-0.15, 0.22, 0.36);
     const e2 = new THREE.Mesh(this.geo.eye, eyeMat); e2.position.set(0.15, 0.22, 0.36);
+    // Estela de humo: tres cubitos que siguen al cuerpo con retraso y se achican.
+    const wispMat = new THREE.MeshBasicMaterial({ color: 0x2a1650, transparent: true, opacity: 0.55, depthWrite: false });
+    const wisps = [0.8, 0.6, 0.4].map((sc) => { const w = new THREE.Mesh(this.geo.wisp, wispMat); w.scale.setScalar(sc); w.userData.sc = sc; return w; });
+    g.rotation.order = 'YXZ';   // se inclina hacia donde va
     g.add(body, aura, e1, e2);
-    g.userData = { body, aura, eyeMat };
+    g.userData = { body, aura, eyeMat, wisps, wispMat, eyes: [e1, e2] };
     return g;
   }
 
@@ -48,6 +53,7 @@ export class Shadows {
     const mesh = this.createMesh();
     mesh.position.set(x, y, z);
     this.scene.add(mesh);
+    for (const w of mesh.userData.wisps) { w.position.set(x, y - 0.3, z); this.scene.add(w); }
     const m = { mesh, hp: HP, cooldown: 0, flash: 0, burning: false, fade: 0, lightCheck: 0, light: null, phase: Math.random() * 6 };
     this.list.push(m);
     return m;
@@ -55,6 +61,8 @@ export class Shadows {
 
   remove(m) {
     this.scene.remove(m.mesh);
+    for (const w of m.mesh.userData.wisps) this.scene.remove(w);
+    m.mesh.userData.wispMat.dispose();
     for (const c of m.mesh.children) c.material.dispose();
     this.list = this.list.filter((x) => x !== m);
   }
@@ -86,7 +94,7 @@ export class Shadows {
       if (!night && ctx.daylight > 0.55) m.fade += dt;
       if (m.fade > 0) {
         const o = Math.max(0, 1 - m.fade / 1.5);
-        ud.body.material.opacity = 0.92 * o; ud.aura.material.opacity = 0.22 * o; ud.eyeMat.opacity = o;
+        ud.body.material.opacity = 0.92 * o; ud.aura.material.opacity = 0.22 * o; ud.eyeMat.opacity = o; ud.wispMat.opacity = 0.55 * o;
         p.y += dt * 0.8;
         if (o <= 0) this.remove(m);
         continue;
@@ -120,9 +128,22 @@ export class Shadows {
         if (!solidAt(this.world, nx, ny, nz) && !solidAt(this.world, nx, ny + 0.5, nz) && !solidAt(this.world, nx, ny - 0.5, nz)) p[axis] = axis === 'x' ? nx : axis === 'y' ? ny : nz;
         else if (axis !== 'y' && !solidAt(this.world, p.x, p.y + 1, p.z)) p.y += speed * dt;
       }
-      // Animación: flotan, miran al jugador, parpadean al recibir golpes.
-      ud.body.position.y = Math.sin(this.t * 3 + m.phase) * 0.08;
+      // Animación: flotan ondulando, se inclinan al perseguir, ojos que laten y estela de humo.
+      const wave = Math.sin(this.t * 3 + m.phase);
+      ud.body.position.y = wave * 0.08;
+      ud.body.scale.set(1 - wave * 0.05, 1 + wave * 0.07, 1 - wave * 0.05);
       m.mesh.rotation.y = Math.atan2(target.x - p.x, target.z - p.z);
+      m.mesh.rotation.x += ((m.light ? -0.25 : 0.22) - m.mesh.rotation.x) * Math.min(1, dt * 4);
+      const pulse = 0.65 + 0.35 * Math.sin(this.t * 6 + m.phase);
+      ud.eyeMat.color.setRGB(0.85 * pulse + 0.15, 0.78 * pulse + 0.1, 1);
+      for (const e of ud.eyes) e.scale.y = Math.sin(this.t * 0.9 + m.phase) > 0.97 ? 0.15 : 1;   // parpadeo
+      let lead = p;
+      ud.wisps.forEach((w, i) => {
+        const follow = new THREE.Vector3(lead.x, lead.y - (i === 0 ? 0.45 : 0.1), lead.z);
+        w.position.lerp(follow, Math.min(1, dt * (7 - i * 1.5)));
+        w.rotation.y += dt * (1.5 + i); w.rotation.x += dt * (1 + i * 0.5);
+        lead = w.position;
+      });
       m.flash = Math.max(0, m.flash - dt);
       ud.aura.material.color.set(m.flash > 0 ? 0xffffff : m.light ? 0xff9a4d : 0x7b4dff);
       ud.aura.material.opacity = m.flash > 0 ? 0.6 : 0.18 + Math.sin(this.t * 5 + m.phase) * 0.06;

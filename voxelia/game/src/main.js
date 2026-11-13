@@ -10,6 +10,15 @@ const TIPS = [
   'Cuidado con las caídas largas en supervivencia.',
   'F3 muestra tu posición, bioma y semilla.',
   'Debajo de las montañas hay cuevas con carbón y hierro.',
+  'Carbón + tablas = 4 antorchas. Las Sombras no se acercan a la luz.',
+  'Las lámparas y antorchas iluminan las cuevas de verdad.',
+  'Tocá M para ver el mapa con tus faros.',
+  'Los Lanudos pastan de día y sueltan lana.',
+  'Clic derecho sobre un aldeano para hablar y hacer trueques.',
+  'De noche los aldeanos se esconden: los zombis salen a buscarlos.',
+  'Si una aldea se llena, el constructor levanta casas nuevas. ¡Llevale materiales!',
+  'El herrero repara tus herramientas por un lingote de hierro.',
+  'En el Taller (C) ves al toque qué te falta para cada cosa.',
 ];
 
 async function startGame({ id, name, seed, mode, player }) {
@@ -44,12 +53,22 @@ function bindMenus(game, settings) {
   bind('#s-fov', '#v-fov', 'fov', (v) => `${v}°`);
   bind('#s-sens', '#v-sens', 'sensitivity', (v) => `${Number(v).toFixed(1)}x`);
   bind('#s-vol', '#v-vol', 'volume', (v) => `${Math.round(v * 100)}%`);
+  bind('#s-mus', '#v-mus', 'music', (v) => `${Math.round(v * 100)}%`);
+  for (const [sel, key] of [['#s-bob', 'viewBob'], ['#s-hand', 'showHand']]) {
+    $(sel).checked = settings[key] !== false;
+    $(sel).onchange = (e) => { settings[key] = e.target.checked; game.applySettings(settings); saveSettings(settings); };
+  }
+  $('#s-mini').checked = settings.minimap !== false;
+  $('#s-mini').onchange = (e) => { settings.minimap = e.target.checked; game.applySettings(settings); saveSettings(settings); };
+  game.applySettings(settings);
   $('#s-fps').checked = settings.showFps;
   $('#s-fps').onchange = (e) => { settings.showFps = e.target.checked; saveSettings(settings); };
   document.addEventListener('keydown', (e) => {
     if (e.code !== 'Escape') return;
     if (game.inventoryOpen) { game.toggleInventory(); return; }
     if (game.craftOpen) { game.toggleCraft(); return; }
+    if (game.mapOpen) { game.toggleMap(); return; }
+    if (game.villagerOpen) { game.closeVillager(); return; }
     if (!game.dead) game.pause(!game.paused);
   });
 }

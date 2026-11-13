@@ -47,7 +47,7 @@ select:focus, input:focus { outline: 2px solid var(--green-hi); }
 .view-head h2 { margin: 0; font-size: 24px; }
 .world-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; padding: 8px 36px 36px; }
 .world-card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
-.world-card .thumb { height: 90px; background: linear-gradient(#8ec9ff 0 50%, #5fa339 50% 62%, #8a5a3b 62%); position: relative; }
+.world-card .thumb { height: 124px; background-size: cover !important; background-position: center !important; background: linear-gradient(#8ec9ff 0 50%, #5fa339 50% 62%, #8a5a3b 62%); position: relative; }
 .world-card .thumb.survival { background: linear-gradient(#f2925c 0 50%, #5fa339 50% 62%, #8a5a3b 62%); }
 .world-card .body { padding: 14px; display: flex; flex-direction: column; gap: 4px; }
 .world-card .row { display: flex; gap: 8px; margin-top: 10px; }

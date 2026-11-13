@@ -13,7 +13,7 @@ export async function saveWorld(id, data) {
 }
 
 export async function loadSettings() {
-  const defaults = { renderDistance: 6, fov: 75, sensitivity: 1, volume: 0.6, showFps: false };
+  const defaults = { renderDistance: 6, fov: 75, sensitivity: 1, volume: 0.6, music: 0.5, minimap: true, showFps: false };
   if (bridge()?.getSettings) return { ...defaults, ...(await bridge().getSettings()) };
   try { return { ...defaults, ...JSON.parse(localStorage.getItem('voxelia_settings') ?? '{}') }; } catch { return defaults; }
 }
