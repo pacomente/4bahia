@@ -6,6 +6,7 @@ let worlds = [];
 let settings = {};
 
 const NEWS = [
+  { date: '13/11/2026', title: 'Voxelia 0.6 — Reino', items: ['Rey o reina en un castillo (o jefe/a): encargos que se pagan en plata y rangos de Plebeyo a Héroe', 'Monedas de plata: comprá y vendé con cada oficio; mercado con puestos en la plaza', 'Armadura acolchada, de hierro y de cristal; escudo que se levanta con clic derecho o V', 'Comida: manzanas, trigo, pan y pastel. Campos que crecen y se cosechan', 'Camas para dormir hasta la mañana, puertas que se abren y ventanas', 'Aldeanos con hambre, sueño y ánimo: duermen en sus camas, almuerzan, forman parejas y tienen hijos'] },
   { date: '13/11/2026', title: 'Voxelia 0.5 — Aldeas vivas', items: ['Aldeas medievales (con torre de vigilancia), del bosque, del desierto y de la nieve', 'Aldeanos con nombre, oficio y personalidad: charlan, saludan y hacen trueques', 'De noche se esconden en sus casas; los guardias patrullan con antorchas', 'La población crece y el constructor levanta casas nuevas bloque por bloque', 'Zombis nocturnos que al amanecer se esconden en la sombra o se queman', 'Arco y flechas, escudo, y el herrero repara herramientas'] },
   { date: '11/11/2026', title: 'Voxelia 0.4 — Movimiento, mano y Mesa de trabajo', items: ['La cámara se balancea al caminar, se abre al correr y se hunde al aterrizar', 'Ves tu mano y lo que tenés agarrado, con animación al golpear', 'Agachate con Shift para no caerte de los bordes; salto más preciso', 'Mesa de trabajo y un Taller nuevo con categorías y "Fabricar todo"', 'Espadas y herramientas de cristal; las herramientas se gastan', 'Sombras con estela de humo y Lanudos que pastan, parpadean y mueven la cola'] },
   { date: '11/11/2026', title: 'Voxelia 0.3 — Luz, mapa y vida', items: ['Iluminación real: lámparas, antorchas, cristales y faros alumbran de noche y en las cuevas', 'Antorchas baratas (carbón + tablas)', 'Minimapa y mapa completo (M) con tus faros', 'Lanudos: animales que pastan de día y sueltan lana', 'Música ambiental generada, distinta de día, de noche y bajo tierra', 'El launcher muestra una foto de cada mundo'] },
@@ -147,7 +148,7 @@ function browserApi() {
       const p = JSON.parse(localStorage.getItem('voxelia_profile') ?? '{"name":"Jugador"}');
       location.href = `../dist/game/index.html?${new URLSearchParams({ world: w.id, name: w.name, seed: w.seed, mode: w.mode, player: p.name, from: 'launcher' })}`;
     },
-    info: async () => ({ version: '0.5.0', dataPath: 'Navegador (localStorage)', platform: 'web' }),
+    info: async () => ({ version: '0.6.0', dataPath: 'Navegador (localStorage)', platform: 'web' }),
     openDataFolder: async () => toast('Disponible en la app de escritorio'),
   };
 }

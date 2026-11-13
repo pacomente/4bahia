@@ -19,7 +19,8 @@
       <pre id="debug"></pre>
       <div id="toast" class="toast"></div>
       <div id="item-name" class="toast item"></div>
-      <div id="status"><div id="bubbles"></div><div class="status-row"><div id="hearts"></div><div id="stamina" title="Energía"><div></div></div></div></div>
+      <div id="status"><div id="bubbles"></div><div id="armor" title="Armadura"></div><div class="status-row"><div id="hearts"></div><div id="stamina" title="Energía"><div></div></div></div></div>
+      <div id="silver" title="Monedas de plata"></div>
       <div id="mission"></div>
       <div id="glide-tag">Planeando</div>
       <div id="hotbar"></div>
@@ -90,6 +91,10 @@
             <tr><td>M</td><td>Mapa: faros, aldeas y punto de reaparición</td></tr>
             <tr><td>Clic derecho a un aldeano</td><td>Hablar y hacer trueques</td></tr>
             <tr><td>Clic derecho con el arco</td><td>Disparar una flecha</td></tr>
+            <tr><td>Clic derecho sostenido / V</td><td>Cubrirse con el escudo (equipalo con E)</td></tr>
+            <tr><td>Clic derecho con comida</td><td>Comer (cura y da energía)</td></tr>
+            <tr><td>Clic derecho en cama / puerta</td><td>Dormir de noche / abrir y cerrar</td></tr>
+            <tr><td>Pala + clic derecho en pasto</td><td>Arar; después sembrá semillas</td></tr>
             <tr><td>Clic izquierdo a una criatura</td><td>Atacar (Sombras y Lanudos)</td></tr>
             <tr><td>F3</td><td>Información de depuración</td></tr>
             <tr><td>Esc</td><td>Pausa</td></tr>
@@ -101,8 +106,8 @@
     <!-- Inventario -->
     <div id="inventory" class="screen">
       <div class="panel" style="max-width:720px">
-        <div class="row between"><h2 id="inv-title">Inventario</h2><span class="muted">Elegí un bloque para la casilla seleccionada · E para cerrar</span></div>
-        <div id="inv-grid"></div>
+        <div class="row between"><h2 id="inv-title">Inventario</h2><span class="muted">Elegí un ítem para la casilla seleccionada · E para cerrar</span></div>
+        <div class="inv-body"><div id="equip-panel"></div><div id="inv-grid"></div></div>
       </div>
     </div>
 
@@ -135,11 +140,15 @@
           <div class="grow"><h2 id="v-name"></h2><div id="v-sub"></div><div id="v-village" class="muted"></div></div>
         </div>
         <p id="v-line" class="v-line"></p>
-        <h3 class="v-title">Trueques</h3>
+        <div id="v-quest"></div>
+        <div id="v-shop"></div>
+        <h3 class="v-title" id="v-trades-title">Trueques</h3>
         <div id="v-trades"></div>
-        <div class="row v-actions"><button class="mc-btn" id="v-donate">Donar tablas y adoquines para la obra</button><button class="mc-btn primary" id="v-close">Chau</button></div>
+        <div class="row v-actions"><button class="mc-btn" id="v-food">Donar comida</button><button class="mc-btn" id="v-donate">Donar materiales para la obra</button><button class="mc-btn primary" id="v-close">Chau</button></div>
       </div>
     </div>
+
+    <div id="sleep-fade"><span>Zzz…</span></div>
 
     <!-- Muerte -->
     <div id="death" class="screen red">

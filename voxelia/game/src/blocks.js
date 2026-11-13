@@ -4,6 +4,7 @@ export const B = {
   COBBLE: 9, GLASS: 10, SNOW: 11, BRICK: 12, COAL: 13, CACTUS: 14, BEDROCK: 15, GRAVEL: 16,
   IRON: 17, BIRCH_LOG: 18, BIRCH_LEAVES: 19, CLAY: 20, LAMP: 21, WOOL_RED: 22, WOOL_BLUE: 23, WOOL_WHITE: 24,
   CRYSTAL: 25, FARO: 26, TORCH: 27, WORKBENCH: 28, ROOF: 29, THATCH: 30, ADOBE: 31,
+  FARMLAND: 32, WHEAT_YOUNG: 33, WHEAT_RIPE: 34, BED: 35, DOOR: 36, DOOR_OPEN: 37, WINDOW: 38,
 };
 
 export const BLOCKS = [];
@@ -53,11 +54,19 @@ def(B.WORKBENCH, 'Mesa de trabajo', ['bench_top', 'bench_side', 'planks'], { har
 def(B.ROOF, 'Tejas', 'roof', { hardness: 1.4, tool: 'pick' });
 def(B.THATCH, 'Paja', 'thatch', { hardness: 0.4, sound: 'grass' });
 def(B.ADOBE, 'Adobe', 'adobe', { hardness: 1, sound: 'sand', tool: 'shovel' });
+// Campo y casa: tierra arada, trigo (brote y maduro), cama, puerta (cerrada/abierta) y ventana.
+def(B.FARMLAND, 'Tierra arada', ['farmland', 'dirt'], { hardness: 0.5, drop: B.DIRT, sound: 'grass', tool: 'shovel' });
+def(B.WHEAT_YOUNG, 'Trigo creciendo', 'wheat_young', { solid: false, transparent: true, hardness: 0.05, sound: 'grass', shape: 'crop', drop: 135 });
+def(B.WHEAT_RIPE, 'Trigo maduro', 'wheat_ripe', { solid: false, transparent: true, hardness: 0.05, sound: 'grass', shape: 'crop', drop: 134 });
+def(B.BED, 'Cama', ['bed_top', 'bed_side', 'planks'], { transparent: true, hardness: 0.4, sound: 'wool', shape: 'bed' });
+def(B.DOOR, 'Puerta', 'door', { transparent: true, hardness: 1, sound: 'wood', tool: 'axe', shape: 'door' });
+def(B.DOOR_OPEN, 'Puerta abierta', 'door', { solid: false, transparent: true, hardness: 1, sound: 'wood', tool: 'axe', shape: 'door_open', drop: B.DOOR });
+def(B.WINDOW, 'Ventana', 'window', { transparent: true, alpha: true, hardness: 0.3, sound: 'glass' });
 def(B.TORCH, 'Antorcha', 'torch', { solid: false, transparent: true, hardness: 0.05, emissive: true, sound: 'wood', shape: 'torch', light: 13 });
 
 // Bloques disponibles en el inventario creativo (orden de la grilla).
 export const PLACEABLE = [B.GRASS, B.DIRT, B.STONE, B.COBBLE, B.PLANKS, B.LOG, B.BIRCH_LOG, B.LEAVES, B.BIRCH_LEAVES,
-  B.GLASS, B.BRICK, B.SAND, B.GRAVEL, B.CLAY, B.SNOW, B.CACTUS, B.COAL, B.IRON, B.LAMP, B.WOOL_RED, B.WOOL_BLUE, B.WOOL_WHITE, B.CRYSTAL, B.FARO, B.TORCH, B.WORKBENCH, B.ROOF, B.THATCH, B.ADOBE];
+  B.GLASS, B.BRICK, B.SAND, B.GRAVEL, B.CLAY, B.SNOW, B.CACTUS, B.COAL, B.IRON, B.LAMP, B.WOOL_RED, B.WOOL_BLUE, B.WOOL_WHITE, B.CRYSTAL, B.FARO, B.TORCH, B.WORKBENCH, B.ROOF, B.THATCH, B.ADOBE, B.FARMLAND, B.BED, B.DOOR, B.WINDOW];
 
 // Bloques que emiten luz (iluminan alrededor y repelen a las Sombras).
 export const LIGHT_BLOCKS = new Set(BLOCKS.filter((b) => b?.light > 0).map((b) => b.id));

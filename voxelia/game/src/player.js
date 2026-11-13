@@ -78,6 +78,7 @@ export class Player {
     const canSprint = i.sprint && !this.sneaking && (!this.useStamina || this.stamina > 2);
     let speed = this.flying ? FLY * (i.sprint ? 1.8 : 1) : this.sneaking ? SNEAK : canSprint ? SPRINT : WALK;
     this.eyeHeight += ((this.sneaking ? EYE_SNEAK : EYE) - this.eyeHeight) * Math.min(1, dt * 14);
+    speed *= this.slow ?? 1;   // cubriéndose con el escudo se camina más lento
     if (this.inWater && !this.flying) speed *= 0.55;
     let mx = -sin * fwd + cos * side;
     let mz = -cos * fwd - sin * side;

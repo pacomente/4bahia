@@ -8,6 +8,10 @@ export const I = {
   SWORD_WOOD: 121, SWORD_STONE: 122, SWORD_IRON: 123,
   PICK_CRYSTAL: 124, AXE_CRYSTAL: 125, SHOVEL_CRYSTAL: 126, SWORD_CRYSTAL: 127,
   BOW: 128, ARROW: 129, SHIELD: 130,
+  SILVER: 131, APPLE: 132, BREAD: 133, WHEAT: 134, SEEDS: 135, CAKE: 136,
+  HELMET_CLOTH: 140, CHEST_CLOTH: 141, LEGS_CLOTH: 142, BOOTS_CLOTH: 143,
+  HELMET_IRON: 144, CHEST_IRON: 145, LEGS_IRON: 146, BOOTS_IRON: 147,
+  HELMET_CRYSTAL: 148, CHEST_CRYSTAL: 149, LEGS_CRYSTAL: 150, BOOTS_CRYSTAL: 151,
 };
 
 // Niveles de herramienta: velocidad de minado, daño, usos antes de romperse y color.
@@ -45,8 +49,43 @@ ITEMS[I.BOW] = { name: 'Arco', kind: 'tool', tool: 'bow', tier: 'wood', speed: 1
 ITEMS[I.ARROW] = { name: 'Flecha', kind: 'material', color: '#cfcfcf' };
 ITEMS[I.SHIELD] = { name: 'Escudo', kind: 'gear', color: '#8f2b26', description: 'Llevalo en la mano: los golpes te sacan mucho menos.' };
 
+// Moneda y comida. La comida cura corazones y devuelve energía (no hay hambre que te mate).
+ITEMS[I.SILVER] = { name: 'Moneda de plata', kind: 'material', color: '#d9dde3', description: 'La moneda de las aldeas: con ella se compra y se vende.' };
+ITEMS[I.APPLE] = { name: 'Manzana', kind: 'food', heal: 3, energy: 25, color: '#c8352b' };
+ITEMS[I.BREAD] = { name: 'Pan', kind: 'food', heal: 5, energy: 40, color: '#c98a3e' };
+ITEMS[I.CAKE] = { name: 'Pastel', kind: 'food', heal: 10, energy: 100, color: '#f2d8c0' };
+ITEMS[I.WHEAT] = { name: 'Trigo', kind: 'material', color: '#e0bf55' };
+ITEMS[I.SEEDS] = { name: 'Semillas de trigo', kind: 'seed', color: '#7cab4a', description: 'Clic derecho sobre tierra arada para sembrar.' };
+
+// Armadura: casco, pechera, pantalones y botas. Cada punto frena 4% del daño (máximo 80%).
+export const ARMOR_SLOTS = ['head', 'chest', 'legs', 'feet'];
+export const SLOT_NAMES = { head: 'Cabeza', chest: 'Torso', legs: 'Piernas', feet: 'Pies', offhand: 'Mano izquierda' };
+const ARMOR_TIERS = {
+  cloth: { name: 'acolchado', fem: 'acolchada', color: '#e8e4d8', trim: '#b8352f', points: [1, 2, 2, 1], uses: 80 },
+  iron: { name: 'de hierro', fem: 'de hierro', color: '#d8dadf', trim: '#8b8f96', points: [2, 5, 4, 2], uses: 220 },
+  crystal: { name: 'de cristal', fem: 'de cristal', color: '#5ff2e6', trim: '#2bb3a8', points: [3, 7, 5, 3], uses: 420 },
+};
+const ARMOR_NAMES = [['Casco', false], ['Pechera', true], ['Pantalones', false], ['Botas', true]];
+for (const [tier, base] of [['cloth', I.HELMET_CLOTH], ['iron', I.HELMET_IRON], ['crystal', I.HELMET_CRYSTAL]]) {
+  const t = ARMOR_TIERS[tier];
+  ARMOR_SLOTS.forEach((slot, i) => {
+    const [label, fem] = ARMOR_NAMES[i];
+    const plural = label === 'Pantalones' || label === 'Botas';
+    const adj = (fem ? t.fem : t.name) + (plural && tier === 'cloth' ? 's' : '');
+    ITEMS[base + i] = { name: `${label} ${adj}`, kind: 'armor', slot, tier, points: t.points[i], uses: t.uses, color: t.color, trim: t.trim };
+  });
+}
+ITEMS[I.SHIELD].slot = 'offhand';
+ITEMS[I.SHIELD].uses = 260;
+ITEMS[I.SHIELD].description = 'Equipalo en la mano izquierda (E) y mantené clic derecho o V para cubrirte.';
+
+// Puntos de armadura de lo que llevás puesto y cuánto daño frena.
+export function armorPoints(equip) { return ARMOR_SLOTS.reduce((n, s) => n + (ITEMS[equip?.[s]]?.points ?? 0), 0); }
+export const armorReduction = (points) => Math.min(0.8, points * 0.04);
+export const isFood = (id) => ITEMS[id]?.kind === 'food';
+
 // Usos máximos de una herramienta (null si no se gasta).
-export const maxUses = (id) => (ITEMS[id]?.kind === 'tool' ? ITEMS[id].uses : null);
+export const maxUses = (id) => (['tool', 'armor'].includes(ITEMS[id]?.kind) || id === I.SHIELD ? ITEMS[id].uses : null);
 
 // Aclara u oscurece un color "#rrggbb".
 function shadeHex(h, f) { return '#' + [1, 3, 5].map((i) => Math.max(0, Math.min(255, Math.round(parseInt(h.slice(i, i + 2), 16) * f))).toString(16).padStart(2, '0')).join(''); }
@@ -105,6 +144,35 @@ export function itemCanvas(id, size = 48) {
       const rim = Math.abs(x - 7.5) > w - 1 || y === 2;
       dot(x, y, rim ? '#9aa0a8' : (x < 8) === (y < 8) ? '#8f2b26' : '#d8b45a');
     }
+  } else if (it.kind === 'armor') {
+    const c = it.color; const t = it.trim;
+    const shapes = {
+      head: (x, y) => y >= 3 && y <= 9 && x >= 3 && x <= 12 && !(y >= 7 && x >= 5 && x <= 10),
+      chest: (x, y) => y >= 2 && y <= 13 && x >= 2 && x <= 13 && !(y <= 5 && x >= 6 && x <= 9) && !(y >= 7 && (x <= 3 || x >= 12)),
+      legs: (x, y) => y >= 2 && y <= 14 && x >= 3 && x <= 12 && !(y >= 6 && x >= 7 && x <= 8),
+      feet: (x, y) => y >= 8 && y <= 13 && ((x >= 1 && x <= 6) || (x >= 9 && x <= 14)) && !(y <= 9 && (x <= 2 || x >= 13)),
+    };
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      if (!shapes[it.slot](x, y)) continue;
+      const edge = !shapes[it.slot](x - 1, y) || !shapes[it.slot](x + 1, y) || !shapes[it.slot](x, y - 1) || !shapes[it.slot](x, y + 1);
+      dot(x, y, edge ? t : (x + y) % 5 === 0 ? '#ffffff88' : c);
+    }
+  } else if (id === I.SILVER) {
+    for (let y = 3; y < 13; y++) for (let x = 3; x < 13; x++) { const d = (x - 7.5) ** 2 + (y - 7.5) ** 2; if (d < 25) dot(x, y, d > 16 ? '#8b8f96' : d < 4 ? '#ffffff' : '#d9dde3'); }
+    dot(6, 6, '#f5f7fa'); dot(9, 9, '#a9aeb6');
+  } else if (id === I.APPLE) {
+    for (let y = 4; y < 14; y++) for (let x = 3; x < 13; x++) { const d = (x - 7.5) ** 2 + (y - 8.7) ** 2; if (d < 22) dot(x, y, d < 3 && x < 7 ? '#ff8a7a' : '#c8352b'); }
+    dot(8, 2, '#5b3d22'); dot(8, 3, '#5b3d22'); dot(9, 2, '#4f9a2f'); dot(10, 2, '#4f9a2f');
+  } else if (id === I.BREAD) {
+    for (let y = 5; y < 12; y++) for (let x = 2; x < 14; x++) { const d = ((x - 7.5) / 6) ** 2 + ((y - 8.5) / 3.5) ** 2; if (d < 1) dot(x, y, d > 0.7 ? '#8a5a26' : y < 7 ? '#e0a95a' : '#c98a3e'); }
+    for (const x of [5, 8, 11]) dot(x, 6, '#f2d39a');
+  } else if (id === I.CAKE) {
+    for (let y = 6; y < 13; y++) for (let x = 2; x < 14; x++) dot(x, y, y < 8 ? '#f7f2ea' : y === 10 ? '#d0457a' : '#e8c79a');
+    for (const x of [4, 8, 12]) { dot(x, 5, '#c8352b'); dot(x, 4, '#ffffff'); }
+  } else if (id === I.WHEAT) {
+    for (let k = 0; k < 4; k++) { for (let y = 6; y < 15; y++) dot(5 + k * 2 - (y > 11 ? (k - 1.5) : 0), y, '#b89a3a'); for (let y = 2; y < 7; y++) dot(5 + k * 2, y, '#e8c75a'); }
+  } else if (id === I.SEEDS) {
+    for (const [x, y] of [[5, 6], [8, 5], [10, 8], [6, 9], [9, 11], [12, 6], [4, 11], [7, 12]]) { dot(x, y, '#7cab4a'); dot(x + 1, y, '#5f8a35'); }
   } else if (id === I.GLIDER) {
     for (let x = 1; x < 15; x++) { const h = 4 - Math.abs(x - 7.5) / 3; for (let y = 0; y < h; y++) dot(x, 5 + y + Math.abs(x - 7.5) / 3, x % 3 ? it.color : '#ffffff'); }
     dot(7.5, 9, handle); dot(7.5, 10, handle); dot(7.5, 11, handle);

@@ -16,9 +16,11 @@ export const MISSIONS = [
   { id: 'glider', title: 'Fabricá el Planeador', hint: 'Taller: cristales, esencias y tablas. Mantené Espacio en el aire para planear.', goal: 1, progress: (s) => s.crafted.glider ?? 0 },
   { id: 'village', title: 'Visitá una aldea', hint: 'Mirá el mapa (M): las casitas naranjas son aldeas. Hay una cerca del inicio.', goal: 1, progress: (s) => s.visited ?? 0 },
   { id: 'trade', title: 'Hacé un trueque con un aldeano', hint: 'Clic derecho sobre un aldeano para hablar. Cada oficio ofrece cosas distintas.', goal: 1, progress: (s) => s.trades ?? 0 },
+  { id: 'armor', title: 'Ponete una armadura', hint: 'Taller: armadura acolchada con lana. Abrí el inventario (E) y hacé clic en la pieza para ponértela.', goal: 1, progress: (s) => s.equipped ?? 0 },
+  { id: 'king', title: 'Cumplí un encargo del rey', hint: 'El rey vive en el castillo de las aldeas medievales (en las otras, el jefe). Te paga en plata.', goal: 1, progress: (s) => s.honor ?? 0 },
 ];
 
-export const emptyStats = () => ({ collected: {}, crafted: {}, placed: {}, nights: 0, kills: 0, visited: 0, trades: 0, met: 0 });
+export const emptyStats = () => ({ collected: {}, crafted: {}, placed: {}, nights: 0, kills: 0, visited: 0, trades: 0, met: 0, equipped: 0, honor: 0 });
 
 // Misión actual (la primera sin completar) y cuántas hay terminadas.
 export function missionStatus(stats) {

@@ -61,11 +61,20 @@ export function createHumanoid(look) {
   if (look.hat === 'wrap') { const h = box(0.52, 0.18, 0.52, M(look.hatColor)); h.position.y = 0.44; const tail = box(0.14, 0.34, 0.08, M(look.hatColor)); tail.position.set(0.14, 0.2, -0.27); head.add(h, tail); }
   if (look.hat === 'fur') { const h = box(0.56, 0.2, 0.56, M(look.hatColor)); h.position.y = 0.46; const flapL = box(0.08, 0.22, 0.3, M(look.hatColor)); flapL.position.set(-0.27, 0.24, 0); const flapR = flapL.clone(); flapR.position.x = 0.27; head.add(h, flapL, flapR); }
   if (look.hat === 'cap') { const h = box(0.5, 0.12, 0.5, M(look.hatColor)); h.position.y = 0.5; const brim = box(0.5, 0.04, 0.2, M(look.hatColor)); brim.position.set(0, 0.45, 0.32); head.add(h, brim); }
+  if (look.hat === 'crown') {
+    // Corona dorada con puntas y piedras.
+    const gold = M('#e8c040'); const gem = M('#c8352b');
+    const band = box(0.5, 0.1, 0.5, gold); band.position.y = 0.5;
+    head.add(band);
+    for (const [x, z] of [[-0.2, -0.2], [0.2, -0.2], [-0.2, 0.2], [0.2, 0.2], [0, 0.22], [0, -0.22], [0.22, 0], [-0.22, 0]]) { const p = box(0.07, 0.12, 0.07, gold); p.position.set(x, 0.6, z); head.add(p); }
+    const g = box(0.08, 0.06, 0.02, gem); g.position.set(0, 0.5, 0.26); head.add(g);
+  }
   if (look.cape) { const c = box(0.5, 0.95, 0.04, M(look.cape)); c.position.set(0, 1.0, -0.18); body.add(c); }
   body.add(head);
   // Herramienta en la mano derecha (lanza del guardia, martillo del constructor, antorcha).
   const tool = new THREE.Group(); tool.position.set(0, -0.66, 0.08); armR.add(tool);
   root.scale.setScalar(look.scale ?? 1);
+  root.rotation.order = 'YXZ';   // para poder acostarse (x) mirando hacia un lado (y)
   const parts = { root, body, head, armL, armR, legL, legR, tool, mats };
   return parts;
 }
@@ -90,6 +99,12 @@ export function makeProp(kind) {
     const stick = box(0.06, 0.45, 0.06, wood); stick.position.y = 0.12;
     const flame = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.12, 0.1), new THREE.MeshBasicMaterial({ color: '#ffcf4d' })); flame.position.y = 0.4;
     g.add(stick, flame); g.rotation.x = 1.1; g.userData.flame = flame;
+  }
+  if (kind === 'axe') {
+    const stick = box(0.06, 0.55, 0.06, wood); stick.position.y = 0.12;
+    const headMat = new THREE.MeshBasicMaterial({ color: '#9aa0a8' }); headMat.userData.base = new THREE.Color('#9aa0a8');
+    const h = box(0.06, 0.2, 0.18, headMat); h.position.set(0, 0.32, 0.08);
+    g.add(stick, h); g.rotation.x = 1.2;
   }
   if (kind === 'basket') {
     const m = new THREE.MeshBasicMaterial({ color: '#b08a55' }); m.userData.base = new THREE.Color('#b08a55');
@@ -118,6 +133,10 @@ export function animateHumanoid(p, s) {
   if (s.action === 'scared') { aR = -2.6; aL = -2.6; aRz = 0.4; aLz = -0.4; }
   if (s.action === 'guard') { aR = -0.35; }
   if (s.action === 'attack') aR = -1.8 + Math.sin(s.t * 14) * 0.9;
+  if (s.action === 'chop') { const k = Math.abs(Math.sin(s.t * 4)); aR = -1.9 + k * 1.4; aL = -1.7 + k * 1.3; p.body.rotation.y = -0.4 + k * 0.5; }
+  else p.body.rotation.y = 0;
+  if (s.action === 'eat') { aR = -2.3 + Math.abs(Math.sin(s.t * 6)) * 0.25; aRz = 0.5; p.head.rotation.x = 0.1 + Math.sin(s.t * 12) * 0.05; }
+  if (s.action === 'sleep') { aR = 0; aL = 0; p.legL.rotation.x = 0; p.legR.rotation.x = 0; p.head.rotation.y = 0; p.head.rotation.x = 0; p.body.position.y = Math.sin(s.t * 1.2) * 0.01; }
   p.armL.rotation.x = aL; p.armR.rotation.x = aR; p.armL.rotation.z = aLz; p.armR.rotation.z = aRz;
 }
 

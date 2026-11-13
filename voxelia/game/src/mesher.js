@@ -71,6 +71,53 @@ function torchQuads(out, x, y, z, b) {
   }
 }
 
+// Formas que no son cubos: trigo (dos planos cruzados), cama (bloque bajo) y puertas (tabla fina).
+// Las puertas se orientan solas según las paredes vecinas, sin guardar datos extra.
+const DOOR_T = 3 / 16;
+function shapeQuads(out, get, x, y, z, id, b, em, sky) {
+  if (b.shape === 'crop') {
+    const [u0, v0, u1, v1] = uvRect(b.tex[0]);
+    const uv = [[u0, v1], [u0, v0], [u1, v1], [u1, v0]];
+    const c = [0.9, 0.9, 0.9, 0.9];
+    for (const [ax, az, bx, bz] of [[0.15, 0.15, 0.85, 0.85], [0.15, 0.85, 0.85, 0.15]]) {
+      const p = [[x + ax, y + 1, z + az], [x + ax, y, z + az], [x + bx, y + 1, z + bz], [x + bx, y, z + bz]];
+      out.quad(p, uv, c, em, false, sky);
+      out.quad([p[2], p[3], p[0], p[1]], [uv[0], uv[1], uv[2], uv[3]], c, em, false, sky);   // del otro lado
+    }
+    return;
+  }
+  let box;
+  if (b.shape === 'bed') box = [0, 0, 0, 1, 9 / 16, 1];
+  else {
+    // Pared a lo largo de x (bloques sólidos a los costados en x) → la puerta ocupa todo x y es fina en z.
+    const solidAt = (dx, dz) => { const n = get(x + dx, y, z + dz); return n !== B.AIR && BLOCKS[n].solid && n !== B.DOOR; };
+    const alongX = solidAt(1, 0) || solidAt(-1, 0) || !(solidAt(0, 1) || solidAt(0, -1));
+    const mid0 = 0.5 - DOOR_T / 2; const mid1 = 0.5 + DOOR_T / 2;
+    if (b.shape === 'door') box = alongX ? [0, 0, mid0, 1, 1, mid1] : [mid0, 0, 0, mid1, 1, 1];
+    else box = alongX ? [0, 0, 0, DOOR_T, 1, 1] : [0, 0, 0, 1, 1, DOOR_T];   // abierta: pegada a la bisagra
+  }
+  for (const f of FACES) {
+    const [dx, dy, dz] = f.dir;
+    // Caras pegadas a un bloque opaco no se ven.
+    const flush = (dx === 1 && box[3] === 1) || (dx === -1 && box[0] === 0) || (dy === 1 && box[4] === 1) || (dy === -1 && box[1] === 0) || (dz === 1 && box[5] === 1) || (dz === -1 && box[2] === 0);
+    if (flush) { const n = get(x + dx, y + dy, z + dz); if (n !== B.AIR && !BLOCKS[n].transparent) continue; }
+    const [u0, v0, u1, v1] = uvRect(b.tex[f.tex]);
+    const pos = []; const uv = [];
+    for (let i = 0; i < 4; i++) {
+      const c = f.corners[i];
+      const px = c[0] ? box[3] : box[0]; const py = c[1] ? box[4] : box[1]; const pz = c[2] ? box[5] : box[2];
+      pos.push([x + px, y + py, z + pz]);
+      // UV según la posición dentro del bloque en el plano de la cara (las caras finas toman una franja).
+      let fu; let fv;
+      if (dx) { fu = dx > 0 ? 1 - pz : pz; fv = py; } else if (dz) { fu = dz > 0 ? px : 1 - px; fv = py; } else { fu = px; fv = dy > 0 ? 1 - pz : pz; }
+      if (b.shape === 'bed' && !dy) fv = py + (1 - 9 / 16);   // los costados de la cama usan la parte de arriba de la textura
+      uv.push([u0 + (u1 - u0) * fu, v0 + (v1 - v0) * fv]);
+    }
+    const l = f.light;
+    out.quad(pos, uv, [l, l, l, l], em, false, sky);
+  }
+}
+
 // Construye la geometría de un chunk: una malla opaca (incluye hojas y vidrio con alpha-test) y otra de agua.
 export function meshChunk(world, chunk) {
   const opaque = new Builder();
@@ -104,6 +151,13 @@ export function meshChunk(world, chunk) {
         const b = BLOCKS[id];
         const x = x0 + lx; const z = z0 + lz;
         if (b.shape === 'torch') { torchQuads(opaque, x, y, z, b); continue; }
+        if (b.shape !== 'cube') {
+          const depth = top(x, z) - y;
+          const sky = depth <= 0 ? 1 : depth <= 6 ? 0.6 : Math.max(0.12, 0.6 - (depth - 6) * 0.06);
+          const em = lightFn ? Math.pow(lightAt(x, y, z), 1.4) : 0;
+          shapeQuads(opaque, get, x, y, z, id, b, em, sky);
+          continue;
+        }
         const isWater = id === B.WATER;
         const out = isWater ? water : opaque;
         for (const f of FACES) {

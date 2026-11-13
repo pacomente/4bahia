@@ -56,6 +56,18 @@ Juego de mundo abierto de bloques para PC, con su propio **launcher**. Todo el c
 - **Zombis** de noche: caminan con los brazos estirados y persiguen al jugador y a los aldeanos que quedaron afuera. Al amanecer **buscan sombra para esconderse** y, si el sol los agarra, se queman.
 - **Arco y flechas** (clic derecho) y **escudo** (en la mano, los golpes sacan 60% menos).
 
+## Reino, comercio y equipo (0.6)
+
+- **Rey o reina** en las aldeas medievales, que viven en un **castillo** con sala del trono, estandartes y torrecitas; en las otras aldeas manda un **jefe o jefa**. Dan **encargos** (llevar pan, adoquines, lana o hierro, o eliminar zombis de noche) que pagan en plata y suben tu rango: Plebeyo, Escudero, Caballero, Noble y Héroe del reino.
+- **Monedas de plata**: cada oficio vende cosas propias y compra lo que necesita (el herrero forja armaduras, el guardia vende arco, flechas y escudo, el granjero comida y semillas, el constructor puertas, ventanas y camas, el leñador madera). Los zombis a veces sueltan plata. Algunas cosas solo se venden cuando la aldea crece (Aldea → Pueblo → Ciudad).
+- **Mercado**: puestos con toldo a rayas en la plaza, atendidos de mañana.
+- **Armadura** acolchada (lana), de hierro y de cristal: casco, pechera, pantalones y botas. Cada punto frena 4% del daño (hasta 80%) y las piezas se gastan. Se equipa desde el inventario (E).
+- **Escudo**: equipalo en la mano izquierda (E) y mantené **clic derecho** (con una herramienta o la mano vacía) o **V** para cubrirte: frena los golpes de frente, pero caminás más lento.
+- **Comida**: manzanas (de las hojas), trigo, pan y pastel. Clic derecho para comer: cura corazones y devuelve energía.
+- **Campo**: la pala ara el pasto (clic derecho) y las semillas se siembran en la tierra arada; el trigo madura con el tiempo. Las aldeas tienen campos con riego que los granjeros cosechan.
+- **Camas, puertas y ventanas**: dormir de noche pasa a la mañana y deja tu punto de reaparición en la cama; las puertas se abren con clic derecho y **los zombis no saben abrirlas**.
+- **Aldeanos más vivos**: tienen hambre, sueño y ganas de charlar (su ánimo se ve al hablarles), siguen un horario (trabajan, almuerzan en el mercado, charlan, vuelven a casa, abren y cierran la puerta y **duermen en su cama**), forman **parejas** y tienen **hijos** si hay camas libres y comida. Los granjeros cosechan, los leñadores talan y el constructor gasta madera y piedra de las **reservas de la aldea** (si faltan, la obra se frena hasta que dones materiales).
+
 ## Controles
 
 | Tecla | Acción |
@@ -73,6 +85,9 @@ Juego de mundo abierto de bloques para PC, con su propio **launcher**. Todo el c
 | M | Mapa |
 | Clic derecho a un aldeano | Hablar y hacer trueques |
 | Clic derecho con el arco | Disparar |
+| Clic derecho sostenido o V | Cubrirse con el escudo |
+| Clic derecho con comida | Comer |
+| Clic derecho en cama o puerta | Dormir / abrir y cerrar |
 | Espacio en el aire | Planear (con planeador) |
 | F3 | Depuración |
 | Esc | Pausa |

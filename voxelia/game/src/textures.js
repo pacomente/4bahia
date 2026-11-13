@@ -5,7 +5,7 @@ import { BLOCKS } from './blocks.js';
 const S = 16;
 const NAMES = ['grass_top', 'grass_side', 'dirt', 'stone', 'sand', 'water', 'log_top', 'log_side', 'leaves', 'planks',
   'cobble', 'glass', 'snow', 'snow_side', 'brick', 'coal', 'cactus_top', 'cactus_side', 'bedrock', 'gravel', 'iron',
-  'birch_top', 'birch_side', 'birch_leaves', 'clay', 'lamp', 'wool_red', 'wool_blue', 'wool_white', 'crystal', 'faro_top', 'faro_side', 'torch', 'bench_top', 'bench_side', 'roof', 'thatch', 'adobe'];
+  'birch_top', 'birch_side', 'birch_leaves', 'clay', 'lamp', 'wool_red', 'wool_blue', 'wool_white', 'crystal', 'faro_top', 'faro_side', 'torch', 'bench_top', 'bench_side', 'roof', 'thatch', 'adobe', 'farmland', 'wheat_young', 'wheat_ripe', 'bed_top', 'bed_side', 'door', 'window'];
 const COLS = 8;
 export const ATLAS_COLS = COLS;
 export const ATLAS_ROWS = Math.ceil(NAMES.length / COLS);
@@ -148,6 +148,45 @@ function paint(name, px) {
       for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) if (y % 8 === 7 || (x + (Math.floor(y / 8) % 2) * 8) % 16 === 0) set(x, y, hex('#b07a48'));
       speckle(hex('#e6b986'), 10);
       break;
+    case 'farmland':
+      // Surcos húmedos.
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, shade(hex('#6b4428'), (y % 4 === 0 ? 0.65 : y % 4 === 1 ? 1.12 : 1) * (0.9 + r() * 0.15)));
+      break;
+    case 'wheat_young': case 'wheat_ripe': {
+      const ripe = name === 'wheat_ripe';
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, [0, 0, 0], 0);
+      for (let k = 0; k < 6; k++) {
+        const x = 1 + k * 2 + Math.floor(r() * 2); const top = ripe ? 2 + Math.floor(r() * 3) : 7 + Math.floor(r() * 4);
+        for (let y = top; y < S; y++) set(x, y, ripe ? shade(hex('#b89a3a'), y > 10 ? 0.75 : 1) : shade(hex('#5fa339'), 0.8 + r() * 0.3));
+        if (ripe) for (let y = top; y < top + 4; y++) { set(x, y, shade(hex('#e8c75a'), 0.9 + r() * 0.2)); if (x + 1 < S) set(x + 1, y, hex('#d8b14a')); }
+        else if (x + 1 < S) set(x + 1, top + 1, hex('#7cc24a'));
+      }
+      break;
+    }
+    case 'bed_top':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const edge = x === 0 || x === S - 1;
+        if (y < 5) set(x, y, edge ? hex('#c9c2b8') : shade(hex('#f2efe6'), 0.95 + r() * 0.05));        // almohada
+        else set(x, y, edge ? shade(hex('#7a2420'), 1) : shade(hex('#b8352f'), (x + y) % 6 === 0 ? 0.85 : 1));   // frazada
+      }
+      break;
+    case 'bed_side':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, y < 7 ? shade(hex('#b8352f'), y === 6 ? 0.7 : 1) : y < 10 ? shade(hex('#8a5a33'), 0.95 + r() * 0.1) : (x < 3 || x > 12) ? hex('#6b4426') : [0, 0, 0], y >= 10 && x >= 3 && x <= 12 ? 0 : 255);
+      break;
+    case 'door':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const frame = x < 2 || x > 13 || y < 1 || y > 14;
+        const win = y >= 2 && y <= 6 && x >= 4 && x <= 11 && !(x === 7 || x === 8 || y === 4);
+        set(x, y, frame ? hex('#5b3d22') : win ? hex('#cfe7f0') : shade(hex('#9a6a3a'), (x % 4 === 1 ? 0.8 : 1) * (0.92 + r() * 0.12)));
+      }
+      set(12, 9, hex('#d8c08a')); set(12, 10, hex('#a8905a'));
+      break;
+    case 'window':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const frame = x < 2 || y < 2 || x > 13 || y > 13 || x === 7 || x === 8 || y === 7 || y === 8;
+        set(x, y, frame ? shade(hex('#7a5230'), 0.9 + r() * 0.15) : hex('#dff1f8'), frame ? 255 : (x + y) % 9 === 0 ? 150 : 60);
+      }
+      break;
     default: noise(hex('#ff00ff'), 0);
   }
 }
@@ -191,7 +230,7 @@ export function blockIcon(atlas, id, size = 48) {
   c.width = c.height = size;
   const ctx = c.getContext('2d');
   ctx.imageSmoothingEnabled = false;
-  if (b.shape === 'torch') {
+  if (b.shape === 'torch' || b.shape === 'crop' || b.shape === 'door' || b.shape === 'door_open') {
     const i = TEX_INDEX[b.tex[1]];
     ctx.drawImage(atlas, (i % COLS) * S, Math.floor(i / COLS) * S, S, S, 0, 0, size, size);
     return c.toDataURL();

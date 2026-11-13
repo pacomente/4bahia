@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { BLOCKS } from './blocks.js';
 import { uvRect } from './textures.js';
-import { ITEMS, isItem, itemCanvas } from './items.js';
+import { I, ITEMS, isItem, itemCanvas } from './items.js';
 
 // Mano en primera persona: brazo + lo que tenés en la mano (bloque, antorcha o ítem en relieve).
 // Se dibuja en una escena aparte, encima del mundo, así nunca atraviesa paredes.
@@ -126,6 +126,17 @@ export class Hand {
 
   swing() { if (this.swingT > 0.55) this.swingT = 0; }
 
+  // Escudo en la mano izquierda: abajo a la izquierda; al cubrirse sube al centro de la pantalla.
+  setShield(on) {
+    if (on === !!this.shield) return;
+    if (this.shield) { this.scene.remove(this.shield); this.shield.geometry.dispose(); this.shield.material.dispose(); this.shield = null; return; }
+    const m = this.itemMesh(I.SHIELD);
+    this.mats = this.mats.filter((x) => x !== m.material);   // material propio, no se descarta al cambiar de ítem
+    m.scale.setScalar(1.4);
+    this.shield = m; this.raise = 0;
+    this.scene.add(m);
+  }
+
   // ctx: { dt, moveSpeed, onGround, sprinting, light (0..1), mouseDX, mouseDY, aspect, breaking }
   update(ctx) {
     const { dt } = ctx;
@@ -159,6 +170,16 @@ export class Hand {
     // Los primeros dos materiales (manga y piel) tienen color propio.
     this.mats[0].color.set(SLEEVE).multiplyScalar(0.25 + 0.75 * ctx.light);
     this.mats[1].color.set(SKIN).multiplyScalar(0.25 + 0.75 * ctx.light);
+  }
+
+  // Posición del escudo (abajo a la izquierda, o al frente si te cubrís).
+  updateShield(dt, blocking, light) {
+    if (!this.shield) return;
+    this.raise += ((blocking ? 1 : 0) - this.raise) * Math.min(1, dt * 14);
+    const r = this.raise;
+    this.shield.position.set(-0.55 + r * 0.38 + this.root.position.x * 0.5, -0.48 + r * 0.22 + this.root.position.y, -0.75 + r * 0.15);
+    this.shield.rotation.set(0.05, 0.45 - r * 0.4, 0);
+    this.shield.material.color.setScalar(0.25 + 0.75 * light);
   }
 
   render(renderer) {

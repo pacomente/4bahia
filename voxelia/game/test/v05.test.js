@@ -32,8 +32,9 @@ test('aldeas: las casas se generan con piso, paredes, puerta abierta, ventana y 
   const { w, p } = homeVillage();
   loadAround(w, p.x, p.z, 3);
   for (const h of p.houses) {
-    assert.equal(w.getBlock(h.door.x, h.y + 1, h.door.z), B.AIR, 'puerta abierta');
-    assert.equal(w.getBlock(h.door.x, h.y + 2, h.door.z), B.AIR);
+    assert.equal(w.getBlock(h.door.x, h.y + 1, h.door.z), B.DOOR, 'puerta de dos bloques');
+    assert.equal(w.getBlock(h.door.x, h.y + 2, h.door.z), B.DOOR);
+    for (const b of h.beds) assert.equal(w.getBlock(b.x, h.y + 1, b.z), B.BED, 'dos camas');
     assert.ok(BLOCKS[w.getBlock(h.door.x, h.y + 3, h.door.z)].solid, 'dintel');
     assert.ok(BLOCKS[w.getBlock(h.x, h.y, h.z)].solid, 'piso');
     assert.equal(w.getBlock(h.x, h.y + 1, h.z), B.AIR, 'adentro hay lugar');
@@ -53,6 +54,7 @@ test('aldeanos: población inicial con constructor y guardia; los chicos crecen 
   assert.ok(rec.villagers.length < capacity(p, rec), 'empieza con lugar para uno más');
   const before = rec.villagers.length;
   let events = [];
+  rec.stock.food = 200;
   for (let d = 0; d < 3; d++) events.push(...villageDawn(p, rec, () => 0.1));
   assert.ok(rec.villagers.length > before, 'nació alguien');
   assert.ok(events.some((e) => e.type === 'born'));
@@ -65,18 +67,19 @@ test('aldeanos: población inicial con constructor y guardia; los chicos crecen 
 test('constructor: levanta la casa nueva bloque por bloque y suma lugar', () => {
   const { w, p } = homeVillage();
   const rec = initialRecord(w, p);
-  while (rec.villagers.length < capacity(p, rec)) villageDawn(p, rec, () => 0.1);
+  rec.stock.food = 500; rec.stock.wood = 500; rec.stock.stone = 500;
+  for (let d = 0; d < 40 && rec.villagers.length < capacity(p, rec); d++) villageDawn(p, rec, () => 0.1);
   planBuild(p, rec);
   const slot = p.slots[rec.build.slot];
   loadAround(w, slot.x, slot.z, 1);
   const cap0 = capacity(p, rec);
   let placed = 0; let res;
-  for (let k = 0; k < 5000 && res !== 'done'; k++) { res = buildStep(w, p, rec); if (res && res !== 'done') placed++; }
+  for (let k = 0; k < 5000 && res !== 'done'; k++) { res = buildStep(w, p, rec); if (res && res !== 'done' && res !== 'nomat') placed++; }
   assert.equal(res, 'done');
   assert.ok(placed > 60, `bloques colocados: ${placed}`);
   assert.equal(capacity(p, rec), cap0 + 2, 'una casa más = dos lugares más');
   assert.equal(allHouses(p, rec).length, p.houses.length + 1);
-  assert.equal(w.getBlock(slot.door.x, slot.y + 1, slot.door.z), B.AIR, 'la casa nueva tiene puerta');
+  assert.equal(w.getBlock(slot.door.x, slot.y + 1, slot.door.z), B.DOOR, 'la casa nueva tiene puerta');
   // Los bloques quedan como cambios del mundo (se guardan).
   assert.ok(w.mods.size > 0);
   // El plano es reproducible.
@@ -87,6 +90,8 @@ test('caminata: un aldeano entra a su casa por la puerta (afuera → puerta → 
   const { w, p } = homeVillage();
   loadAround(w, p.x, p.z, 3);
   const h = p.houses[0];
+  assert.equal(standY(w, h.doorCell.x, h.y + 1, h.doorCell.z, 0, 0), null, 'la puerta cerrada no deja pasar');
+  w.setBlock(h.door.x, h.y + 1, h.door.z, B.DOOR_OPEN); w.setBlock(h.door.x, h.y + 2, h.door.z, B.DOOR_OPEN);   // la abre
   const y0 = standY(w, h.outside.x, h.y + 2, h.outside.z, 3, 6);
   assert.notEqual(y0, null, 'se puede parar afuera');
   const e = { pos: { x: h.outside.x, y: y0, z: h.outside.z }, vy: 0, stuck: 0, side: 1, heading: 0 };
