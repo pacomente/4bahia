@@ -1,0 +1,130 @@
+import * as THREE from 'three';
+
+// Modelo de persona en bloques, con articulaciones (cabeza, torso, brazos y piernas que giran
+// desde hombros y caderas). Lo usan los aldeanos y los zombis.
+// look: { skin, shirt, pants, hair, eyes, hat: 'hood'|'helmet'|'wrap'|'fur'|'cap'|null, hatColor, beard, apron, scale, zombie }
+
+// Cara pintada en una textura chica (8×8, pixel-art).
+function faceTexture(look) {
+  const c = document.createElement('canvas'); c.width = c.height = 8;
+  const g = c.getContext('2d');
+  g.fillStyle = look.skin; g.fillRect(0, 0, 8, 8);
+  if (look.hair && look.hat !== 'helmet') { g.fillStyle = look.hair; g.fillRect(0, 0, 8, 2); g.fillRect(0, 2, 1, 2); g.fillRect(7, 2, 1, 2); }
+  g.fillStyle = '#ffffff'; g.fillRect(1, 3, 2, 1); g.fillRect(5, 3, 2, 1);
+  g.fillStyle = look.eyes ?? '#3a2a1a'; g.fillRect(2, 3, 1, 1); g.fillRect(5, 3, 1, 1);
+  if (look.zombie) { g.fillStyle = '#1d2b14'; g.fillRect(1, 3, 2, 1); g.fillRect(5, 3, 2, 1); g.fillStyle = '#c23b2b'; g.fillRect(2, 3, 1, 1); g.fillRect(5, 3, 1, 1); g.fillStyle = '#2a3a1f'; g.fillRect(2, 6, 4, 1); g.fillRect(3, 5, 1, 1); }
+  else { g.fillStyle = '#00000033'; g.fillRect(3, 4, 2, 1); g.fillStyle = '#8a3b2b'; g.fillRect(3, 6, 2, 1); }
+  if (look.beard) { g.fillStyle = look.beard; g.fillRect(1, 5, 6, 3); g.fillStyle = '#8a3b2b'; g.fillRect(3, 6, 2, 1); }
+  const t = new THREE.CanvasTexture(c);
+  t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter; t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+const box = (w, h, d, mat) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+
+// Pieza que gira desde un extremo (hombro, cadera): el grupo es el pivote y la caja cuelga hacia abajo.
+function limb(w, h, d, mat, x, y, z) {
+  const pivot = new THREE.Group(); pivot.position.set(x, y, z);
+  const m = box(w, h, d, mat); m.position.y = -h / 2;
+  pivot.add(m);
+  return pivot;
+}
+
+export function createHumanoid(look) {
+  const mats = [];
+  const M = (color, extra = {}) => { const m = new THREE.MeshBasicMaterial({ color, ...extra }); m.userData.base = new THREE.Color(color); mats.push(m); return m; };
+  const skin = M(look.skin); const shirt = M(look.shirt); const pants = M(look.pants);
+  const shoe = M('#3a2c22');
+  const root = new THREE.Group();
+  const body = new THREE.Group(); root.add(body);
+  // Piernas (cadera a 0.75).
+  const legL = limb(0.24, 0.75, 0.26, pants, -0.13, 0.75, 0); const legR = limb(0.24, 0.75, 0.26, pants, 0.13, 0.75, 0);
+  for (const l of [legL, legR]) { const s = box(0.25, 0.1, 0.3, shoe); s.position.set(0, -0.7, 0.02); l.add(s); }
+  // Torso.
+  const torso = box(0.52, 0.72, 0.3, shirt); torso.position.y = 1.11;
+  body.add(legL, legR, torso);
+  if (look.apron) { const a = box(0.44, 0.6, 0.02, M(look.apron)); a.position.set(0, 1.0, 0.16); body.add(a); }
+  const belt = box(0.54, 0.07, 0.32, M('#4a3423')); belt.position.y = 0.8; body.add(belt);
+  // Brazos (hombros a 1.42).
+  const armL = limb(0.2, 0.68, 0.22, shirt, -0.37, 1.42, 0); const armR = limb(0.2, 0.68, 0.22, shirt, 0.37, 1.42, 0);
+  for (const a of [armL, armR]) { const h = box(0.19, 0.14, 0.21, skin); h.position.y = -0.62; a.add(h); }
+  body.add(armL, armR);
+  // Cabeza (cuello a 1.47) con cara al frente.
+  const head = new THREE.Group(); head.position.y = 1.47;
+  const faceMat = M('#ffffff', { map: faceTexture(look) }); faceMat.userData.base = new THREE.Color('#ffffff');
+  const headMats = [skin, skin, look.hair ? M(look.hair) : skin, skin, faceMat, look.hair ? M(look.hair) : skin];
+  const skull = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.46, 0.46), headMats); skull.position.y = 0.23;
+  head.add(skull);
+  // Sombreros según el estilo y el oficio.
+  if (look.hat === 'hood') { const h = box(0.52, 0.3, 0.52, M(look.hatColor)); h.position.y = 0.42; const back = box(0.52, 0.42, 0.08, M(look.hatColor)); back.position.set(0, 0.22, -0.27); head.add(h, back); }
+  if (look.hat === 'helmet') { const metal = M('#a8adb4'); const h = box(0.52, 0.22, 0.52, metal); h.position.y = 0.42; const nose = box(0.06, 0.2, 0.06, metal); nose.position.set(0, 0.26, 0.26); const crest = box(0.06, 0.12, 0.4, M('#b8352f')); crest.position.y = 0.58; head.add(h, nose, crest); }
+  if (look.hat === 'wrap') { const h = box(0.52, 0.18, 0.52, M(look.hatColor)); h.position.y = 0.44; const tail = box(0.14, 0.34, 0.08, M(look.hatColor)); tail.position.set(0.14, 0.2, -0.27); head.add(h, tail); }
+  if (look.hat === 'fur') { const h = box(0.56, 0.2, 0.56, M(look.hatColor)); h.position.y = 0.46; const flapL = box(0.08, 0.22, 0.3, M(look.hatColor)); flapL.position.set(-0.27, 0.24, 0); const flapR = flapL.clone(); flapR.position.x = 0.27; head.add(h, flapL, flapR); }
+  if (look.hat === 'cap') { const h = box(0.5, 0.12, 0.5, M(look.hatColor)); h.position.y = 0.5; const brim = box(0.5, 0.04, 0.2, M(look.hatColor)); brim.position.set(0, 0.45, 0.32); head.add(h, brim); }
+  if (look.cape) { const c = box(0.5, 0.95, 0.04, M(look.cape)); c.position.set(0, 1.0, -0.18); body.add(c); }
+  body.add(head);
+  // Herramienta en la mano derecha (lanza del guardia, martillo del constructor, antorcha).
+  const tool = new THREE.Group(); tool.position.set(0, -0.66, 0.08); armR.add(tool);
+  root.scale.setScalar(look.scale ?? 1);
+  const parts = { root, body, head, armL, armR, legL, legR, tool, mats };
+  return parts;
+}
+
+// Objetos para la mano: lanza, martillo, antorcha encendida.
+export function makeProp(kind) {
+  const g = new THREE.Group();
+  const wood = new THREE.MeshBasicMaterial({ color: '#7a5230' }); wood.userData.base = new THREE.Color('#7a5230');
+  if (kind === 'spear') {
+    const stick = box(0.06, 1.6, 0.06, wood); stick.position.y = 0.2; stick.rotation.x = Math.PI / 2; stick.position.set(0, 0, 0.3);
+    const tipMat = new THREE.MeshBasicMaterial({ color: '#cfd4da' }); tipMat.userData.base = new THREE.Color('#cfd4da');
+    const tip = box(0.1, 0.22, 0.04, tipMat); tip.rotation.x = Math.PI / 2; tip.position.set(0, 0, 1.15);
+    g.add(stick, tip); g.rotation.x = -1.2;
+  }
+  if (kind === 'hammer') {
+    const stick = box(0.06, 0.5, 0.06, wood); stick.position.y = 0.1;
+    const headMat = new THREE.MeshBasicMaterial({ color: '#8b8b8b' }); headMat.userData.base = new THREE.Color('#8b8b8b');
+    const h = box(0.28, 0.12, 0.12, headMat); h.position.y = 0.36;
+    g.add(stick, h); g.rotation.x = 1.2;
+  }
+  if (kind === 'torch') {
+    const stick = box(0.06, 0.45, 0.06, wood); stick.position.y = 0.12;
+    const flame = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.12, 0.1), new THREE.MeshBasicMaterial({ color: '#ffcf4d' })); flame.position.y = 0.4;
+    g.add(stick, flame); g.rotation.x = 1.1; g.userData.flame = flame;
+  }
+  if (kind === 'basket') {
+    const m = new THREE.MeshBasicMaterial({ color: '#b08a55' }); m.userData.base = new THREE.Color('#b08a55');
+    const b = box(0.3, 0.22, 0.24, m); b.position.set(0, 0, 0.12); g.add(b);
+  }
+  return g;
+}
+
+// Animación de una persona. state: { t, walk (0..1 velocidad), action: 'idle'|'walk'|'build'|'wave'|'talk'|'zombie'|'cheer'|'sit', lookYaw, lookPitch }
+export function animateHumanoid(p, s) {
+  const sw = Math.sin(s.phase) * s.walk;
+  p.legL.rotation.x = sw * 0.8; p.legR.rotation.x = -sw * 0.8;
+  p.body.position.y = Math.abs(Math.cos(s.phase)) * 0.05 * s.walk + Math.sin(s.t * 1.8) * 0.008;   // paso + respiración
+  p.body.rotation.z = Math.sin(s.phase) * 0.03 * s.walk;
+  // Cabeza: mira al objetivo (girando hasta 70°) y asiente al hablar.
+  p.head.rotation.y = Math.max(-1.2, Math.min(1.2, s.lookYaw ?? 0));
+  p.head.rotation.x = (s.lookPitch ?? 0) + (s.action === 'talk' ? Math.sin(s.t * 9) * 0.08 : 0);
+  let aL = -sw * 0.7; let aR = sw * 0.7; let aLz = 0; let aRz = 0;
+  if (s.action === 'zombie') { aL = -1.45 + Math.sin(s.t * 2) * 0.1; aR = -1.4 + Math.sin(s.t * 2 + 1) * 0.1; p.body.rotation.x = 0.12; p.head.rotation.z = Math.sin(s.t * 1.3) * 0.15; }
+  else p.body.rotation.x = 0;
+  if (s.action === 'build') aR = -1.6 + Math.abs(Math.sin(s.t * 7)) * 1.3;            // martillazos
+  if (s.action === 'farm') { aR = -0.9 + Math.sin(s.t * 4) * 0.5; aL = -0.9 + Math.sin(s.t * 4 + Math.PI) * 0.5; p.body.rotation.x = 0.35; }
+  if (s.action === 'wave') { aR = Math.PI; aRz = -0.3 + Math.sin(s.t * 10) * 0.35; }
+  if (s.action === 'talk') { aR = -0.5 + Math.sin(s.t * 5) * 0.25; aL = -0.3 + Math.sin(s.t * 4 + 1) * 0.2; }
+  if (s.action === 'cheer') { aR = Math.PI - 0.2; aL = Math.PI - 0.2; aRz = -0.2; aLz = 0.2; p.body.position.y += Math.abs(Math.sin(s.t * 8)) * 0.15; }
+  if (s.action === 'scared') { aR = -2.6; aL = -2.6; aRz = 0.4; aLz = -0.4; }
+  if (s.action === 'guard') { aR = -0.35; }
+  if (s.action === 'attack') aR = -1.8 + Math.sin(s.t * 14) * 0.9;
+  p.armL.rotation.x = aL; p.armR.rotation.x = aR; p.armL.rotation.z = aLz; p.armR.rotation.z = aRz;
+}
+
+// Luz sobre el modelo: multiplica los colores base (0..1), con un tinte rojo al recibir golpes.
+export function lightHumanoid(p, light, flash = 0) {
+  for (const m of p.mats) {
+    if (flash > 0) m.color.setRGB(1, 0.45, 0.45);
+    else m.color.copy(m.userData.base).multiplyScalar(light);
+  }
+}

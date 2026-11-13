@@ -1,5 +1,6 @@
 import { createNoise2D, createNoise3D } from 'simplex-noise';
 import { B, BLOCKS } from './blocks.js';
+import { placeVillages, insideVillage } from './villages.js';
 
 export const CS = 16;          // tamaño de chunk (x, z)
 export const H = 96;           // altura del mundo
@@ -16,7 +17,7 @@ export function mulberry32(seed) {
   return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 // Hash determinista de una posición (árboles, minerales): mismo mundo, mismo resultado.
-function hash3(seed, x, y, z) {
+export function hash3(seed, x, y, z) {
   let h = seed ^ Math.imul(x, 374761393) ^ Math.imul(y, 668265263) ^ Math.imul(z, 2147483647);
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
@@ -167,6 +168,7 @@ export class World {
       }
     }
     this.decorate(c);
+    placeVillages(this, c);
     // Modificaciones guardadas del jugador.
     const mods = this.mods.get(this.key(cx, cz));
     if (mods) for (const [i, id] of mods) c.data[i] = id;
@@ -192,6 +194,7 @@ export class World {
         const density = { forest: 0.045, plains: 0.006, snow: 0.012, mountains: 0.004, desert: 0.006 }[biome];
         const r = hash3(this.seed, x, 7, z);
         if (r >= density) continue;
+        if (insideVillage(this, x, z)) continue;   // sin árboles dentro de las aldeas
         const h = this.heightAt(x, z);
         if (h <= SEA + 1) continue;
         if (biome === 'desert') {

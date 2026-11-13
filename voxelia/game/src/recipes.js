@@ -39,6 +39,9 @@ export const RECIPES = [
   tool('shovel_crystal', 'Pala de cristal', I.SHOVEL_CRYSTAL, { [I.CRYSTAL]: 1, [I.ESSENCE]: 1, [B.PLANKS]: 2 }, 'tools', 'Cava como si nada.'),
   tool('sword_crystal', 'Espada de cristal', I.SWORD_CRYSTAL, { [I.CRYSTAL]: 2, [I.ESSENCE]: 2, [B.PLANKS]: 1 }, 'weapons', 'Hecha con la esencia de las propias Sombras.'),
 
+  { id: 'bow', name: 'Arco', in: { [B.PLANKS]: 3, [B.WOOL_WHITE]: 2 }, out: { [I.BOW]: 1 }, cat: 'weapons', mesa: true, desc: 'Clic derecho dispara flechas. Ideal para zombis que vienen en grupo.' },
+  { id: 'arrows', name: 'Flechas', in: { [B.PLANKS]: 1, [B.COBBLE]: 1 }, out: { [I.ARROW]: 6 }, cat: 'weapons', mesa: true, desc: 'Munición para el arco. Las que se clavan en bloques se pueden juntar.' },
+  { id: 'shield', name: 'Escudo', in: { [B.PLANKS]: 4, [I.IRON]: 1 }, out: { [I.SHIELD]: 1 }, cat: 'weapons', mesa: true, desc: 'Con el escudo en la mano los golpes te sacan 60% menos.' },
   { id: 'glass', name: 'Vidrio', in: { [B.SAND]: 2, [I.COAL]: 1 }, out: { [B.GLASS]: 2 }, cat: 'build', mesa: true, desc: 'Ventanas transparentes.' },
   { id: 'brick', name: 'Ladrillo', in: { [B.CLAY]: 2, [I.COAL]: 1 }, out: { [B.BRICK]: 4 }, cat: 'build', mesa: true, desc: 'Arcilla cocida, firme y prolija.' },
   { id: 'lamp', name: 'Lámpara', in: { [B.GLASS]: 1, [I.COAL]: 2 }, out: { [B.LAMP]: 2 }, cat: 'light', mesa: true, desc: 'Ilumina más que una antorcha y es un bloque sólido.' },

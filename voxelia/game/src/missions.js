@@ -14,9 +14,11 @@ export const MISSIONS = [
   { id: 'crystal', title: 'Encontrá 4 Cristales', hint: 'Brillan en las cuevas profundas (debajo de la altura 20).', goal: 4, progress: (s) => s.collected[I.CRYSTAL] ?? 0 },
   { id: 'faro', title: 'Construí un Faro', hint: 'Taller: 3 cristales + 4 adoquines. Colocalo para reaparecer ahí.', goal: 1, progress: (s) => s.placed[B.FARO] ?? 0 },
   { id: 'glider', title: 'Fabricá el Planeador', hint: 'Taller: cristales, esencias y tablas. Mantené Espacio en el aire para planear.', goal: 1, progress: (s) => s.crafted.glider ?? 0 },
+  { id: 'village', title: 'Visitá una aldea', hint: 'Mirá el mapa (M): las casitas naranjas son aldeas. Hay una cerca del inicio.', goal: 1, progress: (s) => s.visited ?? 0 },
+  { id: 'trade', title: 'Hacé un trueque con un aldeano', hint: 'Clic derecho sobre un aldeano para hablar. Cada oficio ofrece cosas distintas.', goal: 1, progress: (s) => s.trades ?? 0 },
 ];
 
-export const emptyStats = () => ({ collected: {}, crafted: {}, placed: {}, nights: 0, kills: 0 });
+export const emptyStats = () => ({ collected: {}, crafted: {}, placed: {}, nights: 0, kills: 0, visited: 0, trades: 0, met: 0 });
 
 // Misión actual (la primera sin completar) y cuántas hay terminadas.
 export function missionStatus(stats) {

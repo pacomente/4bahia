@@ -46,6 +46,16 @@ Juego de mundo abierto de bloques para PC, con su propio **launcher**. Todo el c
 - **Antorchas**: carbón + tablas = 4 antorchas, la forma barata de mantener lejos a las Sombras.
 - **Contador de días y lluvia**: el clima cambia y la lluvia oscurece el día.
 
+## Aldeas y aldeanos
+
+- **Aldeas generadas** según el bioma: **medievales** en la llanura (casas de piedra y madera con techos de tejas, torre de vigilancia con almenas), **del bosque** (techos de paja), **del desierto** (adobe y techos planos) y **de la nieve** (troncos y techos nevados). Tienen plaza con pozo, caminos, faroles y chimeneas que echan humo. Siempre hay una cerca del inicio y aparecen en el mapa (M).
+- **Aldeanos con personalidad**: nombre, oficio (constructor, guardia, granjero, herrero, mercader) y carácter (valiente, tímido, charlatán, gruñón, alegre, trabajador). Pasean, charlan entre ellos con globitos de diálogo, te saludan y te miran cuando pasás. La ropa cambia con el estilo de la aldea.
+- **De noche se esconden** en sus casas (los tímidos, antes; los valientes, último). Los **guardias** salen a patrullar con antorchas y pelean contra los zombis.
+- **La población crece**: cada mañana puede nacer alguien si hay lugar, y los chicos crecen y eligen el oficio que falta. Cuando la aldea se llena, el **constructor levanta una casa nueva bloque por bloque** (se lo ve trabajar). Si le donás materiales, termina más rápido.
+- **Trueques** con clic derecho: tejas, paja y adobe del constructor; flechas, arco y escudo del guardia; el **herrero repara** tu herramienta; el mercader del desierto cambia esencia por cristales. Ayudar a la aldea (trueques, donaciones, matar zombis cerca) mejora tu reputación; pegarles a los aldeanos la empeora.
+- **Zombis** de noche: caminan con los brazos estirados y persiguen al jugador y a los aldeanos que quedaron afuera. Al amanecer **buscan sombra para esconderse** y, si el sol los agarra, se queman.
+- **Arco y flechas** (clic derecho) y **escudo** (en la mano, los golpes sacan 60% menos).
+
 ## Controles
 
 | Tecla | Acción |
@@ -61,6 +71,8 @@ Juego de mundo abierto de bloques para PC, con su propio **launcher**. Todo el c
 | C | Taller (supervivencia) |
 | Clic derecho en la Mesa | Taller completo |
 | M | Mapa |
+| Clic derecho a un aldeano | Hablar y hacer trueques |
+| Clic derecho con el arco | Disparar |
 | Espacio en el aire | Planear (con planeador) |
 | F3 | Depuración |
 | Esc | Pausa |
@@ -95,4 +107,4 @@ build/      icon.png
 
 ## Próximos pasos posibles
 
-Más animales y biomas, cofres, multijugador en red local, mods y paquetes de texturas, y actualizaciones automáticas desde el launcher.
+Más animales y biomas, cofres, mascotas, multijugador en red local, mods y paquetes de texturas, y actualizaciones automáticas desde el launcher.

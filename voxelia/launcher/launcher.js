@@ -6,11 +6,12 @@ let worlds = [];
 let settings = {};
 
 const NEWS = [
+  { date: '13/11/2026', title: 'Voxelia 0.5 — Aldeas vivas', items: ['Aldeas medievales (con torre de vigilancia), del bosque, del desierto y de la nieve', 'Aldeanos con nombre, oficio y personalidad: charlan, saludan y hacen trueques', 'De noche se esconden en sus casas; los guardias patrullan con antorchas', 'La población crece y el constructor levanta casas nuevas bloque por bloque', 'Zombis nocturnos que al amanecer se esconden en la sombra o se queman', 'Arco y flechas, escudo, y el herrero repara herramientas'] },
   { date: '11/11/2026', title: 'Voxelia 0.4 — Movimiento, mano y Mesa de trabajo', items: ['La cámara se balancea al caminar, se abre al correr y se hunde al aterrizar', 'Ves tu mano y lo que tenés agarrado, con animación al golpear', 'Agachate con Shift para no caerte de los bordes; salto más preciso', 'Mesa de trabajo y un Taller nuevo con categorías y "Fabricar todo"', 'Espadas y herramientas de cristal; las herramientas se gastan', 'Sombras con estela de humo y Lanudos que pastan, parpadean y mueven la cola'] },
   { date: '11/11/2026', title: 'Voxelia 0.3 — Luz, mapa y vida', items: ['Iluminación real: lámparas, antorchas, cristales y faros alumbran de noche y en las cuevas', 'Antorchas baratas (carbón + tablas)', 'Minimapa y mapa completo (M) con tus faros', 'Lanudos: animales que pastan de día y sueltan lana', 'Música ambiental generada, distinta de día, de noche y bajo tierra', 'El launcher muestra una foto de cada mundo'] },
   { date: '11/11/2026', title: 'Voxelia 0.2 — Supervivencia', items: ['Taller: fabricá con un clic, sin recetas para memorizar', 'Sombras nocturnas que le temen a la luz', 'Energía en lugar de hambre', 'Cristales en cuevas profundas, faro y planeador', 'Misiones guiadas, herramientas por nivel, corazones extra y lluvia'] },
   { date: '11/11/2026', title: 'Voxelia 0.1 — primera beta', items: ['Mundo infinito con biomas: llanuras, bosques, desierto, nieve y montañas', 'Cuevas con carbón y hierro', 'Modos Creativo y Supervivencia', 'Ciclo de día y noche con nubes y estrellas', '22 bloques para construir'] },
-  { date: 'Próximamente', title: 'En desarrollo', items: ['Más animales y biomas', 'Multijugador en red local', 'Paquetes de texturas'] },
+  { date: 'Próximamente', title: 'En desarrollo', items: ['Más animales y biomas', 'Cofres y mascotas', 'Multijugador en red local', 'Paquetes de texturas'] },
   { date: 'Consejo', title: 'Cómo empezar', items: ['Creá un mundo en Creativo para explorar volando (doble espacio)', 'Usá E para elegir bloques y la rueda del mouse para cambiar', 'En Supervivencia, C abre el Taller y la luz te protege de las Sombras', 'F3 muestra tu posición, bioma y semilla'] },
 ];
 
@@ -146,7 +147,7 @@ function browserApi() {
       const p = JSON.parse(localStorage.getItem('voxelia_profile') ?? '{"name":"Jugador"}');
       location.href = `../dist/game/index.html?${new URLSearchParams({ world: w.id, name: w.name, seed: w.seed, mode: w.mode, player: p.name, from: 'launcher' })}`;
     },
-    info: async () => ({ version: '0.4.0', dataPath: 'Navegador (localStorage)', platform: 'web' }),
+    info: async () => ({ version: '0.5.0', dataPath: 'Navegador (localStorage)', platform: 'web' }),
     openDataFolder: async () => toast('Disponible en la app de escritorio'),
   };
 }

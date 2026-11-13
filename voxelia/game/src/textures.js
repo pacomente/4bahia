@@ -5,7 +5,7 @@ import { BLOCKS } from './blocks.js';
 const S = 16;
 const NAMES = ['grass_top', 'grass_side', 'dirt', 'stone', 'sand', 'water', 'log_top', 'log_side', 'leaves', 'planks',
   'cobble', 'glass', 'snow', 'snow_side', 'brick', 'coal', 'cactus_top', 'cactus_side', 'bedrock', 'gravel', 'iron',
-  'birch_top', 'birch_side', 'birch_leaves', 'clay', 'lamp', 'wool_red', 'wool_blue', 'wool_white', 'crystal', 'faro_top', 'faro_side', 'torch', 'bench_top', 'bench_side'];
+  'birch_top', 'birch_side', 'birch_leaves', 'clay', 'lamp', 'wool_red', 'wool_blue', 'wool_white', 'crystal', 'faro_top', 'faro_side', 'torch', 'bench_top', 'bench_side', 'roof', 'thatch', 'adobe'];
 const COLS = 8;
 export const ATLAS_COLS = COLS;
 export const ATLAS_ROWS = Math.ceil(NAMES.length / COLS);
@@ -130,6 +130,23 @@ function paint(name, px) {
       for (let x = 2; x < 7; x++) { set(x, 4, hex('#9a9a9a')); set(x, 5, hex('#7d7d7d')); }
       for (let y = 4; y < 12; y++) for (let x = 9; x < 13; x++) if (x - 9 <= (y - 4) / 2) set(x, y, y % 2 ? hex('#cfcfcf') : hex('#a9a9a9'));
       for (let y = 3; y < 5; y++) for (let x = 9; x < 13; x++) set(x, y, hex('#5b3d22'));
+      break;
+    case 'roof':
+      // Tejas de barro superpuestas en hileras desplazadas.
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const row = Math.floor(y / 4); const lx = (x + (row % 2) * 2) % 4; const ly = y % 4;
+        const f = (ly === 3 ? 0.6 : ly === 0 ? 1.12 : 1) * (lx === 0 ? 0.8 : 1) * (0.92 + r() * 0.12);
+        set(x, y, shade(hex('#a2482e'), f));
+      }
+      break;
+    case 'thatch':
+      // Paja: fibras verticales doradas con atados cada 5 filas.
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, shade(hex('#d8b45a'), (y % 5 === 4 ? 0.72 : 1) * (x % 2 ? 0.9 : 1.04) * (0.88 + r() * 0.2)));
+      break;
+    case 'adobe':
+      noise(hex('#d39a63'), 0.14);
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) if (y % 8 === 7 || (x + (Math.floor(y / 8) % 2) * 8) % 16 === 0) set(x, y, hex('#b07a48'));
+      speckle(hex('#e6b986'), 10);
       break;
     default: noise(hex('#ff00ff'), 0);
   }

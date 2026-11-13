@@ -16,8 +16,12 @@ import { emptyStats, missionStatus } from './missions.js';
 import { Shadows, nearLight } from './mobs.js';
 import { Animals } from './animals.js';
 import { MiniMap } from './minimap.js';
+import { Villages } from './villagers.js';
+import { villagesNear } from './villages.js';
+import { Zombies } from './zombies.js';
+import { Arrows } from './projectiles.js';
 
-export const VERSION = '0.4.0';
+export const VERSION = '0.5.0';
 
 const DEFAULT_HOTBAR = [B.GRASS, B.DIRT, B.STONE, B.COBBLE, B.PLANKS, B.LOG, B.GLASS, B.BRICK, B.LAMP];
 
@@ -79,6 +83,12 @@ export class Game {
     this.animals = new Animals(this.scene, this.world, this.sound);
     this.minimap = new MiniMap(this.atlasCanvas, this.world);
     this.hand = new Hand(this.atlasTex);
+    // Aldeas con sus aldeanos, zombis nocturnos y flechas.
+    this.villages = new Villages(this.scene, this.world, this.sound, save?.villages);
+    this.zombies = new Zombies(this.scene, this.world, this.sound);
+    this.arrows = new Arrows(this.scene, this.world, this.sound);
+    this.lightCache = new Map(); this.lightClock = 0;
+    this.villagerOpen = false; this.talkingTo = null; this.bowCooldown = 0; this.villageNow = null; this.villageCheck = 0;
     for (const f of this.faros) this.addBeam(f);
     this.lastMission = missionStatus(this.stats).done;
     this.initHighlight();
@@ -261,14 +271,14 @@ export class Game {
         this.mouse.left = true;
         if (this.mode === 'creative') this.breakTarget();
       }
-      if (e.button === 2) this.placeBlock();
+      if (e.button === 2 && !this.interact()) this.placeBlock();
       if (e.button === 1) this.pickBlock();
     });
     document.addEventListener('mouseup', (e) => { if (e.button === 0) { this.mouse.left = false; this.breaking = null; this.ui.setBreakProgress(0); } });
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     document.addEventListener('wheel', (e) => { if (!this.paused) this.select((this.selected + (e.deltaY > 0 ? 1 : 8)) % 9); }, { passive: true });
     document.addEventListener('pointerlockchange', () => {
-      if (document.pointerLockElement !== this.canvas && this.started && !this.inventoryOpen && !this.craftOpen && !this.mapOpen && !this.dead) this.pause(true);
+      if (document.pointerLockElement !== this.canvas && this.started && !this.inventoryOpen && !this.craftOpen && !this.mapOpen && !this.villagerOpen && !this.dead) this.pause(true);
     });
   }
 
@@ -350,7 +360,7 @@ export class Game {
   }
 
   mapCtx() {
-    return { player: this.player, spawn: this.spawn, faros: this.faros, radius: (this.settings.renderDistance + 1) * CS, showMini: this.settings.minimap !== false };
+    return { player: this.player, spawn: this.spawn, faros: this.faros, radius: (this.settings.renderDistance + 1) * CS, showMini: this.settings.minimap !== false, villages: this.villageMarkers ?? [] };
   }
 
   renderCraft() {
@@ -407,16 +417,145 @@ export class Game {
 
   held() { return this.hotbar[this.selected]?.id ?? null; }
 
-  // Golpe a una criatura (Sombra o Lanudo) delante del jugador. Devuelve true si le pegó a alguna.
+  // Golpe a una criatura (zombi, Sombra o Lanudo) delante del jugador. Devuelve true si le pegó a alguna.
+  // A los aldeanos no se los puede lastimar: se enojan y salen corriendo.
   attackMob() {
     if (this.attackCooldown > 0) return false;
     const eye = this.player.eye(); const dir = this.player.look(); const dmg = attackDamage(this.held());
-    const hit = (this.shadows.list.length && this.shadows.hit(eye, dir, 3.6, dmg, this.mobCtx()))
+    const v = this.villages.hitTest(eye, dir, 3.6);
+    if (v) { this.villages.annoy(v); this.attackCooldown = 0.35; return true; }
+    const hit = (this.zombies.list.length && this.zombies.hit(eye, dir, 3.6, dmg, this.zombieCtx()))
+      || (this.shadows.list.length && this.shadows.hit(eye, dir, 3.6, dmg, this.mobCtx()))
       || (this.animals.list.length && this.animals.hit(eye, dir, 3.6, dmg, { onKilled: () => { if (this.mode === 'survival') { this.addItem(B.WOOL_WHITE, 2); this.checkMissions(); } } }));
     if (hit) { this.attackCooldown = 0.35; this.useTool(); }
     return !!hit;
   }
   attackShadow() { return this.attackMob(); }
+
+  // Clic derecho: hablar con un aldeano o disparar el arco. Devuelve true si hizo algo.
+  interact() {
+    const eye = this.player.eye(); const dir = this.player.look();
+    const v = this.villages.hitTest(eye, dir, 4);
+    const t = this.target();
+    if (v && (!t || Math.hypot(t.x + 0.5 - eye.x, t.y + 0.5 - eye.y, t.z + 0.5 - eye.z) > v.pos.distanceTo(eye) - 0.5)) { this.openVillager(v); return true; }
+    if (this.held() === I.BOW) { this.shootBow(); return true; }
+    return false;
+  }
+
+  shootBow() {
+    if (this.bowCooldown > 0) return;
+    if (this.mode === 'survival') {
+      if (!(this.inventory[I.ARROW] > 0)) { this.ui.toast('No tenés flechas (Taller: tablas + adoquín)', 1800); return; }
+      this.inventory[I.ARROW] -= 1; if (!this.inventory[I.ARROW]) delete this.inventory[I.ARROW];
+      this.syncHotbar();
+    }
+    this.arrows.shoot(this.player.eye(), this.player.look(), 32);
+    this.hand.swing();
+    this.bowCooldown = 0.55;
+    this.useTool();
+  }
+
+  // Impacto de una flecha en el tramo p0→p1 (zombis, Sombras, Lanudos, aldeanos).
+  arrowHit(p0, p1) {
+    const d = p1.clone().sub(p0); const len = d.length() + 0.25; d.normalize();
+    const v = this.villages.hitTest(p0, d, len);
+    if (v) return () => this.villages.annoy(v);
+    if (this.zombies.hit(p0, d, len, 6, this.zombieCtx())) return () => {};
+    if (this.shadows.hit(p0, d, len, 6, this.mobCtx())) return () => {};
+    if (this.animals.hit(p0, d, len, 6, { onKilled: () => { if (this.mode === 'survival') this.addItem(B.WOOL_WHITE, 2); } })) return () => {};
+    return null;
+  }
+
+  // Luz en un punto (cielo según lo tapado + lámparas/antorchas cerca). Con caché corta por bloque.
+  lightAt(x, y, z) {
+    const bx = Math.floor(x); const by = Math.floor(y); const bz = Math.floor(z);
+    const key = `${bx},${by},${bz}`;
+    const c = this.lightCache.get(key);
+    if (c && this.lightClock - c.t < 0.5) return Math.max(c.block, this.sky.daylight * c.sky);
+    const depth = this.world.topAt(bx, bz) - by;
+    const sky = depth <= 0 ? 1 : depth <= 6 ? 0.6 : Math.max(0.12, 0.6 - (depth - 6) * 0.06);
+    const lamp = nearLight(this.world, x, y, z, 4);
+    const block = lamp ? Math.max(0.4, 1 - Math.hypot(lamp.x - x, lamp.y - y, lamp.z - z) / 10) : 0;
+    if (this.lightCache.size > 4000) this.lightCache.clear();
+    this.lightCache.set(key, { t: this.lightClock, sky, block });
+    return Math.max(block, this.sky.daylight * sky);
+  }
+
+  zombieCtx() {
+    return {
+      player: this.player, daylight: this.sky.daylight, enabled: this.mode === 'survival' && !this.dead, nights: this.stats.nights,
+      villagers: this.villages.entities, villages: villagesNear(this.world, this.player.pos.x, this.player.pos.z, 60), lightAt: (x, y, z) => this.lightAt(x, y, z),
+      onHitPlayer: (dmg, dir) => { this.damage(dmg, 'Un zombi te alcanzó'); this.player.vel.x += dir.x * 6; this.player.vel.z += dir.z * 6; this.player.vel.y = 3.5; },
+      onHitVillager: (e, dmg) => { const name = e.data.name; const village = e.a.plan.name; if (this.villages.hurt(e, dmg)) this.ui.toast(`Los zombis atraparon a ${name} en ${village}`, 3500); },
+      onKilled: (pos, byPlayer) => {
+        if (!byPlayer) return;
+        this.stats.kills += 1;
+        const v = this.villages.villageAt(pos.x, pos.z) ?? villagesNear(this.world, pos.x, pos.z, 25)[0];
+        if (v) { const rec = this.villages.records.get(v.id); if (rec) rec.rep += 1; }
+        if (this.mode === 'survival') { if (Math.random() < 0.4) this.addItem(I.ESSENCE); if (Math.random() < 0.15) this.addItem(I.IRON); this.checkMissions(); }
+      },
+    };
+  }
+
+  villagerCtx() {
+    return {
+      player: this.player, daylight: this.sky.daylight, zombies: this.zombies.list, lightAt: (x, y, z) => this.lightAt(x, y, z),
+      canPlace: (b) => !(BLOCKS[b.id].solid && this.player.intersectsBlock(b.x, b.y, b.z)),
+      onPlace: (b) => {
+        const d = Math.hypot(b.x - this.player.pos.x, b.z - this.player.pos.z);
+        if (d < 24) { if (b.id) { this.sound.place(BLOCKS[b.id].sound); if (d < 16 && Math.random() < 0.35) this.spawnParticles({ x: b.x, y: b.y, z: b.z, block: BLOCKS[b.id] }); } else this.sound.dig('grass'); }
+      },
+      onBuilt: (plan, rec) => { if (Math.hypot(plan.x - this.player.pos.x, plan.z - this.player.pos.z) < 120) { this.ui.toast(`¡${plan.name} tiene una casa nueva! Ya entran ${rec.villagers.length + 1} o más.`, 3500); this.sound.tone(523, 0.1, 0.12, 'sine'); setTimeout(() => this.sound.tone(784, 0.2, 0.12, 'sine'), 120); } },
+      hitZombie: (z, dmg) => this.zombies.damage(z, dmg, this.zombieCtx(), false),
+    };
+  }
+
+  // ───── Diálogo y trueques con aldeanos ─────
+  openVillager(e) {
+    this.villagerOpen = true; this.talkingTo = e;
+    this.paused = true;
+    if (document.pointerLockElement) document.exitPointerLock();
+    e.state = 'idle'; e.timer = 6;
+    e.heading = Math.atan2(this.player.pos.x - e.pos.x, this.player.pos.z - e.pos.z);
+    this.stats.met = (this.stats.met ?? 0) + 1;
+    this.renderVillager();
+    this.ui.show('#villager-screen', true);
+    this.sound.tone(440 + Math.random() * 200, 0.08, 0.1, 'triangle');
+  }
+
+  closeVillager() {
+    this.villagerOpen = false; this.talkingTo = null;
+    this.ui.show('#villager-screen', false);
+    this.paused = false; this.lock();
+  }
+
+  renderVillager() {
+    const e = this.talkingTo; if (!e) return;
+    this.ui.renderVillager(this.villages.info(e), this.inventory, this.mode, {
+      trade: (tr) => this.trade(e, tr),
+      donate: () => { const n = this.villages.donate(e, this.inventory); if (n) { this.ui.toast(`Donaste ${n} materiales al constructor`, 2000); this.syncHotbar(); } else this.ui.toast('Necesitás tablas, troncos o adoquines', 2000); this.renderVillager(); },
+      close: () => this.closeVillager(),
+    });
+  }
+
+  trade(e, tr) {
+    const has = Object.entries(tr.give).every(([id, n]) => (this.inventory[id] ?? 0) >= n);
+    if (this.mode === 'survival' && !has) { this.ui.toast('Te faltan materiales para el trueque', 1600); return; }
+    if (tr.repair) {
+      const id = this.held();
+      if (!maxUses(id) || !(this.toolWear[id] > 0)) { this.ui.toast('Agarrá en la mano una herramienta gastada', 2000); return; }
+      this.toolWear[id] = 0;
+      this.ui.toast(`${ITEMS[id].name}: ¡como nueva!`, 2000);
+    }
+    if (this.mode === 'survival') for (const [id, n] of Object.entries(tr.give)) { this.inventory[id] -= n; if (this.inventory[id] <= 0) delete this.inventory[id]; }
+    for (const [id, n] of Object.entries(tr.get)) this.addItem(Number(id), n);
+    e.a.rec.rep += 1;
+    this.stats.trades = (this.stats.trades ?? 0) + 1;
+    this.sound.tone(660, 0.08, 0.15, 'sine'); setTimeout(() => this.sound.tone(990, 0.12, 0.12, 'sine'), 80);
+    this.villages.say(e, ['¡Trato hecho!', '¡Un placer!', 'Volvé cuando quieras.'][Math.floor(Math.random() * 3)], 2.5);
+    this.syncHotbar(); this.renderHotbar(); this.checkMissions();
+    this.renderVillager();
+  }
 
   mobCtx() {
     return {
@@ -544,6 +683,8 @@ export class Game {
   // ───────── Vida (supervivencia) ─────────
   damage(n, reason) {
     if (this.mode !== 'survival' || n <= 0 || this.dead) return;
+    // Con el escudo en la mano, los golpes sacan mucho menos.
+    if (this.held() === I.SHIELD) { n = Math.max(1, Math.round(n * 0.4)); this.sound.noise(0.15, { freq: 2600, q: 3, gain: 0.4 }); }
     this.health = Math.max(0, this.health - n);
     this.sound.hurt();
     this.shake = 0.35;
@@ -576,7 +717,7 @@ export class Game {
       player: { x: this.player.pos.x, y: this.player.pos.y, z: this.player.pos.z, yaw: this.player.yaw, pitch: this.player.pitch, flying: this.player.flying },
       spawn: this.spawn, time: this.sky.time, health: this.health, inventory: this.inventory, hotbar: this.hotbar, selected: this.selected,
       playTime: this.playTime, mods: this.world.serializeMods(), savedAt: new Date().toISOString(),
-      stats: this.stats, maxHealth: this.maxHealth, faros: this.faros, toolWear: this.toolWear,
+      stats: this.stats, maxHealth: this.maxHealth, faros: this.faros, toolWear: this.toolWear, villages: this.villages.serialize(),
     };
   }
   async save() {
@@ -650,6 +791,24 @@ export class Game {
       this.attackCooldown = Math.max(0, this.attackCooldown - dt);
       this.shadows.update(dt, this.mobCtx());
       this.animals.update(dt, { player: this.player, daylight: this.sky.daylight });
+      this.lightClock += dt;
+      this.villages.update(dt, this.villagerCtx());
+      this.zombies.update(dt, this.zombieCtx());
+      this.bowCooldown = Math.max(0, this.bowCooldown - dt);
+      this.arrows.update(dt, {
+        hitTest: (p0, p1) => this.arrowHit(p0, p1),
+        pickup: (pos) => { if (pos.distanceTo(this.player.pos.clone().setY(this.player.pos.y + 0.9)) > 1.6) return false; if (this.mode === 'survival') { this.addItem(I.ARROW); this.sound.click(); } return true; },
+        light: Math.max(0.3, this.sky.daylight),
+      });
+      this.updateVillageHud(dt);
+      // Amanecer en las aldeas: nacimientos, chicos que crecen y obras nuevas.
+      if (this.prevTime !== undefined && this.prevTime > 0.9 && this.sky.time < 0.1) {
+        for (const ev of this.villages.dawn()) {
+          if (!ev.near) continue;
+          if (ev.type === 'born') this.ui.toast(`¡Nació ${ev.name} en ${ev.village}! Ya son ${ev.pop}.`, 4000);
+          if (ev.type === 'grown') this.ui.toast(`${ev.name} ya es grande en ${ev.village}.`, 3000);
+        }
+      }
       // Cada amanecer cuenta como una noche sobrevivida.
       if (this.prevTime !== undefined && this.prevTime > 0.9 && this.sky.time < 0.1 && this.mode === 'survival') {
         this.stats.nights += 1;
@@ -712,6 +871,23 @@ export class Game {
     this.fpsFrames++; this.fpsTime += dt;
     if (this.fpsTime >= 0.5) { this.fps = Math.round(this.fpsFrames / this.fpsTime); this.fpsFrames = 0; this.fpsTime = 0; this.updateHud(); }
     if (performance.now() - this.lastSave > 30000 && !this.paused) this.save();
+  }
+
+  // Cartel al entrar a una aldea y marcadores para el mapa.
+  updateVillageHud(dt) {
+    this.villageCheck -= dt;
+    if (this.villageCheck > 0) return;
+    this.villageCheck = 1;
+    const p = this.player.pos;
+    const v = this.villages.villageAt(p.x, p.z);
+    if (v && v.id !== this.villageNow) {
+      const rec = this.villages.records.get(v.id);
+      this.ui.toast(`Aldea ${v.name}${rec ? ` · ${rec.villagers.length} habitantes` : ''}`, 3500);
+      this.stats.visited = (this.stats.visited ?? 0) + 1;
+      this.checkMissions();
+    }
+    this.villageNow = v?.id ?? null;
+    this.villageMarkers = this.villages.mapMarkers(p.x, p.z, 400);
   }
 
   // Mano en primera persona: ítem actual, animación y luz del lugar donde estás.

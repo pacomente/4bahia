@@ -48,6 +48,8 @@ test('misiones: avanzan en orden según las estadísticas', () => {
   s.crafted.pick_wood = 1; s.collected[B.COBBLE] = 10; s.collected[I.COAL] = 3; s.placed[B.LAMP] = 1;
   assert.equal(missionStatus(s).current.id, 'night');
   s.nights = 1; s.collected[I.ESSENCE] = 2; s.collected[I.CRYSTAL] = 4; s.placed[B.FARO] = 1; s.crafted.glider = 1;
+  assert.equal(missionStatus(s).current.id, 'village');
+  s.visited = 1; s.trades = 1;
   const st = missionStatus(s);
   assert.equal(st.current, null);
   assert.equal(st.done, MISSIONS.length);

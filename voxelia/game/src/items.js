@@ -7,6 +7,7 @@ export const I = {
   GLIDER: 120,
   SWORD_WOOD: 121, SWORD_STONE: 122, SWORD_IRON: 123,
   PICK_CRYSTAL: 124, AXE_CRYSTAL: 125, SHOVEL_CRYSTAL: 126, SWORD_CRYSTAL: 127,
+  BOW: 128, ARROW: 129, SHIELD: 130,
 };
 
 // Niveles de herramienta: velocidad de minado, daño, usos antes de romperse y color.
@@ -38,6 +39,11 @@ for (const [type, label, ids] of [
     ITEMS[ids[i]] = { name: `${label} de ${t.name}`, kind: 'tool', tool: type, tier, speed: t.speed, damage, uses: t.uses, color: t.color, glow: !!t.glow };
   });
 }
+
+// Arco (dispara flechas con clic derecho), flechas y escudo (en la mano, frena 60% del daño).
+ITEMS[I.BOW] = { name: 'Arco', kind: 'tool', tool: 'bow', tier: 'wood', speed: 1, damage: 2, uses: 200, color: '#8a5a33', description: 'Clic derecho dispara una flecha.' };
+ITEMS[I.ARROW] = { name: 'Flecha', kind: 'material', color: '#cfcfcf' };
+ITEMS[I.SHIELD] = { name: 'Escudo', kind: 'gear', color: '#8f2b26', description: 'Llevalo en la mano: los golpes te sacan mucho menos.' };
 
 // Usos máximos de una herramienta (null si no se gasta).
 export const maxUses = (id) => (ITEMS[id]?.kind === 'tool' ? ITEMS[id].uses : null);
@@ -82,6 +88,22 @@ export function itemCanvas(id, size = 48) {
       for (let i = 0; i < 9; i++) { dot(5 + i, 10 - i, it.color); dot(6 + i, 10 - i, edge); dot(5 + i, 9 - i, i % 3 ? shine : it.color); }   // hoja con filo y brillo
       dot(4, 10, '#4a3a2a'); dot(5, 11, '#4a3a2a'); dot(3, 9, '#4a3a2a'); dot(6, 12, '#4a3a2a');                                  // guarda
       dot(3, 12, handle); dot(2, 13, handle); dot(4, 11, handle); dot(1, 14, '#4a3a2a');                                          // mango
+    }
+  } else if (id === I.BOW) {
+    // Arco curvo con su cuerda.
+    const pts = [[11, 1], [12, 2], [13, 3], [13, 4], [14, 5], [14, 6], [14, 7], [14, 8], [14, 9], [14, 10], [13, 11], [13, 12], [12, 13], [11, 14]];
+    for (const [x, y] of pts) { dot(x - 5, y, '#8a5a33'); dot(x - 6, y, '#6b4426'); }
+    for (let y = 1; y < 15; y++) dot(4.2, y, '#e8e4d8');
+  } else if (id === I.ARROW) {
+    for (let i = 0; i < 9; i++) dot(4 + i, 12 - i, '#8a5a33');
+    dot(12, 3, '#cfd4da'); dot(13, 2, '#cfd4da'); dot(12, 2, '#9aa0a8'); dot(13, 3, '#9aa0a8');
+    dot(3, 12, '#f2efe6'); dot(4, 13, '#f2efe6'); dot(2, 12, '#f2efe6'); dot(3, 13, '#f2efe6');
+  } else if (id === I.SHIELD) {
+    for (let y = 2; y < 14; y++) for (let x = 3; x < 13; x++) {
+      const w = y > 9 ? 5 - (y - 9) : 5;
+      if (Math.abs(x - 7.5) > w) continue;
+      const rim = Math.abs(x - 7.5) > w - 1 || y === 2;
+      dot(x, y, rim ? '#9aa0a8' : (x < 8) === (y < 8) ? '#8f2b26' : '#d8b45a');
     }
   } else if (id === I.GLIDER) {
     for (let x = 1; x < 15; x++) { const h = 4 - Math.abs(x - 7.5) / 3; for (let y = 0; y < h; y++) dot(x, 5 + y + Math.abs(x - 7.5) / 3, x % 3 ? it.color : '#ffffff'); }

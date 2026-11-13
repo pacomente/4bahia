@@ -3,7 +3,7 @@ export const B = {
   AIR: 0, GRASS: 1, DIRT: 2, STONE: 3, SAND: 4, WATER: 5, LOG: 6, LEAVES: 7, PLANKS: 8,
   COBBLE: 9, GLASS: 10, SNOW: 11, BRICK: 12, COAL: 13, CACTUS: 14, BEDROCK: 15, GRAVEL: 16,
   IRON: 17, BIRCH_LOG: 18, BIRCH_LEAVES: 19, CLAY: 20, LAMP: 21, WOOL_RED: 22, WOOL_BLUE: 23, WOOL_WHITE: 24,
-  CRYSTAL: 25, FARO: 26, TORCH: 27, WORKBENCH: 28,
+  CRYSTAL: 25, FARO: 26, TORCH: 27, WORKBENCH: 28, ROOF: 29, THATCH: 30, ADOBE: 31,
 };
 
 export const BLOCKS = [];
@@ -49,11 +49,15 @@ def(B.WOOL_WHITE, 'Lana blanca', 'wool_white', { hardness: 0.4, sound: 'wool' })
 def(B.CRYSTAL, 'Cristal luminoso', 'crystal', { hardness: 2.4, emissive: true, sound: 'glass', tool: 'pick', drop: 103, light: 9 });
 def(B.FARO, 'Faro', ['faro_top', 'faro_side'], { hardness: 2, emissive: true, sound: 'glass', tool: 'pick', light: 15 });
 def(B.WORKBENCH, 'Mesa de trabajo', ['bench_top', 'bench_side', 'planks'], { hardness: 1.2, sound: 'wood', tool: 'axe' });
+// Bloques de las aldeas: tejas (medievales), paja (bosque) y adobe (desierto).
+def(B.ROOF, 'Tejas', 'roof', { hardness: 1.4, tool: 'pick' });
+def(B.THATCH, 'Paja', 'thatch', { hardness: 0.4, sound: 'grass' });
+def(B.ADOBE, 'Adobe', 'adobe', { hardness: 1, sound: 'sand', tool: 'shovel' });
 def(B.TORCH, 'Antorcha', 'torch', { solid: false, transparent: true, hardness: 0.05, emissive: true, sound: 'wood', shape: 'torch', light: 13 });
 
 // Bloques disponibles en el inventario creativo (orden de la grilla).
 export const PLACEABLE = [B.GRASS, B.DIRT, B.STONE, B.COBBLE, B.PLANKS, B.LOG, B.BIRCH_LOG, B.LEAVES, B.BIRCH_LEAVES,
-  B.GLASS, B.BRICK, B.SAND, B.GRAVEL, B.CLAY, B.SNOW, B.CACTUS, B.COAL, B.IRON, B.LAMP, B.WOOL_RED, B.WOOL_BLUE, B.WOOL_WHITE, B.CRYSTAL, B.FARO, B.TORCH, B.WORKBENCH];
+  B.GLASS, B.BRICK, B.SAND, B.GRAVEL, B.CLAY, B.SNOW, B.CACTUS, B.COAL, B.IRON, B.LAMP, B.WOOL_RED, B.WOOL_BLUE, B.WOOL_WHITE, B.CRYSTAL, B.FARO, B.TORCH, B.WORKBENCH, B.ROOF, B.THATCH, B.ADOBE];
 
 // Bloques que emiten luz (iluminan alrededor y repelen a las Sombras).
 export const LIGHT_BLOCKS = new Set(BLOCKS.filter((b) => b?.light > 0).map((b) => b.id));

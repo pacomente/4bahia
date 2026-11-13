@@ -3,6 +3,22 @@ import { blockIcon } from './textures.js';
 import { ITEMS, isItem, itemIcon, itemName } from './items.js';
 import { RECIPES, CATEGORIES, canCraft, ingredientsFor } from './recipes.js';
 
+// Retrato pixel-art del aldeano (cara, pelo, barba y sombrero) para la ventana de diálogo.
+function portrait(look, child) {
+  const c = document.createElement('canvas'); c.width = c.height = 12;
+  const g = c.getContext('2d');
+  g.fillStyle = look.shirt; g.fillRect(0, 9, 12, 3);
+  g.fillStyle = look.skin; g.fillRect(2, 1, 8, 8);
+  g.fillStyle = look.hair; g.fillRect(2, 1, 8, 2); g.fillRect(2, 3, 1, 2); g.fillRect(9, 3, 1, 2);
+  if (look.hood && !child) { g.fillStyle = look.hatColor; g.fillRect(1, 0, 10, 2); g.fillRect(1, 2, 1, 6); g.fillRect(10, 2, 1, 6); }
+  g.fillStyle = '#fff'; g.fillRect(3, 4, 2, 1); g.fillRect(7, 4, 2, 1);
+  g.fillStyle = '#3a2a1a'; g.fillRect(4, 4, 1, 1); g.fillRect(7, 4, 1, 1);
+  if (look.beard) { g.fillStyle = look.beard; g.fillRect(3, 6, 6, 3); }
+  g.fillStyle = '#8a3b2b'; g.fillRect(5, 7, 2, 1);
+  c.className = 'pixel';
+  return c;
+}
+
 // Interfaz en HTML sobre el canvas: barra rápida, vida, inventario, menús, depuración.
 export class UI {
   constructor(atlasCanvas, mode) {
@@ -125,6 +141,28 @@ export class UI {
       b.addEventListener('click', () => opts.onSelect(b.dataset.id));
       b.addEventListener('dblclick', () => { const r = RECIPES.find((x) => x.id === b.dataset.id); if (canCraft(r, inventory, state)) opts.onCraft(r, 1); });
     });
+  }
+
+  // Ventana de un aldeano: retrato, oficio y personalidad, lo que dice, la aldea y sus trueques.
+  renderVillager(info, inventory, mode, on) {
+    const $ = this.$;
+    $('#v-portrait').innerHTML = ''; $('#v-portrait').appendChild(portrait(info.look, info.child));
+    $('#v-name').textContent = info.name;
+    $('#v-sub').textContent = [info.profession, info.trait].filter(Boolean).join(' · ');
+    $('#v-village').innerHTML = `Aldea <b>${info.village}</b> (${info.style}) · ${info.pop}/${info.cap} habitantes · ${info.homes} casas${info.building ? ' · <span class="busy">construyendo</span>' : ''} · <i>${info.mood}</i>`;
+    $('#v-line').textContent = `“${info.line}”`;
+    const has = (req) => mode !== 'survival' || Object.entries(req).every(([id, n]) => (inventory[id] ?? 0) >= n);
+    const items = (obj) => Object.entries(obj).map(([id, n]) => `<span class="ti"><img src="${this.icon(Number(id))}" alt="">${n > 1 ? `×${n}` : ''}<small>${this.name(Number(id))}</small></span>`).join('');
+    $('#v-trades').innerHTML = info.trades.length ? info.trades.map((t, i) => `
+      <div class="trade ${has(t.give) ? 'ok' : ''}">
+        <div class="give">${items(t.give)}</div><span class="arrow">➜</span>
+        <div class="get">${t.repair ? '<span class="ti repair">🔧<small>Reparar la herramienta en la mano</small></span>' : items(t.get)}</div>
+        <button class="mc-btn small ${has(t.give) ? 'primary' : ''}" data-t="${i}" ${has(t.give) ? '' : 'disabled'}>Cambiar</button>
+      </div>`).join('') : '<p class="muted">No tiene nada para cambiar.</p>';
+    $('#v-trades').querySelectorAll('[data-t]').forEach((b) => b.addEventListener('click', () => on.trade(info.trades[Number(b.dataset.t)])));
+    $('#v-donate').hidden = !info.canDonate;
+    $('#v-donate').onclick = on.donate;
+    $('#v-close').onclick = on.close;
   }
 
   renderMission(status) {

@@ -14,6 +14,10 @@ const TIPS = [
   'Las lámparas y antorchas iluminan las cuevas de verdad.',
   'Tocá M para ver el mapa con tus faros.',
   'Los Lanudos pastan de día y sueltan lana.',
+  'Clic derecho sobre un aldeano para hablar y hacer trueques.',
+  'De noche los aldeanos se esconden: los zombis salen a buscarlos.',
+  'Si una aldea se llena, el constructor levanta casas nuevas. ¡Llevale materiales!',
+  'El herrero repara tus herramientas por un lingote de hierro.',
   'En el Taller (C) ves al toque qué te falta para cada cosa.',
 ];
 
@@ -64,6 +68,7 @@ function bindMenus(game, settings) {
     if (game.inventoryOpen) { game.toggleInventory(); return; }
     if (game.craftOpen) { game.toggleCraft(); return; }
     if (game.mapOpen) { game.toggleMap(); return; }
+    if (game.villagerOpen) { game.closeVillager(); return; }
     if (!game.dead) game.pause(!game.paused);
   });
 }

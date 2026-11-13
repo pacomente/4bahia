@@ -51,14 +51,18 @@ export class MiniMap {
     g.drawImage(off, 0, 0, canvas.width, canvas.height);
     // Marcadores: faros (turquesa) y reaparición (casa). Si están lejos se pegan al borde como brújula.
     const W = canvas.width; const half = W / 2;
-    const mark = (wx, wz, color, label) => {
+    const mark = (wx, wz, color, label, edge = true) => {
       let mx = (wx - ctx.player.pos.x) * scale + half; let mz = (wz - ctx.player.pos.z) * scale + half;
       const out = mx < 6 || mz < 6 || mx > W - 6 || mz > W - 6;
+      if (out && !edge) return;
       if (out) { const a = Math.atan2(mz - half, mx - half); mx = half + Math.cos(a) * (half - 7); mz = half + Math.sin(a) * (half - 7); }
       g.fillStyle = '#000'; g.fillRect(mx - 4, mz - 4, 8, 8);
       g.fillStyle = color; g.fillRect(mx - 3, mz - 3, 6, 6);
       if (label && !out && scale >= 3) { g.font = 'bold 12px sans-serif'; g.fillStyle = '#fff'; g.strokeStyle = '#000'; g.lineWidth = 3; g.strokeText(label, mx + 7, mz + 4); g.fillText(label, mx + 7, mz + 4); }
     };
+    // Aldeas: todas las que entran en el mapa, y solo la más cercana como brújula en el borde.
+    const vs = [...(ctx.villages ?? [])].sort((a, b) => Math.hypot(a.x - ctx.player.pos.x, a.z - ctx.player.pos.z) - Math.hypot(b.x - ctx.player.pos.x, b.z - ctx.player.pos.z));
+    vs.forEach((v, i) => mark(v.x, v.z, '#ff9f43', v.pop ? `${v.name} (${v.pop})` : v.name, i === 0));
     if (ctx.spawn) mark(ctx.spawn.x, ctx.spawn.z, '#ffe066', 'Reaparición');
     for (const f of ctx.faros) mark(f.x + 0.5, f.z + 0.5, '#5ff2e6', 'Faro');
     // Jugador: flecha que apunta hacia donde mira.

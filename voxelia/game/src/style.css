@@ -133,3 +133,23 @@ input:focus, select:focus { outline: none; border-color: #fff; }
 
 /* Con una pantalla abierta (Taller, mapa, inventario) se ocultan los paneles del HUD que quedarían encima. */
 body:has(.screen.open) #mission, body:has(.screen.open) #minimap { visibility: hidden; }
+
+/* Aldeanos */
+.vpanel { max-width: 640px !important; background: #c6c6c6; border: 3px solid #555; padding: 16px; color: #222; }
+.vpanel h2 { margin: 0; color: #fff; text-shadow: 2px 2px 0 #333; }
+.v-head { display: flex; gap: 14px; align-items: center; }
+#v-portrait canvas { width: 96px; height: 96px; image-rendering: pixelated; border: 3px solid #373737; background: #8b8b8b; display: block; }
+#v-sub { font-weight: 700; color: #3e8f22; margin: 2px 0 4px; }
+#v-village { color: #444; font-size: 13px; } #v-village .busy { color: #b8352f; font-weight: 700; }
+.v-line { background: #fff; border: 2px solid #373737; padding: 10px 12px; margin: 4px 0; font-size: 15px; font-style: italic; border-radius: 4px; position: relative; }
+.v-title { margin: 6px 0 0; font-size: 14px; text-transform: uppercase; letter-spacing: .06em; color: #333; }
+#v-trades { display: flex; flex-direction: column; gap: 6px; max-height: 40vh; overflow-y: auto; }
+.trade { display: flex; align-items: center; gap: 10px; background: #8b8b8b; border: 2px solid #373737; border-right-color: #fff; border-bottom-color: #fff; padding: 6px 10px; color: #fff; text-shadow: 1px 1px 0 #333; }
+.trade:not(.ok) { opacity: .7; }
+.trade .give, .trade .get { display: flex; gap: 8px; flex: 1; flex-wrap: wrap; }
+.trade .arrow { font-size: 20px; }
+.ti { display: inline-flex; align-items: center; gap: 4px; font-weight: 800; }
+.ti img { width: 28px; height: 28px; image-rendering: pixelated; }
+.ti small { font-weight: 400; font-size: 11px; opacity: .9; }
+.ti.repair { font-size: 20px; }
+.v-actions { justify-content: flex-end; margin-top: 6px; }
