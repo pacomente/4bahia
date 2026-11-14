@@ -173,7 +173,7 @@ export function meshChunk(world, chunk) {
           for (let i = 0; i < 4; i++) {
             const c = f.corners[i];
             let py = y + c[1];
-            if (isWater && c[1] === 1 && get(x, y + 1, z) !== B.WATER) py -= 0.12;
+            if ((isWater || id === B.LAVA) && c[1] === 1 && get(x, y + 1, z) !== id) py -= 0.12;
             pos.push([x + c[0], py, z + c[2]]);
             uv.push([f.uv[i][0] ? u1 : u0, f.uv[i][1] ? v1 : v0]);
             // Oclusión ambiental: bloques que tocan la esquina en el plano de la cara.

@@ -24,11 +24,11 @@ export class Arrows {
     return g;
   }
 
-  shoot(origin, dir, speed = 30) {
+  shoot(origin, dir, speed = 30, opts = {}) {
     const m = this.mesh();
     m.position.copy(origin).addScaledVector(dir, 0.6);
     this.scene.add(m);
-    this.list.push({ mesh: m, vel: dir.clone().multiplyScalar(speed), stuck: false, life: 30 });
+    this.list.push({ mesh: m, vel: dir.clone().multiplyScalar(speed), stuck: false, life: 30, enemy: !!opts.enemy, shooter: opts.shooter });
     this.sound.noise(0.18, { freq: 1600, q: 0.8, gain: 0.25, type: 'highpass' });
   }
 
@@ -38,11 +38,11 @@ export class Arrows {
       a.life -= dt;
       if (a.life <= 0) { this.remove(a); continue; }
       for (const m of this.mats) m.color.setScalar(1).multiplyScalar(light);
-      if (a.stuck) { if (pickup(a.mesh.position)) this.remove(a); continue; }
+      if (a.stuck) { if (!a.enemy && pickup(a.mesh.position)) this.remove(a); continue; }
       a.vel.y -= 16 * dt;
       const p0 = a.mesh.position.clone();
       const p1 = p0.clone().addScaledVector(a.vel, dt);
-      const hit = hitTest(p0, p1, a.vel);
+      const hit = hitTest(p0, p1, a);
       if (hit) { hit(); this.remove(a); continue; }
       // Choque con bloques: avanza en pasos cortos para no atravesar paredes finas.
       const steps = Math.ceil(p0.distanceTo(p1) / 0.25);

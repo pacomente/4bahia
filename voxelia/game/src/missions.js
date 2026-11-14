@@ -18,9 +18,12 @@ export const MISSIONS = [
   { id: 'trade', title: 'Hacé un trueque con un aldeano', hint: 'Clic derecho sobre un aldeano para hablar. Cada oficio ofrece cosas distintas.', goal: 1, progress: (s) => s.trades ?? 0 },
   { id: 'armor', title: 'Ponete una armadura', hint: 'Taller: armadura acolchada con lana. Abrí el inventario (E) y hacé clic en la pieza para ponértela.', goal: 1, progress: (s) => s.equipped ?? 0 },
   { id: 'king', title: 'Cumplí un encargo del rey', hint: 'El rey vive en el castillo de las aldeas medievales (en las otras, el jefe). Te paga en plata.', goal: 1, progress: (s) => s.honor ?? 0 },
+  { id: 'mushroom', title: 'Juntá un hongo luminoso', hint: 'Bajá a las cavernas profundas (las grietas son una buena entrada). Cuidado con la lava.', goal: 1, progress: (s) => s.collected[40] ?? 0 },
+  { id: 'freed', title: 'Liberá a un prisionero', hint: 'En el mapa, los campamentos de saqueadores están en rojo. Rompé los barrotes de una jaula.', goal: 1, progress: (s) => s.freed ?? 0 },
+  { id: 'leader', title: 'Derrotá a un jefe saqueador', hint: 'Llevá armadura y escudo: el jefe pega fuerte y los arqueros disparan desde lejos.', goal: 1, progress: (s) => s.leaders ?? 0 },
 ];
 
-export const emptyStats = () => ({ collected: {}, crafted: {}, placed: {}, nights: 0, kills: 0, visited: 0, trades: 0, met: 0, equipped: 0, honor: 0 });
+export const emptyStats = () => ({ collected: {}, crafted: {}, placed: {}, nights: 0, kills: 0, visited: 0, trades: 0, met: 0, equipped: 0, honor: 0, freed: 0, leaders: 0 });
 
 // Misión actual (la primera sin completar) y cuántas hay terminadas.
 export function missionStatus(stats) {

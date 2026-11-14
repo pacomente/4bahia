@@ -22,8 +22,10 @@ import { villagesNear } from './villages.js';
 import { Zombies } from './zombies.js';
 import { Arrows } from './projectiles.js';
 import { PlayerPreview } from './preview.js';
+import { Bandits } from './bandits.js';
+import { campsNear, lootTable, CAMP_REGION, campPlan } from './camps.js';
 
-export const VERSION = '0.6.0';
+export const VERSION = '0.7.0';
 
 const DEFAULT_HOTBAR = [B.GRASS, B.DIRT, B.STONE, B.COBBLE, B.PLANKS, B.LOG, B.GLASS, B.BRICK, B.LAMP];
 
@@ -88,6 +90,8 @@ export class Game {
     // Aldeas con sus aldeanos, zombis nocturnos y flechas.
     this.villages = new Villages(this.scene, this.world, this.sound, save?.villages);
     this.zombies = new Zombies(this.scene, this.world, this.sound);
+    this.bandits = new Bandits(this.scene, this.world, this.sound, save?.bandits);
+    this.lavaT = 0; this.campNow = null;
     this.arrows = new Arrows(this.scene, this.world, this.sound);
     this.lightCache = new Map(); this.lightClock = 0;
     this.villagerOpen = false; this.talkingTo = null; this.bowCooldown = 0; this.villageNow = null; this.villageCheck = 0;
@@ -437,6 +441,7 @@ export class Game {
 
   // Amanecer (natural o después de dormir): aldeas que crecen y una noche más sobrevivida.
   onDawn() {
+    this.bandits.dawn();
     for (const ev of this.villages.dawn()) {
       if (!ev.near) continue;
       if (ev.type === 'born') this.ui.toast(`¡Nació ${ev.name} en ${ev.village}${ev.parents?.length ? `, hij${ev.female ? 'a' : 'o'} de ${ev.parents.join(' y ')}` : ''}! Ya son ${ev.pop}.`, 4500);
@@ -494,7 +499,7 @@ export class Game {
   }
 
   mapCtx() {
-    return { player: this.player, spawn: this.spawn, faros: this.faros, radius: (this.settings.renderDistance + 1) * CS, showMini: this.settings.minimap !== false, villages: this.villageMarkers ?? [] };
+    return { player: this.player, spawn: this.spawn, faros: this.faros, radius: (this.settings.renderDistance + 1) * CS, showMini: this.settings.minimap !== false, villages: this.villageMarkers ?? [], camps: this.campMarkers ?? [] };
   }
 
   renderCraft() {
@@ -559,7 +564,8 @@ export class Game {
     const eye = this.player.eye(); const dir = this.player.look(); const dmg = attackDamage(this.held());
     const v = this.villages.hitTest(eye, dir, 3.6);
     if (v) { this.villages.annoy(v); this.attackCooldown = 0.35; return true; }
-    const hit = (this.zombies.list.length && this.zombies.hit(eye, dir, 3.6, dmg, this.zombieCtx()))
+    const hit = (this.bandits.list.length && this.bandits.hit(eye, dir, 3.6, dmg, this.banditCtx()))
+      || (this.zombies.list.length && this.zombies.hit(eye, dir, 3.6, dmg, this.zombieCtx()))
       || (this.shadows.list.length && this.shadows.hit(eye, dir, 3.6, dmg, this.mobCtx()))
       || (this.animals.list.length && this.animals.hit(eye, dir, 3.6, dmg, { onKilled: () => { if (this.mode === 'survival') { this.addItem(B.WOOL_WHITE, 2); this.checkMissions(); } } }));
     if (hit) { this.attackCooldown = 0.35; this.useTool(); }
@@ -610,10 +616,18 @@ export class Game {
   }
 
   // Impacto de una flecha en el tramo p0→p1 (zombis, Sombras, Lanudos, aldeanos).
-  arrowHit(p0, p1) {
+  arrowHit(p0, p1, arrow) {
+    // Flechas de los arqueros saqueadores: le pegan al jugador (el escudo las frena).
+    if (arrow?.enemy) {
+      const c = this.player.pos.clone(); c.y += 0.9;
+      const d0 = p1.clone().sub(p0); const t = Math.max(0, Math.min(1, c.clone().sub(p0).dot(d0) / d0.lengthSq()));
+      if (p0.clone().addScaledVector(d0, t).distanceTo(c) < 0.6 && this.mode === 'survival' && !this.dead) return () => this.damage(3, 'Una flecha de un saqueador te alcanzó', d0.clone().normalize());
+      return null;
+    }
     const d = p1.clone().sub(p0); const len = d.length() + 0.25; d.normalize();
     const v = this.villages.hitTest(p0, d, len);
     if (v) return () => this.villages.annoy(v);
+    if (this.bandits.hit(p0, d, len, 6, this.banditCtx())) return () => {};
     if (this.zombies.hit(p0, d, len, 6, this.zombieCtx())) return () => {};
     if (this.shadows.hit(p0, d, len, 6, this.mobCtx())) return () => {};
     if (this.animals.hit(p0, d, len, 6, { onKilled: () => { if (this.mode === 'survival') this.addItem(B.WOOL_WHITE, 2); } })) return () => {};
@@ -654,14 +668,14 @@ export class Game {
 
   villagerCtx() {
     return {
-      player: this.player, daylight: this.sky.daylight, zombies: this.zombies.list, lightAt: (x, y, z) => this.lightAt(x, y, z),
+      player: this.player, daylight: this.sky.daylight, zombies: [...this.zombies.list, ...this.bandits.list.filter((b) => !b.camp || b.aggro)], lightAt: (x, y, z) => this.lightAt(x, y, z),
       canPlace: (b) => !(BLOCKS[b.id].solid && this.player.intersectsBlock(b.x, b.y, b.z)),
       onPlace: (b) => {
         const d = Math.hypot(b.x - this.player.pos.x, b.z - this.player.pos.z);
         if (d < 24) { if (b.id) { this.sound.place(BLOCKS[b.id].sound); if (d < 16 && Math.random() < 0.35) this.spawnParticles({ x: b.x, y: b.y, z: b.z, block: BLOCKS[b.id] }); } else this.sound.dig('grass'); }
       },
       onBuilt: (plan, rec) => { if (Math.hypot(plan.x - this.player.pos.x, plan.z - this.player.pos.z) < 120) { this.ui.toast(`¡${plan.name} tiene una casa nueva! Ya entran ${rec.villagers.length + 1} o más.`, 3500); this.sound.tone(523, 0.1, 0.12, 'sine'); setTimeout(() => this.sound.tone(784, 0.2, 0.12, 'sine'), 120); } },
-      hitZombie: (z, dmg) => this.zombies.damage(z, dmg, this.zombieCtx(), false),
+      hitZombie: (z, dmg) => (z.isBandit ? this.bandits.damage(z, dmg, this.banditCtx(), false) : this.zombies.damage(z, dmg, this.zombieCtx(), false)),
     };
   }
 
@@ -791,6 +805,15 @@ export class Game {
     this.sound.dig(t.block.sound);
     this.spawnParticles(t);
     if (t.id === B.FARO) this.removeBeam(t.x, t.y, t.z);
+    // Cofre del botín: todo lo que había adentro, y el campamento se enoja si sigue en pie.
+    if (t.id === B.LOOT_CHEST) {
+      const loot = lootTable();
+      if (this.mode === 'survival') for (const [id, n] of Object.entries(loot)) if (n > 0) this.addItem(Number(id), n);
+      this.ui.toast('¡Botín! Plata, oro, hierro y más', 3000);
+      this.stats.loot = (this.stats.loot ?? 0) + 1;
+      for (const b of this.bandits.list) if (b.camp && Math.hypot(b.pos.x - t.x, b.pos.z - t.z) < 30) b.aggro = true;
+      this.renderStatus();
+    }
     // La puerta son dos bloques: se va entera.
     if (t.id === B.DOOR || t.id === B.DOOR_OPEN) for (const dy of [-1, 1]) { const id = this.world.getBlock(t.x, t.y + dy, t.z); if (id === B.DOOR || id === B.DOOR_OPEN) this.world.setBlock(t.x, t.y + dy, t.z, B.AIR); }
     // Si se rompe lo de abajo, el trigo de arriba se cae.
@@ -948,7 +971,7 @@ export class Game {
       player: { x: this.player.pos.x, y: this.player.pos.y, z: this.player.pos.z, yaw: this.player.yaw, pitch: this.player.pitch, flying: this.player.flying },
       spawn: this.spawn, time: this.sky.time, health: this.health, inventory: this.inventory, hotbar: this.hotbar, selected: this.selected,
       playTime: this.playTime, mods: this.world.serializeMods(), savedAt: new Date().toISOString(),
-      stats: this.stats, maxHealth: this.maxHealth, faros: this.faros, toolWear: this.toolWear, villages: this.villages.serialize(), equip: this.equip, armorWear: this.armorWear, crops: this.crops,
+      stats: this.stats, maxHealth: this.maxHealth, faros: this.faros, toolWear: this.toolWear, villages: this.villages.serialize(), bandits: this.bandits.serialize(), equip: this.equip, armorWear: this.armorWear, crops: this.crops,
     };
   }
   async save() {
@@ -1025,9 +1048,11 @@ export class Game {
       this.lightClock += dt;
       this.villages.update(dt, this.villagerCtx());
       this.zombies.update(dt, this.zombieCtx());
+      this.bandits.update(dt, this.banditCtx());
+      this.updateHazards(dt);
       this.bowCooldown = Math.max(0, this.bowCooldown - dt);
       this.arrows.update(dt, {
-        hitTest: (p0, p1) => this.arrowHit(p0, p1),
+        hitTest: (p0, p1, a) => this.arrowHit(p0, p1, a),
         pickup: (pos) => { if (pos.distanceTo(this.player.pos.clone().setY(this.player.pos.y + 0.9)) > 1.6) return false; if (this.mode === 'survival') { this.addItem(I.ARROW); this.sound.click(); } return true; },
         light: Math.max(0.3, this.sky.daylight),
       });
@@ -1113,6 +1138,78 @@ export class Game {
     }
     this.villageNow = v?.id ?? null;
     this.villageMarkers = this.villages.mapMarkers(p.x, p.z, 400);
+    // Campamentos de saqueadores: cartel al acercarse y marcadores rojos en el mapa.
+    const camp = campsNear(this.world, p.x, p.z, 0)[0] ?? null;
+    if (camp && camp.id !== this.campNow) {
+      const rec = this.bandits.records.get(camp.id);
+      this.ui.toast(rec?.defeated ? `Campamento abandonado de ${camp.name}` : `⚠ Campamento de ${camp.name}: ¡cuidado!`, 3500);
+      this.stats.campsFound = (this.stats.campsFound ?? 0) + 1;
+    }
+    this.campNow = camp?.id ?? null;
+    this.campMarkers = [];
+    for (let rx = Math.floor((p.x - 400) / CAMP_REGION); rx <= Math.floor((p.x + 400) / CAMP_REGION); rx++) for (let rz = Math.floor((p.z - 400) / CAMP_REGION); rz <= Math.floor((p.z + 400) / CAMP_REGION); rz++) {
+      const c = campPlan(this.world, rx, rz);
+      if (c) this.campMarkers.push({ x: c.x, z: c.z, name: c.name, defeated: !!this.bandits.records.get(c.id)?.defeated });
+    }
+  }
+
+  // Lava (quema y te hace nadar lento) y la barra de vida del jefe saqueador.
+  updateHazards(dt) {
+    this.lavaT -= dt;
+    if (this.player.inLava && this.lavaT <= 0 && this.mode === 'survival') {
+      this.lavaT = 0.5;
+      this.damage(3, 'Te quemaste en la lava');
+      for (let k = 0; k < 3; k++) this.sound.noise(0.2, { freq: 400 + Math.random() * 300, q: 1, gain: 0.3 });
+    }
+    document.querySelector('#lava-overlay').style.opacity = this.player.inLava ? 1 : 0;
+    const boss = this.bandits.boss(this.player);
+    const bar = document.querySelector('#boss');
+    bar.style.display = boss ? 'block' : 'none';
+    if (boss) { bar.querySelector('b').textContent = `${boss.name} · jefe de ${boss.camp?.plan.name ?? 'los saqueadores'}`; bar.querySelector('i').style.width = `${Math.max(0, boss.hp / boss.max) * 100}%`; }
+  }
+
+  banditCtx() {
+    const pp = this.player.pos;
+    return {
+      player: this.player, daylight: this.sky.daylight, enabled: this.mode === 'survival' && !this.dead,
+      villagers: this.villages.entities, villages: [...this.villages.active.values()].filter((a) => Math.hypot(a.plan.x - pp.x, a.plan.z - pp.z) < 90),
+      lightAt: (x, y, z) => this.lightAt(x, y, z),
+      onHitPlayer: (dmg, dir, b) => { if (!this.damage(dmg, b.kind === 'leader' ? `${b.name} te derrotó` : 'Un saqueador te derrotó', dir)) { this.player.vel.x += dir.x * 2; this.player.vel.z += dir.z * 2; return; } this.player.vel.x += dir.x * 6; this.player.vel.z += dir.z * 6; this.player.vel.y = 3.5; },
+      onHitVillager: (e, dmg) => { const name = e.data.name; const village = e.a.plan.name; if (this.villages.hurt(e, dmg)) this.ui.toast(`Los saqueadores atacaron a ${name} en ${village}`, 3500); },
+      onShoot: (from, dir, b) => this.arrows.shoot(from, dir, 26, { enemy: true, shooter: b }),
+      onRaid: (plan, campName) => {
+        this.ui.toast(`⚔ ¡Saqueadores de ${campName} atacan ${plan.name}!`, 4500);
+        this.sound.tone(196, 0.5, 0.2, 'sawtooth'); setTimeout(() => this.sound.tone(147, 0.7, 0.2, 'sawtooth'), 450);
+      },
+      onSteal: (plan, n) => { const rec = this.villages.records.get(plan.id); if (rec?.stock) rec.stock.food = Math.max(0, rec.stock.food - n); if (Math.random() < 0.3) this.ui.toast(`¡Se están robando la comida de ${plan.name}!`, 2500); },
+      onFreed: (c, campPlanRef) => {
+        // Se muda a la aldea buena más cercana al campamento.
+        const v = this.villages.mapMarkers(campPlanRef.x, campPlanRef.z, 600).sort((a, b) => Math.hypot(a.x - campPlanRef.x, a.z - campPlanRef.z) - Math.hypot(b.x - campPlanRef.x, b.z - campPlanRef.z))[0];
+        const plan = v && this.villages.villageAt(v.x, v.z);
+        const villager = plan ? this.villages.addRefugee(plan) : null;
+        this.stats.freed = (this.stats.freed ?? 0) + 1;
+        this.ui.toast(villager ? `¡Liberaste a ${villager.name}! Se va a vivir a ${plan.name}.` : '¡Liberaste a un prisionero!', 4000);
+        this.sound.tone(523, 0.1, 0.15, 'sine'); setTimeout(() => this.sound.tone(784, 0.2, 0.15, 'sine'), 120);
+        this.checkMissions();
+      },
+      onKilled: (b, byPlayer) => {
+        if (!byPlayer || this.mode !== 'survival') return;
+        if (b.kind === 'leader') {
+          this.stats.leaders = (this.stats.leaders ?? 0) + 1;
+          this.addItem(I.SILVER, 30); this.addItem(I.GOLD, 2); this.addItem(I.ESSENCE, 2);
+          this.ui.toast(`¡Derrotaste a ${b.name}! El campamento ${b.camp?.plan.name ?? ''} quedó libre.`, 5000);
+          this.sound.tone(523, 0.15, 0.15, 'square'); setTimeout(() => this.sound.tone(659, 0.15, 0.15, 'square'), 150); setTimeout(() => this.sound.tone(1046, 0.4, 0.15, 'square'), 300);
+          // Reputación con las aldeas cercanas.
+          for (const p of this.villages.mapMarkers(b.pos.x, b.pos.z, 450)) { const plan = this.villages.villageAt(p.x, p.z); const rec = plan && this.villages.records.get(plan.id); if (rec) rec.rep += 5; }
+        } else {
+          this.addItem(I.SILVER, 2 + Math.floor(Math.random() * 4));
+          if (b.kind === 'archer') this.addItem(I.ARROW, 4 + Math.floor(Math.random() * 5));
+          else if (Math.random() < 0.3) this.addItem(I.IRON);
+        }
+        this.stats.banditKills = (this.stats.banditKills ?? 0) + 1;
+        this.renderStatus(); this.checkMissions();
+      },
+    };
   }
 
   // Mano en primera persona: ítem actual, animación y luz del lugar donde estás.

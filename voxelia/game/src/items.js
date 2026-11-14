@@ -12,6 +12,7 @@ export const I = {
   HELMET_CLOTH: 140, CHEST_CLOTH: 141, LEGS_CLOTH: 142, BOOTS_CLOTH: 143,
   HELMET_IRON: 144, CHEST_IRON: 145, LEGS_IRON: 146, BOOTS_IRON: 147,
   HELMET_CRYSTAL: 148, CHEST_CRYSTAL: 149, LEGS_CRYSTAL: 150, BOOTS_CRYSTAL: 151,
+  GOLD: 152,
 };
 
 // Niveles de herramienta: velocidad de minado, daño, usos antes de romperse y color.
@@ -50,6 +51,7 @@ ITEMS[I.ARROW] = { name: 'Flecha', kind: 'material', color: '#cfcfcf' };
 ITEMS[I.SHIELD] = { name: 'Escudo', kind: 'gear', color: '#8f2b26', description: 'Llevalo en la mano: los golpes te sacan mucho menos.' };
 
 // Moneda y comida. La comida cura corazones y devuelve energía (no hay hambre que te mate).
+ITEMS[I.GOLD] = { name: 'Lingote de oro', kind: 'material', color: '#f2c94c', description: 'Vale mucho en cualquier aldea.' };
 ITEMS[I.SILVER] = { name: 'Moneda de plata', kind: 'material', color: '#d9dde3', description: 'La moneda de las aldeas: con ella se compra y se vende.' };
 ITEMS[I.APPLE] = { name: 'Manzana', kind: 'food', heal: 3, energy: 25, color: '#c8352b' };
 ITEMS[I.BREAD] = { name: 'Pan', kind: 'food', heal: 5, energy: 40, color: '#c98a3e' };

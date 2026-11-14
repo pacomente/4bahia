@@ -68,6 +68,15 @@ Juego de mundo abierto de bloques para PC, con su propio **launcher**. Todo el c
 - **Camas, puertas y ventanas**: dormir de noche pasa a la mañana y deja tu punto de reaparición en la cama; las puertas se abren con clic derecho y **los zombis no saben abrirlas**.
 - **Aldeanos más vivos**: tienen hambre, sueño y ganas de charlar (su ánimo se ve al hablarles), siguen un horario (trabajan, almuerzan en el mercado, charlan, vuelven a casa, abren y cierran la puerta y **duermen en su cama**), forman **parejas** y tienen **hijos** si hay camas libres y comida. Los granjeros cosechan, los leñadores talan y el constructor gasta madera y piedra de las **reservas de la aldea** (si faltan, la obra se frena hasta que dones materiales).
 
+## Profundidades y saqueadores (0.7)
+
+- **Generador de cuevas** nuevo: además de los túneles, hay **cavernas** enormes en lo profundo, **grietas** que abren la superficie (entradas naturales) y **lagos de lava** en el fondo, que iluminan y queman (en la lava se nada lento). El suelo de las cuevas tiene **musgo** y **hongos luminosos** que alumbran; más abajo aparece **oro**, que vale mucho en las aldeas.
+- **Campamentos de saqueadores**, las aldeas malas: empalizada de troncos con portones, carpas negras y rojas, fogata, torre de vigilancia, bandera, **jaulas con prisioneros** y el **cofre del botín**. Hay uno a una caminata del inicio y se ven en rojo en el mapa.
+- **Saqueadores** con pañuelo rojo y máscara, **arqueros** que disparan flechas (el escudo las frena) y un **jefe** con barra de vida. Si golpeás a uno, se enoja todo el campamento. Al derrotar al jefe, el campamento queda libre y el resto huye.
+- **Prisioneros**: rompé los barrotes de una jaula y el prisionero se muda a la aldea buena más cercana (más población y reputación).
+- **Incursiones**: algunas noches, un grupo de saqueadores ataca una aldea cercana: van contra los aldeanos que quedaron afuera y se roban la comida de la plaza. Los guardias pelean y al amanecer se retiran.
+- **Inventario con tu personaje**: modelo 3D con la armadura, el escudo y lo que tenés en la mano, que **sigue al cursor** con la mirada.
+
 ## Controles
 
 | Tecla | Acción |

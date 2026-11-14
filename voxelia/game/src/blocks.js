@@ -5,6 +5,7 @@ export const B = {
   IRON: 17, BIRCH_LOG: 18, BIRCH_LEAVES: 19, CLAY: 20, LAMP: 21, WOOL_RED: 22, WOOL_BLUE: 23, WOOL_WHITE: 24,
   CRYSTAL: 25, FARO: 26, TORCH: 27, WORKBENCH: 28, ROOF: 29, THATCH: 30, ADOBE: 31,
   FARMLAND: 32, WHEAT_YOUNG: 33, WHEAT_RIPE: 34, BED: 35, DOOR: 36, DOOR_OPEN: 37, WINDOW: 38,
+  LAVA: 39, GLOW_MUSHROOM: 40, MOSS: 41, GOLD_ORE: 42, WOOL_BLACK: 43, BARS: 44, CAMPFIRE: 45, LOOT_CHEST: 46,
 };
 
 export const BLOCKS = [];
@@ -62,11 +63,21 @@ def(B.BED, 'Cama', ['bed_top', 'bed_side', 'planks'], { transparent: true, hardn
 def(B.DOOR, 'Puerta', 'door', { transparent: true, hardness: 1, sound: 'wood', tool: 'axe', shape: 'door' });
 def(B.DOOR_OPEN, 'Puerta abierta', 'door', { solid: false, transparent: true, hardness: 1, sound: 'wood', tool: 'axe', shape: 'door_open', drop: B.DOOR });
 def(B.WINDOW, 'Ventana', 'window', { transparent: true, alpha: true, hardness: 0.3, sound: 'glass' });
+// Profundidades: lava (ilumina y quema), hongos luminosos, musgo y oro.
+def(B.LAVA, 'Lava', 'lava', { solid: false, liquid: true, breakable: false, emissive: true, light: 15 });
+def(B.GLOW_MUSHROOM, 'Hongo luminoso', 'glow_mushroom', { solid: false, transparent: true, hardness: 0.05, emissive: true, sound: 'grass', shape: 'crop', light: 10 });
+def(B.MOSS, 'Piedra musgosa', 'moss', { hardness: 1.5, tool: 'pick', drop: B.COBBLE });
+def(B.GOLD_ORE, 'Mineral de oro', 'gold_ore', { hardness: 3, tool: 'pick', drop: 152 });
+// Campamentos de saqueadores: lana negra, barrotes de jaula, fogata y cofre del botín.
+def(B.WOOL_BLACK, 'Lana negra', 'wool_black', { hardness: 0.4, sound: 'wool' });
+def(B.BARS, 'Barrotes', 'bars', { transparent: true, alpha: true, hardness: 2.5, tool: 'pick' });
+def(B.CAMPFIRE, 'Fogata', 'campfire', { solid: false, transparent: true, hardness: 0.3, emissive: true, sound: 'wood', shape: 'crop', light: 14, drop: B.LOG });
+def(B.LOOT_CHEST, 'Cofre del botín', ['chest_top', 'chest_side', 'planks'], { hardness: 1.5, sound: 'wood', tool: 'axe', drop: 0 });
 def(B.TORCH, 'Antorcha', 'torch', { solid: false, transparent: true, hardness: 0.05, emissive: true, sound: 'wood', shape: 'torch', light: 13 });
 
 // Bloques disponibles en el inventario creativo (orden de la grilla).
 export const PLACEABLE = [B.GRASS, B.DIRT, B.STONE, B.COBBLE, B.PLANKS, B.LOG, B.BIRCH_LOG, B.LEAVES, B.BIRCH_LEAVES,
-  B.GLASS, B.BRICK, B.SAND, B.GRAVEL, B.CLAY, B.SNOW, B.CACTUS, B.COAL, B.IRON, B.LAMP, B.WOOL_RED, B.WOOL_BLUE, B.WOOL_WHITE, B.CRYSTAL, B.FARO, B.TORCH, B.WORKBENCH, B.ROOF, B.THATCH, B.ADOBE, B.FARMLAND, B.BED, B.DOOR, B.WINDOW];
+  B.GLASS, B.BRICK, B.SAND, B.GRAVEL, B.CLAY, B.SNOW, B.CACTUS, B.COAL, B.IRON, B.LAMP, B.WOOL_RED, B.WOOL_BLUE, B.WOOL_WHITE, B.CRYSTAL, B.FARO, B.TORCH, B.WORKBENCH, B.ROOF, B.THATCH, B.ADOBE, B.FARMLAND, B.BED, B.DOOR, B.WINDOW, B.MOSS, B.GOLD_ORE, B.WOOL_BLACK, B.BARS, B.GLOW_MUSHROOM, B.CAMPFIRE];
 
 // Bloques que emiten luz (iluminan alrededor y repelen a las Sombras).
 export const LIGHT_BLOCKS = new Set(BLOCKS.filter((b) => b?.light > 0).map((b) => b.id));

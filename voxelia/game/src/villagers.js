@@ -845,6 +845,16 @@ export class Villages {
     return n;
   }
 
+  // Un prisionero liberado se muda a esta aldea (aunque esté llena: se acomodan).
+  addRefugee(plan) {
+    const rec = this.record(plan);
+    const v = newVillager(plan, rec, Math.random, { prof: neededProfession(plan, rec) });
+    rec.villagers.push(v); rec.rep += 3;
+    const a = this.active.get(plan.id);
+    if (a) { const e = this.spawn(a, v); e.state = 'cheer'; e.timer = 3; this.say(e, '¡Por fin en casa!', 3); }
+    return v;
+  }
+
   // Aldea en la que está parado el jugador (para el cartel de bienvenida y el mapa).
   villageAt(x, z) { return villagesNear(this.world, x, z, 0)[0] ?? null; }
   // Aldeas en un radio (para el mapa), con su población si ya se conocen.

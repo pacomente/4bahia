@@ -5,7 +5,7 @@ import { BLOCKS } from './blocks.js';
 const S = 16;
 const NAMES = ['grass_top', 'grass_side', 'dirt', 'stone', 'sand', 'water', 'log_top', 'log_side', 'leaves', 'planks',
   'cobble', 'glass', 'snow', 'snow_side', 'brick', 'coal', 'cactus_top', 'cactus_side', 'bedrock', 'gravel', 'iron',
-  'birch_top', 'birch_side', 'birch_leaves', 'clay', 'lamp', 'wool_red', 'wool_blue', 'wool_white', 'crystal', 'faro_top', 'faro_side', 'torch', 'bench_top', 'bench_side', 'roof', 'thatch', 'adobe', 'farmland', 'wheat_young', 'wheat_ripe', 'bed_top', 'bed_side', 'door', 'window'];
+  'birch_top', 'birch_side', 'birch_leaves', 'clay', 'lamp', 'wool_red', 'wool_blue', 'wool_white', 'crystal', 'faro_top', 'faro_side', 'torch', 'bench_top', 'bench_side', 'roof', 'thatch', 'adobe', 'farmland', 'wheat_young', 'wheat_ripe', 'bed_top', 'bed_side', 'door', 'window', 'lava', 'glow_mushroom', 'moss', 'gold_ore', 'wool_black', 'bars', 'campfire', 'chest_top', 'chest_side'];
 const COLS = 8;
 export const ATLAS_COLS = COLS;
 export const ATLAS_ROWS = Math.ceil(NAMES.length / COLS);
@@ -186,6 +186,44 @@ function paint(name, px) {
         const frame = x < 2 || y < 2 || x > 13 || y > 13 || x === 7 || x === 8 || y === 7 || y === 8;
         set(x, y, frame ? shade(hex('#7a5230'), 0.9 + r() * 0.15) : hex('#dff1f8'), frame ? 255 : (x + y) % 9 === 0 ? 150 : 60);
       }
+      break;
+    case 'lava':
+      // Lava: naranja brillante con manchas amarillas y costra oscura.
+      noise(hex('#e8561c'), 0.25);
+      blob(hex('#ffc93c'), 9, 3); blob(hex('#ff8a1e'), 8, 2); speckle(hex('#7a1c0c'), 12);
+      break;
+    case 'glow_mushroom':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, [0, 0, 0], 0);
+      for (const [cx, top, w] of [[4, 6, 3], [10, 3, 4], [13, 9, 2]]) {
+        for (let y = top + 2; y < S; y++) set(cx, y, hex('#d8e8e0'));                       // pie
+        for (let y = top; y < top + 2; y++) for (let x = cx - w; x <= cx + w; x++) if (x >= 0 && x < S) set(x, y, (x + y) % 3 ? hex('#4ff0d0') : hex('#c8fff2'));   // sombrero
+        if (top > 0) for (let x = cx - w + 1; x < cx + w; x++) if (x >= 0 && x < S) set(x, top - 1, hex('#2bb3a8'));
+      }
+      break;
+    case 'moss': noise(stone, 0.25); blob(hex('#5f8a35'), 10, 3); speckle(hex('#7cab4a'), 14); break;
+    case 'gold_ore': noise(stone, 0.25); blob(hex('#f2c94c'), 6); speckle(hex('#fff2a8'), 4); break;
+    case 'wool_black': noise(hex('#26232a'), 0.18); break;
+    case 'bars':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const bar = x % 5 === 1 || x % 5 === 2 || y === 1 || y === 14;
+        set(x, y, bar ? shade(hex('#5c6068'), x % 5 === 1 ? 1.2 : 0.9) : [0, 0, 0], bar ? 255 : 0);
+      }
+      break;
+    case 'campfire':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, [0, 0, 0], 0);
+      for (let x = 1; x < 15; x++) { set(x, 14, hex('#6b4426')); set(x, 15, hex('#4a2f1a')); }   // leños
+      for (let k = 0; k < 7; k++) {
+        const x = 3 + k * 1.6 | 0; const top = 3 + Math.floor(r() * 6);
+        for (let y = top; y < 14; y++) set(x, y, y < top + 2 ? hex('#fff2a8') : y < top + 5 ? hex('#ffb347') : hex('#e8561c'));
+        if (x + 1 < S) for (let y = top + 2; y < 14; y++) set(x + 1, y, hex('#ff8a1e'));
+      }
+      break;
+    case 'chest_top': case 'chest_side':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const band = x < 2 || x > 13 || (name === 'chest_side' ? y === 5 || y === 6 : y < 2 || y > 13);
+        set(x, y, band ? shade(hex('#5c6068'), 0.9 + r() * 0.2) : shade(hex('#8a5a33'), (y % 4 === 0 ? 0.8 : 1) * (0.9 + r() * 0.15)));
+      }
+      if (name === 'chest_side') for (let y = 5; y < 9; y++) for (let x = 7; x < 9; x++) set(x, y, hex('#f2c94c'));   // cerradura de oro
       break;
     default: noise(hex('#ff00ff'), 0);
   }

@@ -67,7 +67,8 @@ export class Player {
     const events = {};
     const feet = this.world.getBlock(Math.floor(this.pos.x), Math.floor(this.pos.y + 0.2), Math.floor(this.pos.z));
     const head = this.world.getBlock(Math.floor(this.pos.x), Math.floor(this.pos.y + EYE), Math.floor(this.pos.z));
-    this.inWater = feet === B.WATER;
+    this.inWater = feet === B.WATER || feet === B.LAVA;   // en la lava también se nada (lento)
+    this.inLava = feet === B.LAVA || this.world.getBlock(Math.floor(this.pos.x), Math.floor(this.pos.y + 1), Math.floor(this.pos.z)) === B.LAVA;
     this.headInWater = head === B.WATER;
 
     const i = this.input;

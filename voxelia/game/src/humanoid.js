@@ -60,6 +60,13 @@ export function createHumanoid(look) {
   if (look.hat === 'helmet') { const metal = M('#a8adb4'); const h = box(0.52, 0.22, 0.52, metal); h.position.y = 0.42; const nose = box(0.06, 0.2, 0.06, metal); nose.position.set(0, 0.26, 0.26); const crest = box(0.06, 0.12, 0.4, M('#b8352f')); crest.position.y = 0.58; head.add(h, nose, crest); }
   if (look.hat === 'wrap') { const h = box(0.52, 0.18, 0.52, M(look.hatColor)); h.position.y = 0.44; const tail = box(0.14, 0.34, 0.08, M(look.hatColor)); tail.position.set(0.14, 0.2, -0.27); head.add(h, tail); }
   if (look.hat === 'fur') { const h = box(0.56, 0.2, 0.56, M(look.hatColor)); h.position.y = 0.46; const flapL = box(0.08, 0.22, 0.3, M(look.hatColor)); flapL.position.set(-0.27, 0.24, 0); const flapR = flapL.clone(); flapR.position.x = 0.27; head.add(h, flapL, flapR); }
+  if (look.hat === 'bandana') {
+    // Saqueador: pañuelo rojo en la cabeza y máscara oscura sobre la boca.
+    const red = M(look.hatColor ?? '#8f2b26'); const mask = M('#1c1a20');
+    const band = box(0.5, 0.12, 0.5, red); band.position.y = 0.4; const knot = box(0.12, 0.14, 0.06, red); knot.position.set(0.1, 0.34, -0.26);
+    const m = box(0.48, 0.16, 0.06, mask); m.position.set(0, 0.1, 0.23);
+    head.add(band, knot, m);
+  }
   if (look.hat === 'cap') { const h = box(0.5, 0.12, 0.5, M(look.hatColor)); h.position.y = 0.5; const brim = box(0.5, 0.04, 0.2, M(look.hatColor)); brim.position.set(0, 0.45, 0.32); head.add(h, brim); }
   if (look.hat === 'crown') {
     // Corona dorada con puntas y piedras.
@@ -105,6 +112,12 @@ export function makeProp(kind) {
     const headMat = new THREE.MeshBasicMaterial({ color: '#9aa0a8' }); headMat.userData.base = new THREE.Color('#9aa0a8');
     const h = box(0.06, 0.2, 0.18, headMat); h.position.set(0, 0.32, 0.08);
     g.add(stick, h); g.rotation.x = 1.2;
+  }
+  if (kind === 'bow') {
+    const m = new THREE.MeshBasicMaterial({ color: '#6b4426' }); m.userData.base = new THREE.Color('#6b4426');
+    for (let k = -3; k <= 3; k++) { const seg = box(0.05, 0.14, 0.05, m); seg.position.set(0, k * 0.12, 0.25 - Math.abs(k) * 0.05); g.add(seg); }
+    const str = new THREE.MeshBasicMaterial({ color: '#e8e4d8' }); str.userData.base = new THREE.Color('#e8e4d8');
+    const s2 = box(0.01, 0.84, 0.01, str); s2.position.z = 0.08; g.add(s2);
   }
   if (kind === 'basket') {
     const m = new THREE.MeshBasicMaterial({ color: '#b08a55' }); m.userData.base = new THREE.Color('#b08a55');

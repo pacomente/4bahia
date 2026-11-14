@@ -1,6 +1,7 @@
 import { createNoise2D, createNoise3D } from 'simplex-noise';
 import { B, BLOCKS } from './blocks.js';
 import { placeVillages, insideVillage } from './villages.js';
+import { placeCamps, insideCamp } from './camps.js';
 
 export const CS = 16;          // tamaño de chunk (x, z)
 export const H = 96;           // altura del mundo
@@ -47,6 +48,9 @@ export class World {
     const rnd = mulberry32(this.seed);
     this.n2 = { cont: createNoise2D(rnd), hill: createNoise2D(rnd), mount: createNoise2D(rnd), temp: createNoise2D(rnd), moist: createNoise2D(rnd), detail: createNoise2D(rnd) };
     this.n3 = { a: createNoise3D(rnd), b: createNoise3D(rnd) };
+    // Ruidos nuevos (se crean al final para no cambiar el terreno de mundos existentes): cavernas y grietas.
+    this.n3.c = createNoise3D(rnd);
+    this.n2.rav = createNoise2D(rnd);
     this.chunks = new Map();
     // Cambios del jugador sobre el mundo generado: "cx,cz" -> Map(índice -> bloque)
     this.mods = new Map(Object.entries(mods).map(([k, list]) => [k, new Map(list)]));
@@ -139,6 +143,9 @@ export class World {
         const h = this.heightAt(x, z);
         const biome = this.biome(x, z);
         const beach = h <= SEA + 1 && h >= SEA - 3;
+        // Grieta: un tajo angosto y profundo que abre la superficie (entrada natural a las cuevas).
+        const ridge = Math.abs(this.n2.rav(x / 170, z / 170));
+        const ravineZone = this.n2.rav(x / 520 + 37, z / 520 - 11) > 0.15 && h > SEA + 3 && ridge < 0.05 && !insideVillage(this, x, z) && !insideCamp(this, x, z);
         for (let y = 0; y <= Math.max(h, SEA); y++) {
           let id;
           if (y === 0 || (y < 3 && hash3(this.seed, x, y, z) < 0.5)) id = B.BEDROCK;
@@ -156,19 +163,38 @@ export class World {
             if (r < 0.012) id = B.COAL;
             else if (y < 28 && r < 0.017) id = B.IRON;
             else if (y < 20 && r < 0.0195) id = B.CRYSTAL;   // cristales luminosos, solo en lo profundo
+            else if (y < 16 && r < 0.0218) id = B.GOLD_ORE;   // oro, más abajo todavía
           }
           // Cuevas: túneles donde dos ruidos 3D se acercan a cero.
           if (id !== B.BEDROCK && id !== B.WATER && id !== B.AIR && y > 3 && y < h - 3) {
             const a = this.n3.a(x / 28, y / 18, z / 28);
             const b = this.n3.b(x / 28, y / 18, z / 28);
             if (a * a + b * b < 0.012) id = B.AIR;
+            // Cavernas: salas grandes en lo profundo.
+            else if (y >= 5 && y <= 30 && y < h - 6 && this.n3.c(x / 42, y / 20, z / 42) > 0.6) id = B.AIR;
           }
+          // Grietas: más anchas arriba, hasta la altura 14.
+          if (ravineZone && y >= 14 && y <= h && id !== B.WATER && id !== B.BEDROCK) {
+            const w = 0.012 + 0.03 * Math.min(1, (y - 14) / Math.max(1, h - 14));
+            if (ridge < w) id = B.AIR;
+          }
+          // En el fondo, lo hueco se llena de lava.
+          if (id === B.AIR && y <= 9 && y < h - 3) id = B.LAVA;
           if (id) c.set(lx, y, lz, id);
+        }
+        // Suelo de las cuevas: musgo y hongos luminosos.
+        for (let y = 10; y < Math.min(h - 5, 44); y++) {
+          const below = c.get(lx, y, lz);
+          if ((below !== B.STONE && below !== B.MOSS) || c.get(lx, y + 1, lz) !== B.AIR || c.get(lx, y + 2, lz) !== B.AIR) continue;
+          const r = hash3(this.seed, x, y + 500, z);
+          if (r < 0.35) c.set(lx, y, lz, B.MOSS);
+          if (r < 0.055) c.set(lx, y + 1, lz, B.GLOW_MUSHROOM);
         }
       }
     }
     this.decorate(c);
     placeVillages(this, c);
+    placeCamps(this, c);
     // Modificaciones guardadas del jugador.
     const mods = this.mods.get(this.key(cx, cz));
     if (mods) for (const [i, id] of mods) c.data[i] = id;
@@ -194,7 +220,7 @@ export class World {
         const density = { forest: 0.045, plains: 0.006, snow: 0.012, mountains: 0.004, desert: 0.006 }[biome];
         const r = hash3(this.seed, x, 7, z);
         if (r >= density) continue;
-        if (insideVillage(this, x, z)) continue;   // sin árboles dentro de las aldeas
+        if (insideVillage(this, x, z) || insideCamp(this, x, z)) continue;   // sin árboles dentro de aldeas ni campamentos
         const h = this.heightAt(x, z);
         if (h <= SEA + 1) continue;
         if (biome === 'desert') {
