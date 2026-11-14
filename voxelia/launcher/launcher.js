@@ -6,6 +6,7 @@ let worlds = [];
 let settings = {};
 
 const NEWS = [
+  { date: '14/11/2026', title: 'Voxelia 0.18 — Gráficos', items: ['Luz del sol que cambia con la hora: cálida al amanecer y al atardecer, azulada de noche', 'Cielo con degradé y resplandor alrededor del sol', 'Agua con olas, reflejo del cielo y brillo del sol', 'Hojas y plantas que se mecen con el viento; faroles y antorchas que titilan', 'Brillo suave en luces, sol y lava, y corrección de color', 'Nubes 3D, luciérnagas de noche y hojas que caen de los árboles', 'Nueva opción: calidad gráfica alta, media o baja'] },
   { date: '14/11/2026', title: 'Voxelia 0.17 — Presentación', items: ['Tutorial para quien juega por primera vez', '18 logros con aviso y lista en el diario (J)', 'Dificultad: pacífico, normal o difícil', 'Teclas configurables, tamaño de la interfaz y modo daltónico', 'Vista en tercera persona (F5), de atrás o de frente', 'Física: la arena y la grava caen, los árboles se vienen abajo al cortarles la base y el agua corre', 'El launcher avisa si hay una versión nueva y guarda copias de seguridad de tus mundos', 'Arreglo: ahora sí se guarda la foto de cada mundo para la lista'] },
   { date: '14/11/2026', title: 'Voxelia 0.16 — Combate y objetivos', items: ['Golpe cargado con espada (mantener y soltar) y desvío con el escudo', 'Saqueadores nuevos: escudero y lanzador de bombas', 'Amenaza creciente si no frenás a los campamentos', 'Señorío: cobrá impuestos, contratá guardias, acelerá obras y declarás fiestas', 'Tu propia casa en un pueblo', 'Mazmorras con el Rey Sombrío: un jefe con tres fases'] },
   { date: '14/11/2026', title: 'Voxelia 0.15 — Pueblos vivos', items: ['Panadero, médico, cartógrafo y bibliotecario', 'Encargos de cada vecino; te recuerdan por tu nombre', 'Chismes, aldeas aliadas y rivales, refuerzos en los ataques', 'Fiestas con baile y torneo de guardias, casamientos y sucesión del rey', 'Diario de viaje (J) y libros con historias del mundo'] },
@@ -165,7 +166,7 @@ function browserApi() {
       const p = JSON.parse(localStorage.getItem('voxelia_profile') ?? '{"name":"Jugador"}');
       location.href = `../dist/game/index.html?${new URLSearchParams({ world: w.id, name: w.name, seed: w.seed, mode: w.mode, player: p.name, from: 'launcher' })}`;
     },
-    info: async () => ({ version: '0.17.0', dataPath: 'Navegador (localStorage)', platform: 'web' }),
+    info: async () => ({ version: '0.18.0', dataPath: 'Navegador (localStorage)', platform: 'web' }),
     openDataFolder: async () => toast('Disponible en la app de escritorio'),
   };
 }

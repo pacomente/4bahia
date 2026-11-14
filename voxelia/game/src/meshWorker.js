@@ -27,6 +27,6 @@ self.onmessage = (ev) => {
   const w = new MiniWorld(chunks);
   const d = meshChunkData(w, w.getChunk(cx, cz));
   const transfer = [];
-  for (const g of [d.opaque, d.water]) if (g) transfer.push(g.pos.buffer, g.uv.buffer, g.col.buffer, g.emi.buffer, g.sky.buffer, g.idx.buffer);
+  for (const g of [d.opaque, d.water]) if (g) transfer.push(g.pos.buffer, g.uv.buffer, g.col.buffer, g.emi.buffer, g.sky.buffer, g.nrm.buffer, g.sway.buffer, g.idx.buffer);
   self.postMessage({ id, cx, cz, opaque: d.opaque, water: d.water }, transfer);
 };

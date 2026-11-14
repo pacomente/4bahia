@@ -51,7 +51,7 @@ export class WorldMixin {
     if (this.envT <= 0) {
       this.envT = 0.6;
       const p = this.player.pos; const x = Math.floor(p.x); const z = Math.floor(p.z);
-      const biome = this.world.biome(x, z);
+      const biome = this.world.biome(x, z); this.ambEnvBiome = biome;
       this.sky.setEnv({ biome, altitude: p.y });
       // Agua y árboles alrededor (muestras en un anillo).
       let water = 0; let leaves = 0; let n = 0;

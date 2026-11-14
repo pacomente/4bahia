@@ -24,6 +24,7 @@ import { Creatures, lairsNear } from './creatures.js';
 import { dungeonsNear, dungeonBlocks, dungeonLoot } from './dungeons.js';
 import { BOOKS, relation, isFestival } from './society.js';
 import { TUTORIAL, ACHIEVEMENTS } from './progress.js';
+import { Effects } from './effects.js';
 import { settleFalling, fellTree, orphanLeaves, flowWater } from './physics.js';
 import { PLAYER_LOOK } from './preview.js';
 import { createHumanoid, animateHumanoid, lightHumanoid } from './humanoid.js';
@@ -48,7 +49,7 @@ import { SurvivalMixin } from './game-survival.js';
 import { WorldMixin } from './game-world.js';
 import { TownMixin } from './game-town.js';
 
-export const VERSION = '0.17.0';
+export const VERSION = '0.18.0';
 
 const DEFAULT_HOTBAR = [B.GRASS, B.DIRT, B.STONE, B.COBBLE, B.PLANKS, B.LOG, B.GLASS, B.BRICK, B.LAMP];
 
@@ -104,6 +105,7 @@ export class Game {
     this.matOpaque = createBlockMaterial(this.atlasTex);
     this.matWater = createBlockMaterial(this.atlasTex, { transparent: true });
     this.startMeshWorkers();
+    this.effects = new Effects(this.renderer, this.scene, this.camera, this.world);
     this.sky = new Sky(this.scene, save?.time ?? 0.3);
     const spawn = save?.player ?? this.world.spawnPoint();
     this.spawn = save?.spawn ?? this.world.spawnPoint();
@@ -163,6 +165,7 @@ export class Game {
       this.camera.aspect = window.innerWidth / window.innerHeight;
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(window.innerWidth, window.innerHeight);
+      this.effects?.resize(window.innerWidth, window.innerHeight);
     });
   }
 
@@ -391,7 +394,7 @@ export class Game {
     document.addEventListener('pointerlockchange', () => {
       // Si el mouse se capturó tarde (con una pantalla ya abierta), se suelta: si no, el cursor queda congelado.
       if (document.pointerLockElement === this.canvas && (this.paused || this.dead || this.sleeping)) { this.unlock(); return; }
-      if (document.pointerLockElement !== this.canvas && this.started && !this.inventoryOpen && !this.craftOpen && !this.mapOpen && !this.villagerOpen && !this.dead && !this.sleeping && performance.now() - (this.selfUnlockAt ?? 0) > 500) this.pause(true);
+      if (document.pointerLockElement !== this.canvas && this.started && !this.inventoryOpen && !this.craftOpen && !this.mapOpen && !this.villagerOpen && !this.journalOpen && !this.dead && !this.sleeping && performance.now() - (this.selfUnlockAt ?? 0) > 1200) this.pause(true);
     });
   }
 
@@ -1422,7 +1425,14 @@ export class Game {
     if (this.sky.thunder && !this.paused) { const t = this.sky.thunder; setTimeout(() => { this.sound.thunder(underground ? 0.3 : 1); this.shake = Math.max(this.shake, 0.15); }, t.delay * 1000); }
     this.renderer.setClearColor(skyColor);
     const far = this.settings.renderDistance * CS;
+    // Calidad gráfica: 0 baja, 1 media, 2 alta.
+    const q = { low: 0, medium: 1, high: 2 }[this.settings.graphics ?? 'high'] ?? 2;
+    if (q !== this.effects.quality) this.effects.setQuality(q);
+    this.sky.clouds.visible = q < 2;
     for (const m of [this.matOpaque, this.matWater]) {
+      m.uniforms.time.value = this.playTime; m.uniforms.quality.value = q;
+      m.uniforms.sunDir.value.copy(this.sky.sunDir); m.uniforms.sunColor.value.copy(this.sky.sunColor);
+      m.uniforms.ambient.value.copy(this.sky.ambient); m.uniforms.skyTop.value.copy(this.sky.zenith);
       m.uniforms.daylight.value = this.sky.daylight;
       m.uniforms.fogColor.value.copy(skyColor);
       m.uniforms.fogNear.value = this.player.headInWater ? 2 : far * 0.55;
@@ -1435,7 +1445,9 @@ export class Game {
     this.highlight.visible = !!t;
     if (t) this.highlight.position.set(t.x + 0.5, t.y + 0.5, t.z + 0.5);
 
-    this.renderer.render(this.scene, this.camera);
+    const sunLow = Math.max(0, 1 - Math.abs(Math.sin(this.sky.time * Math.PI * 2)) * 3);
+    this.effects.update(this.paused ? 0 : dt, { player: this.player, daylight: this.sky.daylight, rain: Math.max(this.sky.rain, this.sky.storm ?? 0), biome: this.ambEnvBiome ?? 'plains', sunLow });
+    this.effects.render({ sunLow, daylight: this.sky.daylight, underwater: this.player.headInWater });
     this.updateHand(dt, hSpeed);
 
     // FPS y depuración

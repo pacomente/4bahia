@@ -123,6 +123,16 @@ Juego de mundo abierto de bloques para PC, con su propio **launcher**. Todo el c
 - **Combate y objetivos (0.16):** golpe cargado, desvío con escudo, escuderos y lanzadores de bombas, amenaza creciente, señorío, casa propia y mazmorras con el Rey Sombrío (tres fases).
 - **Presentación (0.17):** tutorial, logros, dificultad, teclas configurables, tamaño de interfaz, modo daltónico, tercera persona (F5), arena que cae, árboles que caen, agua que corre, aviso de actualización y copias de seguridad automáticas en el launcher.
 
+## Gráficos (0.18)
+
+- Luz del sol según la hora (cálida al amanecer/atardecer, luna azulada de noche), con la sombra del color del cielo.
+- Cielo con degradé del cenit al horizonte y resplandor alrededor del sol.
+- Agua con olas, reflejo del cielo según el ángulo (Fresnel) y brillo del sol.
+- Hojas y plantas que se mecen con el viento; luz de faroles y antorchas que titila.
+- Brillo suave (bloom) en luces, sol y lava; corrección de color con viñeta.
+- Nubes 3D, luciérnagas de noche y hojas que caen.
+- Opciones → Calidad gráfica: alta, media o baja (para PCs lentas).
+
 ## Controles
 
 | Tecla | Acción |

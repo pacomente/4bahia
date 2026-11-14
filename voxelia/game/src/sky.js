@@ -12,6 +12,26 @@ export class Sky {
     this.time = time; // 0 amanecer · 0.25 mediodía · 0.5 atardecer · 0.75 medianoche
     this.group = new THREE.Group();
     scene.add(this.group);
+    // Cúpula del cielo: degradé del cenit al horizonte y resplandor alrededor del sol.
+    this.dome = new THREE.Mesh(new THREE.SphereGeometry(420, 32, 16), new THREE.ShaderMaterial({
+      uniforms: { top: { value: new THREE.Color(0x4a8fe0) }, horizon: { value: new THREE.Color(0xa8d8ff) }, sunDir: { value: new THREE.Vector3(0, 1, 0) }, glow: { value: new THREE.Color(0xfff0c0) }, glowAmt: { value: 1 } },
+      vertexShader: 'varying vec3 vDir; void main() { vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: `uniform vec3 top; uniform vec3 horizon; uniform vec3 sunDir; uniform vec3 glow; uniform float glowAmt; varying vec3 vDir;
+        void main() {
+          float h = clamp(vDir.y, -0.2, 1.0);
+          vec3 c = mix(horizon, top, pow(max(h, 0.0), 0.55));
+          if (h < 0.0) c = mix(horizon, horizon * 0.7, -h * 5.0);
+          float s = max(dot(vDir, sunDir), 0.0);
+          c += glow * (pow(s, 8.0) * 0.35 + pow(s, 64.0) * 0.6) * glowAmt;
+          gl_FragColor = vec4(c, 1.0);
+          #include <colorspace_fragment>
+        }`,
+      side: THREE.BackSide, depthWrite: false, fog: false,
+    }));
+    this.dome.renderOrder = -10;
+    this.group.add(this.dome);
+    // Colores de la luz para los bloques: dirección y color del sol, y del cielo (sombra).
+    this.sunDir = new THREE.Vector3(0, 1, 0); this.sunColor = new THREE.Color(1, 1, 1); this.ambient = new THREE.Color(0.85, 0.9, 1); this.zenith = new THREE.Color(0x4a8fe0);
     const sq = (color, size) => new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshBasicMaterial({ color, fog: false, depthWrite: false, transparent: true }));
     this.sun = sq(0xfff3b0, 26);
     this.moon = sq(0xe6ecff, 18);
@@ -158,9 +178,24 @@ export class Sky {
     if (underwater) this.color.copy(WATER_FOG).multiplyScalar(Math.max(0.3, dl));
     this.group.position.copy(camera.position);
     const ang = this.time * Math.PI * 2;
+    // Luz: el sol de día; la luna (más débil y azulada) de noche.
+    const sunUp = Math.sin(ang);
+    if (sunUp > -0.05) this.sunDir.set(Math.cos(ang), Math.max(0.05, sunUp), 0.25).normalize();
+    else this.sunDir.set(-Math.cos(ang), Math.max(0.05, -sunUp), 0.25).normalize();
+    const low = 1 - Math.min(1, Math.max(0, sunUp) * 2.5);   // cerca del horizonte: luz cálida
+    if (sunUp > -0.05) this.sunColor.setRGB(1.05, 1.0 - low * 0.28, 0.95 - low * 0.5);
+    else this.sunColor.setRGB(0.55, 0.62, 0.95);
+    this.ambient.setRGB(0.78 + low * 0.08, 0.84, 1.0).lerp(new THREE.Color(0.75, 0.75, 0.8), Math.max(this.rain, this.snow) * 0.6);
+    // Cenit: azul más intenso que el horizonte; de noche, casi negro.
+    this.zenith.copy(NIGHT).multiplyScalar(0.6).lerp(new THREE.Color(0x3f7fd8), (dl - 0.16) / 0.84);
+    if (this.rain > 0.02 || this.snow > 0.02) this.zenith.lerp(this.color, Math.max(this.rain, this.snow) * 0.8);
     this.sun.position.set(Math.cos(ang) * 300, Math.sin(ang) * 300, 0);
     this.moon.position.set(-Math.cos(ang) * 300, -Math.sin(ang) * 300, 0);
     this.sun.lookAt(camera.position); this.moon.lookAt(camera.position);
+    const du = this.dome.material.uniforms;
+    du.top.value.copy(underwater ? this.color : this.zenith); du.horizon.value.copy(this.color);
+    du.sunDir.value.set(Math.cos(ang), Math.sin(ang), 0).normalize();
+    du.glow.value.setRGB(1, 0.85 - low * 0.3, 0.6 - low * 0.35); du.glowAmt.value = Math.max(0, Math.min(1, sunUp * 4 + 0.3)) * (1 - Math.max(this.rain, this.snow) * 0.8);
     this.stars.material.opacity = Math.max(0, 1 - dl * 2.2) * (1 - Math.max(this.rain, this.snow) * 0.9);
     // Estrella fugaz de vez en cuando (noches despejadas).
     const clearNight = dl < 0.3 && this.rain < 0.1 && this.snow < 0.1;

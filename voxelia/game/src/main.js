@@ -60,6 +60,8 @@ function bindMenus(game, settings) {
   bind('#s-vol', '#v-vol', 'volume', (v) => `${Math.round(v * 100)}%`);
   bind('#s-mus', '#v-mus', 'music', (v) => `${Math.round(v * 100)}%`);
   // Dificultad, tamaño de la interfaz, modo daltónico y teclas.
+  $('#s-gfx').value = settings.graphics ?? 'high';
+  $('#s-gfx').onchange = (e) => { settings.graphics = e.target.value; saveSettings(settings); };
   $('#s-diff').value = settings.difficulty ?? 'normal';
   $('#s-diff').onchange = (e) => { settings.difficulty = e.target.value; game.applySettings(settings); saveSettings(settings); game.ui.toast(`Dificultad: ${e.target.selectedOptions[0].textContent}`, 1500); };
   settings.uiScale ??= 1; bind('#s-ui', '#v-ui', 'uiScale', (v) => `${Math.round(v * 100)}%`);
