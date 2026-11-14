@@ -57,3 +57,21 @@ test('casa propia y fiestas pedidas por el señor', () => {
   rec.forceFestival = 7;
   assert.ok(isFestival(plan, 7, rec));
 });
+
+// ───────── Física de bloques ─────────
+import { settleFalling, fellTree, flowWater } from '../src/physics.js';
+function mapWorld(init) {
+  const m = new Map(Object.entries(init));
+  return { getBlock: (x, y, z) => m.get(`${x},${y},${z}`) ?? (y <= 0 ? B.STONE : B.AIR), setBlock: (x, y, z, id) => m.set(`${x},${y},${z}`, id), m };
+}
+test('física: la arena cae, los árboles se vienen abajo y el agua corre', () => {
+  const w = mapWorld({ '0,5,0': B.SAND, '0,6,0': B.GRAVEL });
+  settleFalling(w, 0, 5, 0);
+  assert.equal(w.getBlock(0, 1, 0), B.SAND); assert.equal(w.getBlock(0, 2, 0), B.GRAVEL); assert.equal(w.getBlock(0, 5, 0), B.AIR);
+  const t = mapWorld({ '0,2,0': B.LOG, '0,3,0': B.LOG, '0,4,0': B.LOG, '1,4,0': B.LOG });
+  const fell = fellTree(t, 0, 1, 0, B.LOG);
+  assert.ok(fell && fell.logs[B.LOG] === 4 && t.getBlock(0, 3, 0) === B.AIR, 'se cayó todo el tronco');
+  const water = mapWorld({ '1,1,0': B.WATER });
+  const n = flowWater(water, 0, 1, 0);
+  assert.ok(n >= 1 && water.getBlock(0, 1, 0) === B.WATER, 'el agua llena el hueco');
+});

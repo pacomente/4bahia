@@ -80,3 +80,6 @@ dialog label { display: flex; flex-direction: column; gap: 6px; color: #ccc; }
 .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
 .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: #2c2c2c; border: 1px solid #444; padding: 10px 18px; border-radius: 6px; opacity: 0; transition: .2s; pointer-events: none; }
 .toast.show { opacity: 1; transform: translateX(-50%); }
+
+.update-banner { margin: 10px 0; padding: 8px 12px; background: #2e7d32; color: #fff; border: 2px solid #000; border-radius: 4px; display: inline-flex; gap: 10px; align-items: center; }
+.update-banner .btn { padding: 2px 10px; }

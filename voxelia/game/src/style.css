@@ -228,3 +228,14 @@ img.coin { width: 18px; height: 18px; image-rendering: pixelated; vertical-align
 #charge.on { opacity: 1; }
 #charge > div { height: 100%; width: 0; background: #ffd23f; }
 #charge.full > div { background: #ff5a3d; box-shadow: 0 0 6px #ff5a3d; }
+
+/* Accesibilidad: tamaño de la interfaz y modo daltónico */
+.panel, #toast, #status, #hotbar, #mission, #boss, #journal-screen .journal { zoom: var(--ui, 1); }
+body.colorblind .cheap { color: #2f7fd8 !important; }
+body.colorblind .dear { color: #e8902a !important; }
+body.colorblind .tr.up { color: #e8902a !important; }
+body.colorblind .tr.down { color: #2f7fd8 !important; }
+body.colorblind .heart.full { background: #e8902a; }
+.keys { display: flex; flex-wrap: wrap; gap: 4px; }
+.keys .mc-btn { width: auto; }
+.settings select { width: 100%; margin-top: 4px; }

@@ -84,7 +84,37 @@ ipcMain.handle('worlds:create', async (_e, w) => {
 });
 ipcMain.handle('worlds:delete', async (_e, id) => { await fs.rm(worldFile(id), { force: true }); return true; });
 ipcMain.handle('worlds:load', (_e, id) => readJson(worldFile(id), null));
-ipcMain.handle('worlds:save', (_e, id, data) => writeJson(worldFile(id), data));
+ipcMain.handle('worlds:save', async (_e, id, data) => { await backupWorld(id); return writeJson(worldFile(id), data); });
+
+// Copias de seguridad: antes de guardar, cada 10 minutos se copia el mundo a backups/<id>/ (quedan las últimas 5).
+const lastBackup = new Map();
+async function backupWorld(id) {
+  const file = worldFile(id);
+  if (Date.now() - (lastBackup.get(id) ?? 0) < 10 * 60 * 1000) return;
+  try {
+    await fs.access(file);
+    const dir = path.join(DATA(), 'backups', id);
+    await fs.mkdir(dir, { recursive: true });
+    await fs.copyFile(file, path.join(dir, `${new Date().toISOString().replace(/[:.]/g, '-')}.json`));
+    lastBackup.set(id, Date.now());
+    const old = (await fs.readdir(dir)).filter((f) => f.endsWith('.json')).sort();
+    for (const f of old.slice(0, Math.max(0, old.length - 5))) await fs.rm(path.join(dir, f), { force: true });
+  } catch { /* primera vez: todavía no hay archivo */ }
+}
+
+// ¿Hay una versión nueva? Mira la última Release publicada en GitHub.
+const RELEASES = 'https://github.com/pacomente/4bahia/releases';
+const newer = (a, b) => { const pa = a.split('.').map(Number); const pb = b.split('.').map(Number); for (let i = 0; i < 3; i++) { if ((pa[i] ?? 0) !== (pb[i] ?? 0)) return (pa[i] ?? 0) > (pb[i] ?? 0); } return false; };
+ipcMain.handle('app:check-update', async () => {
+  try {
+    const r = await fetch('https://api.github.com/repos/pacomente/4bahia/releases/latest', { headers: { 'User-Agent': 'Voxelia-Launcher', Accept: 'application/vnd.github+json' } });
+    if (!r.ok) return null;
+    const rel = await r.json();
+    const latest = String(rel.tag_name ?? '').replace(/^voxelia-v/, '');
+    return { latest, url: rel.html_url, newer: !!latest && newer(latest, app.getVersion()) };
+  } catch { return null; }
+});
+ipcMain.handle('app:open-release', (_e, url) => { if (typeof url === 'string' && url.startsWith(RELEASES)) shell.openExternal(url); });
 ipcMain.handle('game:play', async (_e, id) => {
   const w = await readJson(worldFile(id), null);
   if (!w) throw new Error('El mundo no existe');

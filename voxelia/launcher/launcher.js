@@ -6,6 +6,12 @@ let worlds = [];
 let settings = {};
 
 const NEWS = [
+  { date: '14/11/2026', title: 'Voxelia 0.17 — Presentación', items: ['Tutorial para quien juega por primera vez', '18 logros con aviso y lista en el diario (J)', 'Dificultad: pacífico, normal o difícil', 'Teclas configurables, tamaño de la interfaz y modo daltónico', 'Vista en tercera persona (F5), de atrás o de frente', 'Física: la arena y la grava caen, los árboles se vienen abajo al cortarles la base y el agua corre', 'El launcher avisa si hay una versión nueva y guarda copias de seguridad de tus mundos', 'Arreglo: ahora sí se guarda la foto de cada mundo para la lista'] },
+  { date: '14/11/2026', title: 'Voxelia 0.16 — Combate y objetivos', items: ['Golpe cargado con espada (mantener y soltar) y desvío con el escudo', 'Saqueadores nuevos: escudero y lanzador de bombas', 'Amenaza creciente si no frenás a los campamentos', 'Señorío: cobrá impuestos, contratá guardias, acelerá obras y declarás fiestas', 'Tu propia casa en un pueblo', 'Mazmorras con el Rey Sombrío: un jefe con tres fases'] },
+  { date: '14/11/2026', title: 'Voxelia 0.15 — Pueblos vivos', items: ['Panadero, médico, cartógrafo y bibliotecario', 'Encargos de cada vecino; te recuerdan por tu nombre', 'Chismes, aldeas aliadas y rivales, refuerzos en los ataques', 'Fiestas con baile y torneo de guardias, casamientos y sucesión del rey', 'Diario de viaje (J) y libros con historias del mundo'] },
+  { date: '14/11/2026', title: 'Voxelia 0.14 — Exploración', items: ['Pantanos, selvas y cañones de roca roja', 'Ruinas: torres, templos y minas con botín y mapas del tesoro', 'Lobos que se domestican, loros, serpiente marina y dragón', 'Tormentas en alta mar que dan vuelta el bote'] },
+  { date: '14/11/2026', title: 'Voxelia 0.13 — Supervivencia', items: ['Hambre, cocina (fogata, hogar y horno) y pesca con caña', 'Zanahorias, papas, calabazas, manzanos y colmenas con miel', 'El herrero refuerza tu equipo hasta +3'] },
+  { date: '14/11/2026', title: 'Voxelia 0.11–0.12 — Base y sensaciones', items: ['El mundo se arma en segundo plano: muchos menos tirones', 'Los personajes buscan el camino (rodean casas y paredes)', 'Tormentas con rayos, nieve, auroras, luna con fases y estrellas fugaces', 'Sonido ambiente y música según la zona'] },
   { date: '14/11/2026', title: 'Voxelia 0.10 — Vida de pueblo', items: ['Iglesias con campanario, vitrales y bancos: a la tarde suena la campana y los vecinos van a misa', 'Escuelas con pupitres y pizarrón: los chicos van a clase a la mañana con la maestra', 'Corrales con lanudos, gallinas y caballos que los granjeros alimentan', 'Caballos: montalos (clic derecho) y corré el doble de rápido', 'Caminos de grava con faroles y puentes que unen los pueblos', 'Carretas de comercio que llevan comida, madera y piedra de un pueblo a otro y se pagan en plata', 'Los aldeanos tienen su bolsa de plata: cobran jornales, se compran cosas en el mercado y el rey cobra impuestos para el tesoro', 'Guardias con espada y escudo: dan la alarma, se reparten los enemigos, rodean al jefe, se cubren justo antes del golpe y contraatacan; si están muy heridos se repliegan a curarse', 'Las flechas de los saqueadores ahora también alcanzan a los vecinos (los guardias las frenan con el escudo)', 'Arreglo: los aldeanos ahora saben qué hora es (antes vivían siempre al mediodía)'] },
   { date: '14/11/2026', title: 'Voxelia 0.9 — Mares y vida', items: ['Océanos grandes con arrecifes de coral, algas, pastos marinos, peces y medusas que brillan de noche', 'Puertos: aldeas costeras con muelle, faro, pescadores y marineros', 'Barcos mercantes que llegan a los puertos y abaratan gemas, hierro y lana', 'Botes: fabricalos con 5 tablas y navegá (W/S reman, A/D giran, Shift para bajar)', 'Barcos hundidos con cofres llenos de perlas, oro y plata', 'Bosques con pinos, robles grandes, troncos caídos y arbustos de bayas; palmeras en las playas', 'Animales nuevos: ciervos, conejos y cangrejos; dejan carne para comer', 'Cada aldea tiene su propia economía: los precios cambian según el bioma, las reservas y los barcos', 'Nota: el terreno de los mundos viejos cambia (ahora hay mares)'] },
   { date: '14/11/2026', title: 'Voxelia 0.8 — Hogar', items: ['Herramientas, armas, armaduras, materiales y comida rediseñados en pixel-art de 32×32', 'Casas amuebladas: mesas, sillas, hogar a leña con chimenea, bibliotecas, alfombras, barriles, heno y yunque', 'Tres tipos de casa: familiar, taller y granja; flores en la entrada', 'De noche los aldeanos se sientan a cenar antes de ir a dormir', 'Trono en el castillo y mercadería en los puestos del mercado', 'Pestaña Muebles en el Taller para decorar tu propia casa'] },
@@ -118,6 +124,13 @@ async function loadSettings() {
   $('#app-version').textContent = `Voxelia ${info.version} · ${info.platform}`;
   $('#hero-version').textContent = `Versión ${info.version} · Beta`;
   $('#open-data').addEventListener('click', () => api.openDataFolder());
+  // Aviso de versión nueva (solo en la app de escritorio).
+  api.checkUpdate?.().then((u) => {
+    if (!u?.newer) return;
+    const b = $('#update-banner'); b.hidden = false;
+    b.innerHTML = `🎉 Hay una versión nueva: <b>Voxelia ${esc(u.latest)}</b> <button class="btn small" id="get-update">Descargar</button>`;
+    $('#get-update').addEventListener('click', () => api.openRelease(u.url));
+  }).catch(() => {});
 }
 
 function renderNews() {
@@ -152,7 +165,7 @@ function browserApi() {
       const p = JSON.parse(localStorage.getItem('voxelia_profile') ?? '{"name":"Jugador"}');
       location.href = `../dist/game/index.html?${new URLSearchParams({ world: w.id, name: w.name, seed: w.seed, mode: w.mode, player: p.name, from: 'launcher' })}`;
     },
-    info: async () => ({ version: '0.10.0', dataPath: 'Navegador (localStorage)', platform: 'web' }),
+    info: async () => ({ version: '0.17.0', dataPath: 'Navegador (localStorage)', platform: 'web' }),
     openDataFolder: async () => toast('Disponible en la app de escritorio'),
   };
 }

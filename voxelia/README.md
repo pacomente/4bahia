@@ -113,6 +113,16 @@ Juego de mundo abierto de bloques para PC, con su propio **launcher**. Todo el c
   - si quedan muy heridos y hay otro peleando, se repliegan a la plaza a curarse y vuelven;
   - dan la alarma al empezar y festejan al ganar; de día hacen guardia en la plaza y de noche hacen la ronda con antorcha.
 
+## 0.11 a 0.17
+
+- **Base (0.11):** las mallas del mundo se arman en *workers* (sin tirones) y los personajes buscan caminos con A* (rodean casas, usan puertas, no se meten al agua).
+- **Sensaciones (0.12):** tormentas con rayos y truenos, nieve en el frío, auroras, luna con fases, estrellas fugaces, sonido ambiente (viento, olas, pájaros, grillos, mercado) y música por zona.
+- **Supervivencia (0.13):** hambre (10 muslitos), cocina en fogata/hogar/horno, pesca con caña (salmón, pez dorado…), zanahorias, papas, calabazas, manzanos, colmenas con miel y refuerzos del herrero hasta +3.
+- **Exploración (0.14):** pantanos, selvas y cañones; ruinas (torre, templo, mina) con cofres y mapas del tesoro; lobos (se domestican con carne), loros, serpiente marina, dragón en su guarida y tormentas que dan vuelta el bote.
+- **Pueblos vivos (0.15):** panadero, médico, cartógrafo y bibliotecario; encargos de cada vecino; memoria y chismes; aldeas aliadas y rivales (refuerzos); fiestas, casamientos, sucesión del rey; diario de viaje (J).
+- **Combate y objetivos (0.16):** golpe cargado, desvío con escudo, escuderos y lanzadores de bombas, amenaza creciente, señorío, casa propia y mazmorras con el Rey Sombrío (tres fases).
+- **Presentación (0.17):** tutorial, logros, dificultad, teclas configurables, tamaño de interfaz, modo daltónico, tercera persona (F5), arena que cae, árboles que caen, agua que corre, aviso de actualización y copias de seguridad automáticas en el launcher.
+
 ## Controles
 
 | Tecla | Acción |

@@ -1,8 +1,10 @@
+import { TIPS as NEW_TIPS } from './progress.js';
 import { Game } from './game.js';
 import { loadWorld, loadSettings, saveSettings, exitToLauncher } from './storage.js';
 
 const $ = (s) => document.querySelector(s);
 const TIPS = [
+  ...NEW_TIPS,
   'Doble espacio en creativo para volar.',
   'Clic de rueda copia el bloque que estás mirando.',
   'Las lámparas brillan aunque sea de noche.',
@@ -29,7 +31,10 @@ async function startGame({ id, name, seed, mode, player }) {
   const save = await loadWorld(id);
   const game = new Game({ worldId: id, name: save?.name ?? name, seed: save?.seed ?? seed, mode: save?.mode ?? mode, playerName: player, settings, save });
   window.__game = game; // útil para depurar
+  const tip = () => { $('#tip').textContent = TIPS[Math.floor(Math.random() * TIPS.length)]; };
+  const tipT = setInterval(tip, 3500);
   await game.preload((p) => { $('#loading-bar').style.width = `${Math.round(p * 100)}%`; });
+  clearInterval(tipT);
   await game.save();
   $('#loading').classList.remove('open');
   bindMenus(game, settings);
@@ -54,6 +59,24 @@ function bindMenus(game, settings) {
   bind('#s-sens', '#v-sens', 'sensitivity', (v) => `${Number(v).toFixed(1)}x`);
   bind('#s-vol', '#v-vol', 'volume', (v) => `${Math.round(v * 100)}%`);
   bind('#s-mus', '#v-mus', 'music', (v) => `${Math.round(v * 100)}%`);
+  // Dificultad, tamaño de la interfaz, modo daltónico y teclas.
+  $('#s-diff').value = settings.difficulty ?? 'normal';
+  $('#s-diff').onchange = (e) => { settings.difficulty = e.target.value; game.applySettings(settings); saveSettings(settings); game.ui.toast(`Dificultad: ${e.target.selectedOptions[0].textContent}`, 1500); };
+  settings.uiScale ??= 1; bind('#s-ui', '#v-ui', 'uiScale', (v) => `${Math.round(v * 100)}%`);
+  $('#s-cb').checked = !!settings.colorblind;
+  $('#s-cb').onchange = (e) => { settings.colorblind = e.target.checked; game.applySettings(settings); saveSettings(settings); };
+  const ACTIONS = { forward: 'Adelante', back: 'Atrás', left: 'Izquierda', right: 'Derecha', jump: 'Saltar', sneak: 'Agacharse', sprint: 'Correr', inventory: 'Inventario', craft: 'Taller', map: 'Mapa', journal: 'Diario', block: 'Escudo', view: 'Cambiar vista' };
+  const keyName = (c) => (c ?? '').replace(/^Key/, '').replace(/^Digit/, '').replace('ShiftLeft', 'Shift').replace('ControlLeft', 'Ctrl').replace('Space', 'Espacio');
+  const renderKeys = () => {
+    $('#s-keys').innerHTML = Object.entries(ACTIONS).map(([k, label]) => `<button class="mc-btn small" data-key="${k}">${label}: <b>${keyName(game.key(k))}</b></button>`).join('') + '<button class="mc-btn small" data-key="reset">Restablecer teclas</button>';
+    $('#s-keys').querySelectorAll('[data-key]').forEach((b) => b.addEventListener('click', () => {
+      if (b.dataset.key === 'reset') { settings.keys = {}; saveSettings(settings); renderKeys(); return; }
+      b.innerHTML = `${ACTIONS[b.dataset.key]}: <b>apretá una tecla…</b>`; game.rebinding = true;
+      const on = (ev) => { ev.preventDefault(); ev.stopPropagation(); document.removeEventListener('keydown', on, true); game.rebinding = false; if (ev.code !== 'Escape') { settings.keys = { ...(settings.keys ?? {}), [b.dataset.key]: ev.code }; saveSettings(settings); } renderKeys(); };
+      document.addEventListener('keydown', on, true);
+    }));
+  };
+  renderKeys();
   for (const [sel, key] of [['#s-bob', 'viewBob'], ['#s-hand', 'showHand']]) {
     $(sel).checked = settings[key] !== false;
     $(sel).onchange = (e) => { settings[key] = e.target.checked; game.applySettings(settings); saveSettings(settings); };
