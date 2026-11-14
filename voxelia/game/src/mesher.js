@@ -106,6 +106,31 @@ function shapeQuads(out, get, x, y, z, id, b, em, sky) {
     case 'carpet': boxes = [[0, 0, 0, 1, P, 1]]; break;
     case 'anvil': boxes = [[2 * P, 0, 3 * P, 14 * P, 4 * P, 13 * P], [5 * P, 4 * P, 5 * P, 11 * P, 9 * P, 11 * P], [0, 9 * P, 4 * P, 1, 1, 12 * P]]; break;
     case 'fireplace': boxes = [[0, 0, 0, 1, 1, 1]]; break;
+    case 'fence': {
+      // Poste central y travesaños hacia las cercas o bloques vecinos.
+      boxes = [[6 * P, 0, 6 * P, 10 * P, 1, 10 * P]];
+      const link = (dx, dz) => { const n = get(x + dx, y, z + dz); return n === B.FENCE || (n !== B.AIR && BLOCKS[n].solid && !BLOCKS[n].transparent); };
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        if (!link(dx, dz)) continue;
+        for (const [y0, y1] of [[6 * P, 8 * P], [12 * P, 14 * P]]) {
+          if (dx) boxes.push([dx > 0 ? 10 * P : 0, y0, 7 * P, dx > 0 ? 1 : 6 * P, y1, 9 * P]);
+          else boxes.push([7 * P, y0, dz > 0 ? 10 * P : 0, 9 * P, y1, dz > 0 ? 1 : 6 * P]);
+        }
+      }
+      break;
+    }
+    case 'bell': boxes = [[7 * P, 14 * P, 7 * P, 9 * P, 1, 9 * P], [5 * P, 6 * P, 5 * P, 11 * P, 14 * P, 11 * P], [4 * P, 3 * P, 4 * P, 12 * P, 6 * P, 12 * P]]; break;
+    case 'altar': boxes = [[0, 0, 0, 1, 1, 1]]; break;
+    case 'trough': boxes = [[0, 0, 0, 1, 2 * P, 1], [0, 0, 0, 2 * P, 7 * P, 1], [14 * P, 0, 0, 1, 7 * P, 1], [0, 0, 0, 1, 7 * P, 2 * P], [0, 0, 14 * P, 1, 7 * P, 1], [2 * P, 2 * P, 2 * P, 14 * P, 5 * P, 14 * P]]; break;
+    case 'pew': {
+      // Mira hacia el altar más cercano en línea recta; si no hay, como una silla.
+      let f = null;
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) for (let k = 1; k <= 9 && !f; k++) if (get(x + dx * k, y, z + dz * k) === B.ALTAR) f = [dx, dz];
+      f ??= facing();
+      boxes = [f[0] ? [2 * P, 6 * P, 0, 14 * P, 8 * P, 1] : [0, 6 * P, 2 * P, 1, 8 * P, 14 * P], ...legs(6 * P, 1)];
+      boxes.push(backBox(f, 8 * P, 15 * P));
+      break;
+    }
     default: {
       // Puertas: pared a lo largo de x → la puerta ocupa todo x y es fina en z.
       const alongX = solidAt(1, 0) || solidAt(-1, 0) || !(solidAt(0, 1) || solidAt(0, -1));

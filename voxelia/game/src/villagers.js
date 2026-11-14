@@ -22,6 +22,8 @@ export const PROFESSIONS = {
   woodcutter: { name: 'Leñador', fem: 'Leñadora', prop: 'axe', hat: 'cap', hatColor: '#8f2b26' },
   fisher: { name: 'Pescador', fem: 'Pescadora', prop: 'rod', hat: 'cap', hatColor: '#2f4fb8' },
   sailor: { name: 'Marinero', fem: 'Marinera', prop: null, hat: 'cap', hatColor: '#1e2a4a', apron: '#e8e4d8' },
+  priest: { name: 'Sacerdote', fem: 'Sacerdotisa', prop: null, apron: '#f2efe6', cape: '#2a2a3a' },
+  teacher: { name: 'Maestro', fem: 'Maestra', prop: null, cape: '#2f6f4a', apron: '#d8c08a' },
   king: { name: 'Rey', fem: 'Reina', chief: 'Jefe', chiefFem: 'Jefa', prop: null, hat: 'crown', cape: '#6a1f8a' },
 };
 
@@ -58,6 +60,13 @@ const LINES = {
   chop: ['¡Árbol va!', 'Leña para el invierno.'],
   fish: ['¡Pique!', '¡Uno grande!', 'Hoy el mar está generoso.', 'Shhh, que se espantan.'],
   sailor: ['¡Barco a la vista!', 'El mar está tranquilo hoy.', 'Mañana llega el mercante.', '¿Querés un bote? Tengo uno lindo.'],
+  mass: ['Amén.', '…', 'Qué linda la campana.', 'Shhh, que empieza.'],
+  preach: ['Queridos vecinos: cuidemos la aldea.', 'Compartan el pan con quien no tiene.', 'Que la luz nos proteja de las Sombras.', 'Demos gracias por la cosecha.'],
+  school: ['¡Presente!', '¿Cuánto es dos más dos?', '¡Ya sé leer!', 'Seño, ¿falta mucho para el recreo?', 'Me olvidé la tarea…'],
+  teach: ['Hoy aprendemos las letras: A, B, C…', 'Dos más dos son cuatro.', 'Silencio, por favor.', 'Muy bien, ¡excelente!', 'Las Sombras le tienen miedo a la luz: anoten.'],
+  buy: ['¿Cuánto sale?', 'Me llevo dos.', '¿Me hace precio?', 'Uh, qué caro está todo.'],
+  sell: ['Para vos, {p} de plata.', '¡Son {p} monedas!', 'Trato hecho: {p} de plata.', 'Lo mejor de la comarca, {p} de plata.'],
+  pen: ['¡A comer, bichitos!', 'Hoy hay leche fresca.', 'Qué lindos están los animales.'],
   talk: ['¿Viste lo que construyeron?', 'Dicen que en las cuevas brillan cristales.', 'Mañana llueve, seguro.', 'Necesitamos más casas.', '¡Ja, ja!', '¿Y tu familia?', 'El herrero arregla herramientas.'],
 };
 
@@ -128,6 +137,8 @@ export function neededProfession(plan, rec) {
   if (plan.port && !has('fisher')) return 'fisher';
   if (plan.port && !has('sailor')) return 'sailor';
   if (!has('woodcutter') && rec.villagers.length >= 4) return 'woodcutter';
+  if (plan.church && !has('priest') && rec.villagers.length >= 5) return 'priest';
+  if (plan.school && !has('teacher') && rec.villagers.length >= 6) return 'teacher';
   const n = rec.villagers.filter((v) => v.prof === 'guard').length;
   if (n < 2 && rec.villagers.length >= 7) return 'guard';
   return plan.style === 'desert' && Math.random() < 0.3 ? 'merchant' : 'farmer';
@@ -143,7 +154,9 @@ export function initialRecord(world, plan) {
   if (plan.castle) king.home = -1;
   rec.villagers.push(king);
   const n = Math.min(11, plan.houses.length * 2 - 1);
-  for (let k = 0; k < n; k++) rec.villagers.push(newVillager(plan, rec, r, { child: k === n - 1 && n > 4, prof: neededProfession(plan, rec) }));
+  for (let k = 0; k < n; k++) rec.villagers.push(newVillager(plan, rec, r, { child: (k === n - 1 && n > 4) || (k === n - 2 && n > 6), prof: neededProfession(plan, rec) }));
+  for (const v of rec.villagers) v.silver = 6 + Math.floor(r() * 14);
+  rec.treasury = 20;
   formCouples(rec, () => 0.1);
   return rec;
 }
@@ -174,6 +187,28 @@ export function villageDawn(plan, rec, r = Math.random) {
     if (v.prof === 'woodcutter') rec.stock.wood += 4;
     if (v.prof === 'builder' || v.prof === 'smith') rec.stock.stone += 2;
   }
+  // Plata: cada oficio cobra su jornal; el rey cobra impuestos y con el tesoro paga a guardias y maestros
+  // y compra materiales para las obras si faltan.
+  rec.treasury ??= 20;
+  const WAGE = { farmer: 2, fisher: 2, woodcutter: 2, smith: 3, builder: 2, merchant: 4, sailor: 2 };
+  const PAID = { guard: 3, teacher: 3, priest: 1 };
+  let taxes = 0;
+  for (const v of rec.villagers) {
+    v.silver ??= 6 + Math.floor(r() * 10);
+    if (isChild(v)) continue;
+    v.silver += WAGE[v.prof] ?? 0;
+    if (PAID[v.prof] && rec.treasury >= PAID[v.prof]) { rec.treasury -= PAID[v.prof]; v.silver += PAID[v.prof]; }
+    if (v.prof !== 'king') { const t = Math.ceil(v.silver * 0.1); v.silver -= t; taxes += t; }
+  }
+  rec.treasury += taxes;
+  if (taxes) events.push({ type: 'taxes', n: taxes, treasury: rec.treasury });
+  if (rec.treasury >= 12 && rec.stock.wood + rec.stock.stone < 12) { rec.treasury -= 8; rec.stock.wood += 5; rec.stock.stone += 3; events.push({ type: 'royalBuy' }); }
+  // Si la aldea tiene iglesia o escuela y le falta quien la atienda, un granjero cambia de oficio.
+  for (const [prof, b] of [['priest', plan.church], ['teacher', plan.school]]) {
+    if (!b || rec.villagers.some((v) => v.prof === prof) || rec.villagers.filter((v) => v.prof === 'farmer').length < 2) continue;
+    const v = rec.villagers.find((x) => x.prof === 'farmer'); v.prof = prof;
+    events.push({ type: 'newjob', name: v.name, prof });
+  }
   // Cada uno come una vez por día; si no alcanza, pasan hambre (y nadie tiene hijos).
   const eat = rec.villagers.length;
   const hungry = rec.stock.food < eat;
@@ -182,7 +217,7 @@ export function villageDawn(plan, rec, r = Math.random) {
   for (const v of rec.villagers) {
     v.age += 1;
     v.hunger = hungry ? 0.8 : 0.1;
-    if (v.age === 2) { v.prof = neededProfession(plan, rec); events.push({ type: 'grown', name: v.name }); }
+    if (v.age === 2) { v.prof = neededProfession(plan, rec); events.push({ type: 'grown', name: v.name, studied: (v.edu ?? 0) >= 2 }); }
   }
   events.push(...formCouples(rec, r));
   // Nacimiento: una pareja, lugar libre y comida guardada.
@@ -358,6 +393,10 @@ export class Villages {
     if (this.scanTimer <= 0) { this.scanTimer = 1; this.scan(ctx.player); }
     for (const a of this.active.values()) {
       for (const e of [...a.list]) this.think(e, a, dt, ctx);
+      // Campana de la iglesia a la hora de misa.
+      const tNow = ctx.time ?? 0.25;
+      if (a.plan.church && a.lastTime !== undefined && a.lastTime < 0.3 && tNow >= 0.3) ctx.onBell?.(a.plan.church.bell, a.plan);
+      a.lastTime = tNow;
       this.updateSmoke(a, dt, ctx);
       // El trigo de los campos crece solo.
       a.cropT = (a.cropT ?? 6) - dt;
@@ -397,22 +436,28 @@ export class Villages {
 
   // Abre la puerta de su casa al llegar y la cierra después de pasar (los zombis no saben abrirlas).
   handleDoor(e, ctx) {
-    const h = e.home; const w = this.world;
+    const visiting = e.state === 'visit' || e.state === 'exit';
+    const w = this.world;
+    const cur = visiting ? e.visitB : e.home;
+    const goingThrough = e.state === 'home' || e.state === 'leave' || visiting;
+    if (goingThrough && cur?.door) {
+      const y = cur.y + 1;
+      if (Math.hypot(cur.doorCell.x - e.pos.x, cur.doorCell.z - e.pos.z) < 1.9 && w.getBlock(cur.door.x, y, cur.door.z) === B.DOOR) {
+        w.setBlock(cur.door.x, y, cur.door.z, B.DOOR_OPEN); w.setBlock(cur.door.x, y + 1, cur.door.z, B.DOOR_OPEN);
+        e.openedDoor = true; e.doorB = cur; ctx.onDoor?.(cur.door.x, y, cur.door.z, true);
+      }
+    }
+    const h = e.doorB ?? e.home;
     if (!h?.door) return;
     const d = Math.hypot(h.doorCell.x - e.pos.x, h.doorCell.z - e.pos.z);
     const y = h.y + 1;
-    const goingThrough = e.state === 'home' || e.state === 'leave';
-    if (goingThrough && d < 1.9 && w.getBlock(h.door.x, y, h.door.z) === B.DOOR) {
-      w.setBlock(h.door.x, y, h.door.z, B.DOOR_OPEN); w.setBlock(h.door.x, y + 1, h.door.z, B.DOOR_OPEN);
-      e.openedDoor = true; ctx.onDoor?.(h.door.x, y, h.door.z, true);
-    }
     if (e.openedDoor && d > 2.3) {
       const busy = e.a.list.some((o) => o !== e && Math.hypot(h.doorCell.x - o.pos.x, h.doorCell.z - o.pos.z) < 1);
       if (!busy && w.getBlock(h.door.x, y, h.door.z) === B.DOOR_OPEN) {
         w.setBlock(h.door.x, y, h.door.z, B.DOOR); w.setBlock(h.door.x, y + 1, h.door.z, B.DOOR);
         ctx.onDoor?.(h.door.x, y, h.door.z, false);
       }
-      e.openedDoor = false;
+      e.openedDoor = false; e.doorB = null;
     }
   }
 
@@ -457,7 +502,10 @@ export class Villages {
     } else if (night || zombie || e.scaredT > 0) {
       e.scaredT = Math.max(0, (e.scaredT ?? 0) - dt);
       if (e.state !== 'home' && e.state !== 'inside') {
-        e.state = 'home'; e.path = [e.home.outside, e.home.doorCell, e.home.inside]; e.homeT = 0;
+        if (e.seat) this.release(e);
+        e.sitting = false;
+        // Si estaba adentro de la iglesia o la escuela, primero sale por esa puerta.
+        e.state = 'home'; e.path = [...(e.visitB?.door && ['seated', 'preach', 'teach', 'visit'].includes(e.prevDay) ? [e.visitB.doorCell, e.visitB.outside] : []), e.home.outside, e.home.doorCell, e.home.inside]; e.homeT = 0;
         if (zombie) this.say(e, pick(Math.random, LINES.zombie), 2.5);
         else if (Math.random() < e.trait.chat) this.say(e, pick(Math.random, LINES.night), 2.5);
       }
@@ -468,6 +516,15 @@ export class Villages {
     }
 
     // 2. Caminos por etapas (afuera → puerta → adentro), abriendo y cerrando la puerta.
+    if (['visit', 'exit'].includes(e.state)) {
+      const wp = e.path[0];
+      if (!wp) { if (e.state === 'visit') { e.state = e.then; e.timer = e.thenT; } else { e.state = 'idle'; e.timer = 1; e.visitB = null; } }
+      else {
+        goal = { x: wp.x, z: wp.z, near: 0.4 };
+        e.homeT = (e.homeT ?? 0) + dt;
+        if (e.homeT > 20 || e.stuck > 6) { const last = e.path[e.path.length - 1]; e.pos.set(last.x, (e.state === 'visit' ? e.visitB.y : e.pos.y - 1) + 1, last.z); e.path = []; e.stuck = 0; }
+      }
+    }
     if (e.state === 'home' || e.state === 'leave') {
       const wp = e.path[0];
       if (!wp) { e.state = e.state === 'home' ? 'inside' : 'idle'; e.timer = 1; }
@@ -492,7 +549,7 @@ export class Villages {
           if (e.sitT <= 0) { e.sitting = false; e.dined = true; }
           else if (Math.random() < dt * 0.08 && distPlayer < 12) this.say(e, pick(Math.random, LINES.eat), 2);
         } else if (Math.hypot(chair.x + 0.5 - e.pos.x, chair.z + 0.5 - e.pos.z) < 1.4) {
-          e.sitting = true; e.sitT = 10 + Math.random() * 8; e.chair = chair; e.chairTable = fu.table;
+          e.sitting = true; e.sitT = 10 + Math.random() * 8; e.chair = chair; e.chairTable = fu.table; e.chairY = null;
         } else { goal = { x: chair.x + 0.5, z: chair.z + 0.5, near: 1.3 }; e.dinnerT = (e.dinnerT ?? 0) + dt; if (e.dinnerT > 12) e.dined = true; }
       }
       const bed = this.bedOf(e);
@@ -509,7 +566,8 @@ export class Villages {
     }
 
     // 3. Día: rutina según la hora y el oficio.
-    if (!goal && !['home', 'inside', 'leave', 'patrol', 'fight'].includes(e.state)) {
+    if (!['home', 'inside', 'leave'].includes(e.state)) e.prevDay = e.state;
+    if (!goal && !['home', 'inside', 'leave', 'patrol', 'fight', 'visit', 'exit'].includes(e.state)) {
       if (prof === 'builder' && a.rec.build && !e.blockedT) {
         const h = a.plan.slots[a.rec.build.slot];
         goal = { x: h.outside.x, z: h.outside.z, near: 2.5 };
@@ -521,7 +579,25 @@ export class Villages {
         if (e.timer <= 0) { e.state = 'idle'; e.timer = 2 + Math.random() * 3; e.talkWith = null; }
       } else if ((e.state === 'wander' || e.state === 'goto') && e.target) goal = e.target;
       else if (e.state === 'work') { e.action = e.workAction ?? 'build'; this.work(e, a, dt, ctx); }
-      else if (e.state === 'eat') { e.action = 'eat'; if (e.timer <= 0) { v.hunger = 0.05; e.state = 'idle'; e.timer = 1; } }
+      else if (e.state === 'eat') { e.action = 'eat'; if (e.timer <= 0) { v.hunger = 0.05; e.state = 'idle'; e.timer = 1; this.payStall(e, a, ctx, 1); } }
+      else if (e.state === 'seated') {
+        // En misa o en clase: sentado mirando al altar o al pizarrón.
+        e.action = 'sit'; e.sitting = true;
+        e.lineT = (e.lineT ?? 3 + Math.random() * 8) - dt;
+        if (e.lineT <= 0) { e.lineT = 10 + Math.random() * 14; if (distPlayer < 14) this.say(e, pick(Math.random, e.child && e.visitB === a.plan.school ? LINES.school : LINES.mass), 2); }
+        if (e.timer <= 0) { if (e.visitB === a.plan.school) v.edu = (v.edu ?? 0) + 1; this.leaveBuilding(e); }
+      } else if (e.state === 'preach' || e.state === 'teach') {
+        // El sacerdote frente al altar y la maestra frente al pizarrón, hablando hacia los bancos.
+        e.action = 'talk'; const f = e.visitB.face; e.heading = Math.atan2(f[0], f[1]);
+        e.lineT = (e.lineT ?? 2) - dt;
+        const listeners = a.list.filter((o) => o.visitB === e.visitB && o.state === 'seated').length;
+        if (e.lineT <= 0) { e.lineT = 7 + Math.random() * 6; if (distPlayer < 16 && (listeners || Math.random() < 0.3)) this.say(e, pick(Math.random, e.state === 'teach' ? LINES.teach : LINES.preach), 3); }
+        if (e.timer <= 0) this.leaveBuilding(e);
+      } else if (e.state === 'buy') {
+        e.action = 'talk';
+        if (e.seller) e.heading = Math.atan2(e.seller.pos.x - e.pos.x, e.seller.pos.z - e.pos.z);
+        if (e.timer <= 0) { e.state = 'idle'; e.timer = 1.5; this.payStall(e, a, ctx, 1 + Math.floor(Math.random() * 3), true); e.seller = null; }
+      }
       else if (e.state === 'market') {
         e.action = distPlayer < 5 ? 'talk' : 'idle';
         if (e.stall) e.heading = Math.atan2(e.stall.f[0], e.stall.f[1]);
@@ -548,7 +624,7 @@ export class Villages {
       const d = Math.hypot(goal.x - e.pos.x, goal.z - e.pos.z);
       if (d > (goal.near ?? 0.4)) { moving = stepToward(w, e, goal.x, goal.z, speed, dt).moved; }
       else {
-        if (e.state === 'home' || e.state === 'leave') e.path.shift();
+        if (['home', 'leave', 'visit', 'exit'].includes(e.state)) e.path.shift();
         else if (e.state === 'wander') { e.state = 'idle'; e.timer = 2 + Math.random() * 4; }
         else if (e.state === 'goto') { e.state = e.then ?? 'idle'; e.timer = e.thenT ?? 3; }
         else if (e.state === 'patrol') e.target = null;
@@ -604,7 +680,7 @@ export class Villages {
     } else if (e.sitting && e.chair) {
       // Sentado en la silla, mirando a la mesa, comiendo.
       root.rotation.set(0, e.chairTable ? Math.atan2(e.chairTable.x - e.chair.x, e.chairTable.z - e.chair.z) : e.heading, 0);
-      root.position.set(e.chair.x + 0.5, e.home.y + 1 - 0.2, e.chair.z + 0.5);
+      root.position.set(e.chair.x + 0.5, (e.chairY ?? e.home.y) + 1 - 0.2, e.chair.z + 0.5);
       animateHumanoid(e.parts, { t: this.t + e.phase, phase: 0, walk: 0, action: 'sit', lookYaw: Math.sin(this.t * 0.5 + e.phase) * 0.3 });
     } else {
       root.rotation.x = 0; root.rotation.z = 0;
@@ -645,6 +721,56 @@ export class Villages {
     if (job.kind === 'forge') a.rec.stock.stone += Math.random() < 0.3 ? 1 : 0;
     if (job.kind === 'fish') { a.rec.stock.food += 1; if (Math.random() < 0.35) this.say(e, pick(Math.random, LINES.fish), 2); ctx.onSplash?.(e.pos); }
     if (job.kind === 'watch' && Math.random() < 0.3) this.say(e, pick(Math.random, LINES.sailor), 2.5);
+    if (job.kind === 'feed') {
+      // Corral: los animales dan leche, huevos y lana.
+      a.rec.stock.food += 2; a.rec.stock.wool = (a.rec.stock.wool ?? 0) + (Math.random() < 0.4 ? 1 : 0);
+      if (Math.random() < 0.4) this.say(e, pick(Math.random, LINES.pen), 2.5);
+      ctx.onFeed?.(a.plan.pen);
+      this.leaveBuilding(e);
+    }
+  }
+
+  // ───────── Edificios: iglesia, escuela y corral ─────────
+  visit(e, b, final, then, T) {
+    e.visitB = b; e.state = 'visit'; e.path = [b.outside, b.doorCell, final]; e.then = then; e.thenT = T; e.homeT = 0; e.lineT = 2 + Math.random() * 6;
+  }
+  leaveBuilding(e) {
+    this.release(e);
+    e.sitting = false; e.chair = null; e.chairY = null;
+    const b = e.visitB;
+    if (!b) { e.state = 'idle'; e.timer = 1; return; }
+    e.state = 'exit'; e.path = [b.doorCell, b.outside]; e.homeT = 0;
+  }
+  // Asientos libres (cada uno se sienta en el suyo).
+  freeSeat(a, b) {
+    a.seatsTaken ??= new Map();
+    return (b.seats ?? []).find((s) => { const o = a.seatsTaken.get(`${s.x},${s.z}`); return !o || !a.list.includes(o) || o.seat !== s; }) ?? null;
+  }
+  takeSeat(a, b, e, s, facing) {
+    a.seatsTaken.set(`${s.x},${s.z}`, e); e.seat = s;
+    e.chair = { x: Math.floor(s.x), z: Math.floor(s.z) }; e.chairTable = { x: Math.floor(facing.x), z: Math.floor(facing.z) }; e.chairY = b.y;
+  }
+  release(e) { if (e.seat) { e.a.seatsTaken?.delete(`${e.seat.x},${e.seat.z}`); e.seat = null; } }
+  penGate(p) {
+    if (p._gateB) return p._gateB;
+    const dx = Math.sign(p.gate.x - p.x) * (Math.abs(p.gate.x - p.x) > 3 ? 1 : 0); const dz = Math.sign(p.gate.z - p.z) * (Math.abs(p.gate.z - p.z) > 2 ? 1 : 0);
+    p._gateB = { y: p.y, doorCell: { x: p.gate.x + 0.5, z: p.gate.z + 0.5 }, outside: { x: p.gate.x + 0.5 + dx * 2, z: p.gate.z + 0.5 + dz * 2 }, face: [dx, dz] };
+    return p._gateB;
+  }
+
+  // Compra entre vecinos: el que compra le paga al que atiende el puesto (si hay alguien atendiendo).
+  payStall(e, a, ctx, price, talk = false) {
+    const seller = e.seller ?? a.list.find((o) => o !== e && o.state === 'market' && Math.hypot(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < 4);
+    const v = e.data;
+    if (!seller || (v.silver ?? 0) < price) return false;
+    v.silver -= price; seller.data.silver = (seller.data.silver ?? 0) + price;
+    a.rec.trades = (a.rec.trades ?? 0) + 1;
+    if (talk) {
+      this.say(e, pick(Math.random, LINES.buy), 2.2);
+      setTimeout(() => { if (a.list.includes(seller)) this.say(seller, pick(Math.random, LINES.sell).replace('{p}', price), 2.5); }, 900);
+    }
+    ctx.onTrade?.(seller.pos, price);
+    return true;
   }
 
   // Árboles cerca de la aldea para el leñador (se buscan una vez).
@@ -679,6 +805,32 @@ export class Villages {
       go(p.x + (Math.random() - 0.5), p.z + (Math.random() - 0.5), 'eat', 4);
       if (Math.random() < 0.3) this.say(e, pick(Math.random, LINES.eat), 2);
       return;
+    }
+    const P = a.plan; const day = a.rec.day ?? 0;
+    // Escuela: los chicos van a clase a la mañana; la maestra da la clase.
+    if (P.school && time > 0.04 && time < 0.19) {
+      if (e.child && v.schoolDay !== day) {
+        const s = this.freeSeat(a, P.school);
+        if (s) { v.schoolDay = day; this.takeSeat(a, P.school, e, s, P.school.board); this.visit(e, P.school, s, 'seated', 30 + Math.random() * 20); return; }
+      }
+      if (prof === 'teacher' && r < 0.9) { this.visit(e, P.school, P.school.stand, 'teach', 35 + Math.random() * 15); return; }
+    }
+    // Iglesia: el sacerdote atiende de día; a la tarde suena la campana y muchos van a misa.
+    if (P.church) {
+      if (prof === 'priest' && time < 0.4 && r < 0.75) { this.visit(e, P.church, P.church.stand, 'preach', 30 + Math.random() * 20); return; }
+      if (time > 0.3 && time < 0.36 && v.massDay !== day && prof !== 'guard' && Math.random() < 0.7) {
+        const s = this.freeSeat(a, P.church);
+        if (s) { v.massDay = day; this.takeSeat(a, P.church, e, s, P.church.altar); this.visit(e, P.church, s, 'seated', 25 + Math.random() * 15); return; }
+      }
+    }
+    // Corral: el granjero les da de comer a los animales.
+    if (P.pen && prof === 'farmer' && time > 0.03 && time < 0.42 && r < 0.3) {
+      e.job = { kind: 'feed' }; e.workAction = 'farm'; this.visit(e, this.penGate(P.pen), P.pen.feed, 'work', 5 + Math.random() * 3); return;
+    }
+    // De compras: si alguien atiende un puesto, le compra algo (y le paga en plata).
+    if (!e.child && prof !== 'merchant' && time < 0.38 && (v.silver ?? 0) >= 3 && Math.random() < 0.22) {
+      const seller = a.list.find((o) => o !== e && o.state === 'market' && o.stall);
+      if (seller) { const f = seller.stall.f; e.seller = seller; go(seller.stall.spot.x + f[0] * 2.2, seller.stall.spot.z + f[1] * 2.2, 'buy', 3, 0.6); return; }
     }
     // Ganas de charlar.
     const others = a.list.filter((o) => o !== e && !o.hidden && o.state === 'idle' && Math.hypot(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < 9);
@@ -787,13 +939,16 @@ export class Villages {
     const level = levelOf(plan, rec);
     rec.stock ??= { food: 14, wood: 12, stone: 12 };
     let line;
-    if (isChild(v)) line = pick(Math.random, ['¿Jugamos a las escondidas?', '¡Cuando sea grande voy a ser constructora!', '¿Me mostrás tu espada?', '¡Ji, ji!']) + (v.parents ? ` (Soy hijo de ${v.parents.join(' y ')})` : '');
+    if (isChild(v) && (v.edu ?? 0) > 0 && Math.random() < 0.5) line = pick(Math.random, ['¡Hoy en la escuela aprendí a sumar!', '¡La maestra me puso un diez!', 'Ya sé escribir mi nombre: ' + v.name + '.']);
+    else if (isChild(v)) line = pick(Math.random, ['¿Jugamos a las escondidas?', '¡Cuando sea grande voy a ser constructora!', '¿Me mostrás tu espada?', '¡Ji, ji!']) + (v.parents ? ` (Soy hijo de ${v.parents.join(' y ')})` : '');
     else if (rec.rep < -5) line = 'No queremos problemas con vos. Andate.';
     else if (v.prof === 'king') line = rec.quest ? `${rec.quest.text} Te pago ${rec.quest.reward} monedas de plata.` : pick(Math.random, LINES.king);
     else if (v.prof === 'builder' && rec.build) line = rec.stock.wood + rec.stock.stone < 3 ? 'Me quedé sin materiales para la obra. ¿Me donás tablas, troncos o adoquines?' : 'Estoy levantando una casa nueva. Si me traés materiales, termino más rápido.';
     else if (v.prof === 'builder' && rec.villagers.length >= capacity(plan, rec)) line = 'No queda lugar para nadie más: no hay más terreno para construir.';
     else if (v.prof === 'smith') line = 'Forjo armaduras y armas. Si tu herramienta está gastada, con un lingote de hierro te la dejo como nueva.';
     else if (v.prof === 'guard') line = pick(Math.random, LINES.guard);
+    else if (v.prof === 'priest') line = pick(Math.random, ['A la tarde suena la campana: los esperamos en misa.', 'La iglesia está abierta para todos.', 'Que la luz te acompañe, viajero.']);
+    else if (v.prof === 'teacher') line = `Tengo ${rec.villagers.filter(isChild).length} alumnos. Las clases son a la mañana, ¡no se llega tarde!`;
     else if (v.hunger > 0.7) line = 'Tengo un hambre… ¿no tenés un pan?';
     else if (v.energy < 0.25) line = 'Estoy agotado, me voy a dormir temprano.';
     else line = pick(Math.random, LINES.greet[v.trait] ?? LINES.greet.cheerful);
@@ -815,6 +970,8 @@ export class Villages {
       level, levelName: LEVELS[level].name, stock: rec.stock,
       mood: mood > 0.66 ? 'Contento' : mood > 0.4 ? 'Normal' : 'Triste', moodWhy: why, partner,
       trades: isChild(v) || rec.rep < -5 ? [] : TRADES[v.prof] ?? [], shop, look: v.look, canDonate: v.prof === 'builder',
+      silver: v.silver ?? 0, treasury: v.prof === 'king' ? rec.treasury ?? 0 : null, edu: isChild(v) ? v.edu ?? 0 : null,
+      buildings: [plan.castle && 'castillo', plan.church && 'iglesia', plan.school && 'escuela', plan.pen && 'corral', plan.port && 'puerto'].filter(Boolean),
       quest: v.prof === 'king' ? rec.quest : null, rank: rankFor(player.honor ?? 0).name, economy: economySummary(plan, rec), port: !!plan.port,
     };
   }

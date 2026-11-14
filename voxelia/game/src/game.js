@@ -18,6 +18,9 @@ import { Shadows, nearLight } from './mobs.js';
 import { Animals } from './animals.js';
 import { Sea } from './sea.js';
 import { wrecksNear, treasure } from './wrecks.js';
+import { Caravans, tradeGoods, applyTrade, GOODS_NAME } from './caravans.js';
+import { linksOf, routeOf } from './roads.js';
+import { villagePlan } from './villages.js';
 import { MiniMap } from './minimap.js';
 import { Villages } from './villagers.js';
 import { villagesNear } from './villages.js';
@@ -88,6 +91,7 @@ export class Game {
     this.shadows = new Shadows(this.scene, this.world, this.sound);
     this.animals = new Animals(this.scene, this.world, this.sound);
     this.sea = new Sea(this.scene, this.world, this.sound);
+    this.caravans = new Caravans(this.scene, this.world, this.animals);
     this.sea.load(save?.boats);
     this.minimap = new MiniMap(this.atlasCanvas, this.world);
     this.hand = new Hand(this.atlasTex);
@@ -260,7 +264,7 @@ export class Game {
           lastSpace = performance.now();
         }
       }
-      if (e.code === 'ShiftLeft') { this.player.input.down = true; if (this.sea.riding && !e.repeat) { this.sea.dismount(this.player); this.ui.toast('Te bajaste del bote', 1200); } }
+      if (e.code === 'ShiftLeft') { this.player.input.down = true; if (this.sea.riding && !e.repeat) { this.sea.dismount(this.player); this.ui.toast('Te bajaste del bote', 1200); } if (this.horse && !e.repeat) this.dismountHorse(); }
       if (e.code === 'ControlLeft' || e.code === 'KeyR') this.player.input.sprint = true;
       if (e.code.startsWith('Digit')) { const n = Number(e.code.slice(5)); if (n >= 1 && n <= 9) this.select(n - 1); }
       if (e.code === 'F3') { e.preventDefault(); this.showDebug = !this.showDebug; document.querySelector('#debug').style.display = this.showDebug ? 'block' : 'none'; }
@@ -448,12 +452,26 @@ export class Game {
     this.bandits.dawn();
     // Lo que trajeron los barcos dura un par de días en los puertos.
     for (const rec of this.villages.records.values()) if (rec.importDays > 0) rec.importDays -= 1;
+    // Comercio entre aldeas conocidas unidas por camino (aunque estén lejos).
+    for (const [id, rec] of this.villages.records) {
+      const [rx, rz] = id.slice(1).split('_').map(Number); const plan = villagePlan(this.world, rx, rz);
+      if (!plan) continue;
+      for (const o of linksOf(this.world, plan)) {
+        const other = this.villages.records.get(o.id);
+        if (!other || !(plan.id < o.id ? routeOf(this.world, plan, o) : routeOf(this.world, o, plan))) continue;
+        const g = tradeGoods(rec, other); if (g) applyTrade(rec, other, g);
+      }
+    }
     for (const ev of this.villages.dawn()) {
       if (!ev.near) continue;
       if (ev.type === 'born') this.ui.toast(`¡Nació ${ev.name} en ${ev.village}${ev.parents?.length ? `, hij${ev.female ? 'a' : 'o'} de ${ev.parents.join(' y ')}` : ''}! Ya son ${ev.pop}.`, 4500);
       if (ev.type === 'grown') this.ui.toast(`${ev.name} ya es grande en ${ev.village}.`, 3000);
       if (ev.type === 'couple') this.ui.toast(`${ev.a} y ${ev.b} se pusieron de novios en ${ev.village}.`, 3500);
       if (ev.type === 'hungry') this.ui.toast(`En ${ev.village} pasan hambre: llevales comida.`, 3500);
+      if (ev.type === 'taxes' && this.villageNow && ev.village === this.villages.villageAt(this.player.pos.x, this.player.pos.z)?.name) this.ui.toast(`👑 En ${ev.village} el rey cobró ${ev.n} de plata en impuestos (tesoro: ${ev.treasury})`, 3500);
+      if (ev.type === 'royalBuy') this.ui.toast(`👑 El tesoro de ${ev.village} compró madera y piedra para las obras`, 3000);
+      if (ev.type === 'newjob') this.ui.toast(`${ev.name} ahora es ${ev.prof === 'priest' ? 'quien atiende la iglesia' : 'docente de la escuela'} en ${ev.village}.`, 3500);
+      if (ev.type === 'grown' && ev.studied) setTimeout(() => this.ui.toast(`${ev.name} terminó la escuela: ¡ya sabe leer y escribir!`, 3000), 1500);
     }
     if (this.mode === 'survival') {
       this.stats.nights += 1;
@@ -580,11 +598,58 @@ export class Game {
     return !!hit;
   }
   attackShadow() { return this.attackMob(); }
+  // ───────── Caballo ─────────
+  mountHorse(h) {
+    this.horse = h; h.ridden = true; h.flee = 0;
+    this.player.pos.set(h.mesh.position.x, h.mesh.position.y + 0.05, h.mesh.position.z); this.player.vel.set(0, 0, 0);
+    this.player.flying = false; this.player.mount = 1.0;
+    this.ui.toast('¡Arriba del caballo! Corre mucho más rápido. Shift para bajarte.', 3000);
+    this.sound.tone(330, 0.12, 0.1, 'triangle'); setTimeout(() => this.sound.tone(262, 0.18, 0.1, 'triangle'), 110);
+    this.stats.rode = 1; this.checkMissions();
+  }
+  dismountHorse() {
+    const h = this.horse; if (!h) return;
+    this.horse = null; h.ridden = false; h.walk = 0; h.timer = 3; this.player.mount = 0;
+    // Se baja al costado del caballo.
+    const yaw = this.player.yaw; const x = this.player.pos.x + Math.cos(yaw) * 1.1; const z = this.player.pos.z - Math.sin(yaw) * 1.1;
+    const id = this.world.getBlock(Math.floor(x), Math.floor(this.player.pos.y + 0.5), Math.floor(z));
+    if (!BLOCKS[id].solid) this.player.pos.set(x, this.player.pos.y, z);
+    this.ui.toast('Te bajaste del caballo', 1200);
+  }
+  updateHorse(dt) {
+    const h = this.horse; if (!h) return;
+    if (!this.animals.list.includes(h)) { this.horse = null; this.player.mount = 0; return; }
+    const p = this.player.pos;
+    const v = Math.hypot(this.player.vel.x, this.player.vel.z);
+    h.mesh.position.set(p.x, p.y, p.z);
+    if (v > 0.5) h.heading = Math.atan2(this.player.vel.x, this.player.vel.z); else h.heading = this.player.yaw + Math.PI;
+    h.walk = v > 0.5 ? 1 : 0; h.flee = v > 7 ? 1 : 0;
+    // Trote: cada tanto un ruido de cascos.
+    this.hoofT = (this.hoofT ?? 0) - dt * v;
+    if (this.hoofT <= 0 && this.player.onGround && v > 0.5) { this.hoofT = 2.2; this.sound.noise(0.06, { freq: 700, q: 3, gain: 0.18 }); }
+  }
+
+  // Animales del corral de cada aldea cercana (lanudos, gallinas y un caballo para montar).
+  fillPens() {
+    const P = this.player.pos;
+    for (const a of this.villages.active.values()) {
+      const pen = a.plan.pen;
+      if (!pen || Math.hypot(pen.x - P.x, pen.z - P.z) > 80) continue;
+      if (!this.world.getChunk(Math.floor(pen.x / 16), Math.floor(pen.z / 16))) continue;
+      if (this.animals.list.some((x) => x.penId === a.plan.id)) continue;
+      const opts = { pen, penId: a.plan.id };
+      const spots = [[0, 0], [1, 1], [-1, 1], [2, -1], [-2, 0], [0, -1]];
+      ['lanudo', 'lanudo', 'chicken', 'chicken', 'chicken', a.plan.style === 'desert' ? 'chicken' : 'horse'].forEach((sp, k) => this.animals.spawnAt(pen.x + spots[k][0] + 0.5, pen.z + spots[k][1] + 0.5, sp, opts));
+    }
+  }
+
   // Lo que deja cada animal: el Lanudo lana y algo de carne; el ciervo carne; el conejo y el cangrejo un poco.
   animalDrops(species) {
     if (species === 'deer') this.addItem(I.MEAT, 2 + Math.floor(Math.random() * 2));
     else if (species === 'rabbit') this.addItem(I.MEAT, 1);
     else if (species === 'crab') { this.addItem(I.MEAT, 1); if (Math.random() < 0.15) this.addItem(I.PEARL); }
+    else if (species === 'horse') this.addItem(I.MEAT, 2);
+    else if (species === 'chicken') { this.addItem(I.MEAT, 1); if (Math.random() < 0.5) this.addItem(B.WOOL_WHITE, 1); }
     else { this.addItem(B.WOOL_WHITE, 2); if (Math.random() < 0.5) this.addItem(I.MEAT, 1); }
   }
 
@@ -607,6 +672,8 @@ export class Game {
     const t = this.target();
     const held = this.held();
     if (v && (!t || Math.hypot(t.x + 0.5 - eye.x, t.y + 0.5 - eye.y, t.z + 0.5 - eye.z) > v.pos.distanceTo(eye) - 0.5)) { this.openVillager(v); return true; }
+    const horse = !this.horse && !this.sea.riding && this.animals.pick(eye, dir, 4);
+    if (horse?.species === 'horse' && !isFood(held)) { this.mountHorse(horse); return true; }
     const boat = !this.sea.riding && this.sea.boatHit(eye, dir, 4.5);
     if (boat && (!t || Math.hypot(t.x + 0.5 - eye.x, t.y + 0.5 - eye.y, t.z + 0.5 - eye.z) > boat.mesh.position.distanceTo(eye) - 0.8)) {
       this.sea.riding = boat; this.player.flying = false; this.ui.toast('W/S: remar · A/D: girar · Shift: bajarse', 2600); this.stats.boated = 1; this.checkMissions(); return true;
@@ -706,6 +773,28 @@ export class Game {
     };
   }
 
+  // Carretas: al llegar a destino se hace el trato entre las dos aldeas.
+  caravanCtx() {
+    const pp = this.player.pos;
+    return {
+      player: this.player, daylight: this.sky.daylight,
+      onDepart: (c) => {
+        const from = this.villages.record(c.from); const to = this.villages.record(c.to);
+        c.goods = tradeGoods(from, to);
+      },
+      onArrive: (c) => {
+        const from = this.villages.record(c.from); const to = this.villages.record(c.to);
+        const g = c.goods ?? tradeGoods(from, to);
+        if (g) applyTrade(from, to, g);
+        if (Math.hypot(c.mesh.position.x - pp.x, c.mesh.position.z - pp.z) < 90) {
+          this.stats.caravans = (this.stats.caravans ?? 0) + 1; this.checkMissions();
+          this.ui.toast(g ? `🐴 Llegó la carreta de ${c.from.name} a ${c.to.name}: ${g.n} de ${GOODS_NAME[g.kind]} por ${g.price} de plata` : `🐴 Llegó la carreta de ${c.from.name} a ${c.to.name} de visita`, 4000);
+          this.coinSound();
+        }
+      },
+    };
+  }
+
   // Mar: puertos cargados cerca (para los barcos mercantes) y qué pasa cuando uno amarra.
   seaCtx() {
     const pp = this.player.pos;
@@ -729,7 +818,17 @@ export class Game {
 
   villagerCtx() {
     return {
+      onBell: (bell, plan) => {
+        const d = Math.hypot(bell.x - this.player.pos.x, bell.z - this.player.pos.z);
+        if (d > 110) return;
+        const g = Math.max(0.04, 0.3 * (1 - d / 110));
+        [0, 1300, 2600].forEach((ms, k) => setTimeout(() => { this.sound.tone(k % 2 ? 330 : 392, 1.6, g, 'sine'); this.sound.tone(k % 2 ? 660 : 784, 0.9, g * 0.4, 'sine'); }, ms));
+        if (d < 60) this.ui.toast(`🔔 Suenan las campanas de ${plan.name}: es hora de misa`, 3000);
+      },
+      onTrade: (pos) => { if (Math.hypot(pos.x - this.player.pos.x, pos.z - this.player.pos.z) < 10) this.coinSound(); },
+      onFeed: (pen) => { if (Math.hypot(pen.x - this.player.pos.x, pen.z - this.player.pos.z) < 14) this.sound.tone(520, 0.08, 0.06, 'triangle'); },
       onSplash: (pos) => { if (Math.hypot(pos.x - this.player.pos.x, pos.z - this.player.pos.z) < 18) this.sound.noise(0.25, { freq: 900, q: 0.5, gain: 0.12, type: 'lowpass' }); },
+      time: this.sky.time,
       player: this.player, daylight: this.sky.daylight, zombies: [...this.zombies.list, ...this.bandits.list.filter((b) => !b.camp || b.aggro)], lightAt: (x, y, z) => this.lightAt(x, y, z),
       canPlace: (b) => !(BLOCKS[b.id].solid && this.player.intersectsBlock(b.x, b.y, b.z)),
       onPlace: (b) => {
@@ -1115,6 +1214,8 @@ export class Game {
       this.shadows.update(dt, this.mobCtx());
       this.animals.update(dt, { player: this.player, daylight: this.sky.daylight });
       this.sea.update(dt, this.seaCtx());
+      this.updateHorse(dt);
+      this.caravans.update(dt, this.caravanCtx());
       this.lightClock += dt;
       this.villages.update(dt, this.villagerCtx());
       this.zombies.update(dt, this.zombieCtx());
@@ -1134,7 +1235,7 @@ export class Game {
       // Escudo: clic derecho sostenido (sin un bloque en la mano) o la tecla V.
       const heldNow = this.held();
       this.blocking = this.mode === 'survival' && this.equip.offhand === I.SHIELD && (this.keyV || (this.mouse.right && (!heldNow || (isItem(heldNow) && !isFood(heldNow) && heldNow !== I.BOW && heldNow !== I.SEEDS))));
-      this.player.slow = this.blocking ? 0.45 : 1;
+      this.player.slow = this.blocking ? 0.45 : this.horse ? 2.1 : 1;
       this.prevTime = this.sky.time;
       this.ui.renderStamina(this.player.stamina, this.mode === 'survival');
       document.querySelector('#glide-tag').style.display = this.player.gliding ? 'block' : 'none';
@@ -1209,6 +1310,7 @@ export class Game {
     }
     this.villageNow = v?.id ?? null;
     this.villageMarkers = this.villages.mapMarkers(p.x, p.z, 400);
+    this.fillPens();
     // Campamentos de saqueadores: cartel al acercarse y marcadores rojos en el mapa.
     const camp = campsNear(this.world, p.x, p.z, 0)[0] ?? null;
     if (camp && camp.id !== this.campNow) {

@@ -64,6 +64,7 @@ export function villagePlan(world, rx, rz) {
   const key = `${rx},${rz}`;
   if (cache.has(key)) return cache.get(key);
   let plan = null;
+  const big = () => [plan?.castle, plan?.church, plan?.school].filter(Boolean);
   const r = rng(Math.floor(hash3(world.seed, rx, 777, rz) * 4294967296));
   // Cerca del inicio (regiones -1..0) se busca con más ganas: siempre hay una aldea a mano.
   const home = Math.abs(rx + 0.5) <= 1 && Math.abs(rz + 0.5) <= 1;
@@ -86,7 +87,7 @@ export function villagePlan(world, rx, rz) {
   if (style) {
     {
       const names = NAMES[style];
-      plan = { id: `v${rx}_${rz}`, rx, rz, x, z, y, style, name: names[Math.floor(r() * names.length)], houses: [], slots: [], posts: [], castle: null, radius: 0 };
+      plan = { id: `v${rx}_${rz}`, rx, rz, x, z, y, style, name: names[Math.floor(r() * names.length)], houses: [], slots: [], posts: [], castle: null, church: null, school: null, pen: null, radius: 0 };
       // Castillo del rey (solo medieval): torre grande con sala del trono.
       if (plan.style === 'medieval') {
         for (let k = 0; k < 16 && !plan.castle; k++) {
@@ -96,6 +97,25 @@ export function villagePlan(world, rx, rz) {
           if (plan.castle) { const f = plan.castle.face; plan.castle.throne = { x: tx - f[0] + 0.5, z: tz - f[1] + 0.5 }; plan.castle.isCastle = true; }
         }
       }
+      // Iglesia con campanario y escuela para los chicos, cerca de la plaza.
+      for (const kind of ['church', 'school']) {
+        for (let k = 0; k < 18 && !plan[kind]; k++) {
+          const a = r() * Math.PI * 2; const rad = 12 + r() * 8;
+          const tx = Math.round(x + Math.cos(a) * rad); const tz = Math.round(z + Math.sin(a) * rad);
+          if (overlaps(big(), tx, tz, 2)) continue;
+          const h = makeHouse(world, plan, tx, tz, true);
+          if (!h) continue;
+          h.beds = []; h.special = kind; plan[kind] = h;
+          const f = h.face; const L = (u, v) => ({ x: tx + f[1] * u + f[0] * v + 0.5, z: tz + f[0] * u + f[1] * v + 0.5 });
+          if (kind === 'church') {
+            h.seats = []; for (const v of [0, 1, 2]) for (const u of [-2, -1, 1, 2]) h.seats.push(L(u, v));
+            h.altar = L(0, -2); h.stand = L(0, -1); h.bell = { ...L(0, 2), y: h.y + 11 };
+          } else {
+            h.seats = furnish(h).chairs.map((c) => ({ x: c.x + 0.5, z: c.z + 0.5 }));
+            h.board = L(0, -2); h.stand = L(0, -1);
+          }
+        }
+      }
       // Casas iniciales en un anillo alrededor de la plaza.
       const want = 4 + Math.floor(r() * 3);
       const a0 = r() * Math.PI * 2;
@@ -103,7 +123,7 @@ export function villagePlan(world, rx, rz) {
         const a = a0 + k * 2.39996;      // ángulo dorado: reparte sin amontonar
         const rad = 12 + r() * 5;
         const hx = Math.round(x + Math.cos(a) * rad); const hz = Math.round(z + Math.sin(a) * rad);
-        if (overlaps([...plan.houses, ...(plan.castle ? [plan.castle] : [])], hx, hz, 2)) continue;
+        if (overlaps([...plan.houses, ...big()], hx, hz, 2)) continue;
         const h = makeHouse(world, plan, hx, hz, true);
         if (h) plan.houses.push(h);
       }
@@ -112,7 +132,7 @@ export function villagePlan(world, rx, rz) {
         const a = a0 + 1.2 + k * 2.39996;
         const rad = 21 + r() * 9;
         const hx = Math.round(x + Math.cos(a) * rad); const hz = Math.round(z + Math.sin(a) * rad);
-        if (overlaps([...plan.houses, ...plan.slots, ...(plan.castle ? [plan.castle] : [])], hx, hz, 2)) continue;
+        if (overlaps([...plan.houses, ...plan.slots, ...big()], hx, hz, 2)) continue;
         const h = makeHouse(world, plan, hx, hz, false);
         if (h) plan.slots.push(h);
       }
@@ -124,7 +144,7 @@ export function villagePlan(world, rx, rz) {
       for (let k = 0; k < 8 && plan.stalls.length < 3; k++) {
         const a = k * Math.PI / 4 + (r() < 0.5 ? 0 : Math.PI / 8);
         const sx = Math.round(x + Math.cos(a) * 8); const sz = Math.round(z + Math.sin(a) * 8);
-        if (overlaps(plan.houses, sx, sz, -2) || (plan.castle && Math.hypot(plan.castle.x - sx, plan.castle.z - sz) < 7) || plan.stalls.some((s) => Math.hypot(s.x - sx, s.z - sz) < 5)) continue;
+        if (overlaps([...plan.houses, ...big()], sx, sz, -2) || plan.stalls.some((s) => Math.hypot(s.x - sx, s.z - sz) < 5)) continue;
         const f = Math.abs(x - sx) > Math.abs(z - sz) ? [Math.sign(x - sx), 0] : [0, Math.sign(z - sz) || 1];
         plan.stalls.push({ x: sx, z: sz, y: world.heightAt(sx, sz), f, spot: { x: sx - f[0] + 0.5, z: sz - f[1] + 0.5 } });
       }
@@ -133,7 +153,7 @@ export function villagePlan(world, rx, rz) {
       for (let k = 0; k < 50 && plan.fields.length < (plan.style === 'desert' ? 1 : 2); k++) {
         const a = r() * Math.PI * 2; const rad = 14 + r() * 14;
         const fx = Math.round(x + Math.cos(a) * rad); const fz = Math.round(z + Math.sin(a) * rad);
-        if (overlaps([...plan.houses, ...plan.slots, ...(plan.castle ? [plan.castle] : [])], fx, fz, 0) || plan.fields.some((f) => Math.hypot(f.x - fx, f.z - fz) < 10)) continue;
+        if (overlaps([...plan.houses, ...plan.slots, ...big()], fx, fz, 0) || plan.fields.some((f) => Math.hypot(f.x - fx, f.z - fz) < 10)) continue;
         const [flo, fhi] = heightRange(world, fx, fz, 4, 1);
         if (fhi - flo > 4 || flo <= SEA) continue;
         const fy = world.heightAt(fx, fz);
@@ -141,11 +161,22 @@ export function villagePlan(world, rx, rz) {
         for (let dx = -3; dx <= 3; dx++) for (let dz = -2; dz <= 2; dz++) if (dz !== 0) cells.push({ x: fx + dx, y: fy, z: fz + dz });
         plan.fields.push({ x: fx, z: fz, y: fy, cells });
       }
+      // Corral con animales, cerca de los campos: cerca de madera, portón hacia la aldea, comedero y heno.
+      for (let k = 0; k < 40 && !plan.pen; k++) {
+        const a = r() * Math.PI * 2; const rad = 16 + r() * 14;
+        const px = Math.round(x + Math.cos(a) * rad); const pz = Math.round(z + Math.sin(a) * rad);
+        if (overlaps([...plan.houses, ...plan.slots, ...big()], px, pz, 1) || plan.fields.some((f) => Math.abs(f.x - px) < 10 && Math.abs(f.z - pz) < 9)) continue;
+        const [plo, phi] = heightRange(world, px, pz, 4, 1);
+        if (phi - plo > 2 || plo <= SEA) continue;
+        const dx = x - px; const dz = z - pz;
+        const gate = Math.abs(dx) > Math.abs(dz) ? { x: px + Math.sign(dx) * 4, z: pz } : { x: px, z: pz + Math.sign(dz || 1) * 3 };
+        plan.pen = { x: px, z: pz, y: world.heightAt(px, pz), x0: px - 3, x1: px + 3, z0: pz - 2, z1: pz + 2, gate, trough: { x: px - 2, z: pz - 1 }, feed: { x: px - 1.5, z: pz - 0.5 } };
+      }
       for (let k = 0; k < 4; k++) {
         const a = k * Math.PI / 2 + Math.PI / 4; const px = Math.round(x + Math.cos(a) * 5); const pz = Math.round(z + Math.sin(a) * 5);
         plan.posts.push({ x: px, z: pz, y: world.heightAt(px, pz) });
       }
-      plan.radius = Math.max(...[...plan.houses, ...plan.slots].map((h) => Math.hypot(h.x - x, h.z - z))) + 6;
+      plan.radius = Math.max(...[...plan.houses, ...plan.slots, ...big(), ...(plan.pen ? [plan.pen] : [])].map((h) => Math.hypot(h.x - x, h.z - z))) + 6;
       // Puerto: si el mar está cerca, la aldea tiene muelle, faro y marineros.
       plan.port = findPort(world, plan);
       if (plan.port) plan.name = `Puerto ${plan.name}`;
@@ -212,7 +243,7 @@ export function houseBlueprint(world, plan, h) {
   // 5. Adentro: camas, hogar con chimenea y los muebles del tipo de casa (ver furnish).
   const fu = furnish(h);
   for (const b of h.beds) put(b.x, y + 1, b.z, B.BED);
-  for (const it of fu.items) put(it.x, y + 1, it.z, it.id);
+  for (const it of fu.items) put(it.x, y + 1 + (it.dy ?? 0), it.z, it.id);
   if (st.chimney) { put(fu.fireplace.x, y + 1, fu.fireplace.z, B.FIREPLACE); put(fu.fireplace.x, y + 2, fu.fireplace.z, B.COBBLE); put(fu.fireplace.x, y + 3, fu.fireplace.z, B.COBBLE); }
   put(fu.torch.x, y + 1, fu.torch.z, B.TORCH);
   put(h.door.x, y + 1, h.door.z, B.DOOR); put(h.door.x, y + 2, h.door.z, B.DOOR);
@@ -225,10 +256,15 @@ export function houseBlueprint(world, plan, h) {
 // El pasillo central (u = 0) queda libre para ir de la puerta a las camas del fondo.
 export function furnish(h) {
   const f = h.face; const L = (u, v) => ({ x: h.x + f[1] * u + f[0] * v, z: h.z + f[0] * u + f[1] * v });
-  const kind = ['family', 'workshop', 'farm'][((h.x * 7 + h.z * 13) % 3 + 3) % 3];
-  const items = []; const add = (u, v, id) => items.push({ ...L(u, v), id });
+  const kind = h.special ?? ['family', 'workshop', 'farm'][((h.x * 7 + h.z * 13) % 3 + 3) % 3];
+  const items = []; const add = (u, v, id, dy = 0) => items.push({ ...L(u, v), id, dy });
   const chairs = [];
-  if (kind === 'family') {
+  if (kind === 'school') {
+    // Pupitres mirando al pizarrón (en la pared del fondo) y el escritorio de la maestra.
+    for (const u of [-1, 0, 1]) add(u, -3, B.BLACKBOARD, 1);
+    add(0, -2, B.TABLE); add(-2, -2, B.BOOKSHELF);
+    for (const [u, v] of [[-2, -1], [-1, 1], [1, 1]]) { add(u, v, B.TABLE); add(u, v + 1, B.CHAIR); chairs.push(L(u, v + 1)); }
+  } else if (kind === 'family') {
     add(-1, 0, B.TABLE); add(-2, 0, B.CHAIR); add(-1, 1, B.CHAIR); chairs.push(L(-2, 0), L(-1, 1));
     add(0, -2, B.BOOKSHELF);
     for (const [u, v] of [[0, -1], [0, 0], [0, 1], [1, -1], [1, 0], [1, 1]]) add(u, v, B.CARPET);
@@ -246,7 +282,7 @@ export function furnish(h) {
 
 // Chimenea (para el humo): punta de la chimenea de una casa, o null.
 export function chimneyTop(plan, h) {
-  if (!STYLES[plan.style].chimney || h.isCastle) return null;
+  if (!STYLES[plan.style].chimney || h.isCastle || h.special === 'church') return null;
   const f = furnish(h).fireplace;
   return { x: f.x + 0.5, y: h.y + 10.2, z: f.z + 0.5 };
 }
@@ -260,7 +296,7 @@ function plazaBlueprint(world, plan) {
   const pave = (x, z) => { const g = ground(x, z); if (g > SEA) { put(x, g, z, st.path); put(x, g + 1, z, B.AIR); put(x, g + 2, z, B.AIR); } };
   for (let dx = -5; dx <= 5; dx++) for (let dz = -5; dz <= 5; dz++) if (dx * dx + dz * dz <= 26) pave(plan.x + dx, plan.z + dz);
   // Caminos rectos (en L) desde la plaza hasta la entrada de cada casa.
-  for (const h of plan.houses) {
+  for (const h of [...plan.houses, plan.church, plan.school].filter(Boolean)) {
     const tx = Math.floor(h.outside.x); const tz = Math.floor(h.outside.z);
     for (let x = Math.min(plan.x, tx); x <= Math.max(plan.x, tx); x++) pave(x, plan.z);
     for (let z = Math.min(plan.z, tz); z <= Math.max(plan.z, tz); z++) pave(tx, z);
@@ -323,6 +359,73 @@ function castleBlueprint(world, plan, h) {
     put(h.x + f[1] * 2 * s + f[0] * 1, y + 1, h.z + f[0] * 2 * s + f[1] * 1, B.TORCH);
   }
   for (const b of h.beds) put(b.x, y + 1, b.z, B.BED);
+  return out;
+}
+
+// Iglesia: nave de piedra con vitrales, bancos mirando al altar y campanario con campana y cruz.
+function churchBlueprint(world, plan, h) {
+  const out = []; const put = (x, y, z, id) => out.push({ x, y, z, id });
+  const st = STYLES[plan.style];
+  const f = h.face; const L = (u, v) => [h.x + f[1] * u + f[0] * v, h.z + f[0] * u + f[1] * v];
+  const P = (u, v, yy, id) => { const [x, z] = L(u, v); put(x, yy, z, id); };
+  const y = h.y; const wall = plan.style === 'desert' ? B.ADOBE : B.COBBLE; const roof = st.roof ?? B.ADOBE;
+  for (let u = -4; u <= 4; u++) for (let v = -4; v <= 4; v++) {
+    const [x, z] = L(u, v);
+    for (let yy = y + 1; yy <= y + 17; yy++) put(x, yy, z, B.AIR);
+    if (Math.abs(u) > 3 || Math.abs(v) > 3) continue;
+    const g = world.heightAt(x, z);
+    for (let yy = Math.min(g + 1, y - 1); yy < y; yy++) put(x, yy, z, wall);
+    put(x, y, z, st.floor);
+  }
+  // Paredes altas (5) con vitrales a los costados y una ventana redonda en el fondo.
+  for (let yy = y + 1; yy <= y + 5; yy++) for (let u = -3; u <= 3; u++) for (let v = -3; v <= 3; v++) {
+    if (Math.abs(u) !== 3 && Math.abs(v) !== 3) continue;
+    const corner = Math.abs(u) === 3 && Math.abs(v) === 3;
+    let id = corner ? (plan.style === 'desert' ? B.ADOBE : B.BRICK) : wall;
+    if (Math.abs(u) === 3 && Math.abs(v) === 1 && yy >= y + 2 && yy <= y + 4) id = B.STAINED_GLASS;
+    if (v === -3 && u === 0 && (yy === y + 3 || yy === y + 4)) id = B.STAINED_GLASS;
+    if (Math.abs(u) === 3 && v === 0 && yy === y + 4) id = B.LAMP;
+    if (v === 3 && u === 0 && yy <= y + 2) id = B.DOOR;
+    P(u, v, yy, id);
+  }
+  // Techo a dos aguas a lo largo de la nave, con los frentes cerrados.
+  for (let k = 0; k <= 4; k++) for (let v = -4; v <= 4; v++) {
+    for (let u = -4 + k; u <= 4 - k; u++) {
+      if (Math.abs(u) === 4 - k) P(u, v, y + 6 + k, roof);
+      else if (Math.abs(v) === 3) P(u, v, y + 6 + k, wall);
+    }
+  }
+  // Campanario sobre la entrada: torre de 3×3, campana colgando y cruz arriba.
+  for (let yy = y + 6; yy <= y + 12; yy++) for (let u = -1; u <= 1; u++) for (let v = 1; v <= 3; v++) {
+    const corner = Math.abs(u) === 1 && (v === 1 || v === 3);
+    const belfry = yy === y + 10 || yy === y + 11;
+    P(u, v, yy, belfry && !corner ? B.AIR : yy === y + 12 ? roof : wall);
+  }
+  P(0, 2, y + 11, B.BELL);
+  for (let u = -1; u <= 1; u++) for (let v = 1; v <= 3; v++) P(u, v, y + 13, roof);
+  P(0, 2, y + 14, roof); P(0, 2, y + 15, B.LOG); P(0, 2, y + 16, B.LOG); P(0, 2, y + 17, B.LOG); P(-1, 2, y + 16, B.LOG); P(1, 2, y + 16, B.LOG);
+  // Adentro: altar, velas, alfombra por el pasillo y bancos.
+  P(0, -2, y + 1, B.ALTAR); P(-1, -2, y + 1, B.TORCH); P(1, -2, y + 1, B.TORCH);
+  for (let v = -1; v <= 2; v++) P(0, v, y + 1, B.CARPET);
+  for (const v of [0, 1, 2]) for (const u of [-2, -1, 1, 2]) P(u, v, y + 1, B.PEW);
+  P(0, 3, y + 1, B.DOOR); P(0, 3, y + 2, B.DOOR);
+  return out;
+}
+
+// Corral: cerca de madera alrededor, portón, comedero y fardos de heno.
+function penBlueprint(world, plan, p) {
+  const out = []; const put = (x, y, z, id) => out.push({ x, y, z, id });
+  for (let x = p.x0 - 1; x <= p.x1 + 1; x++) for (let z = p.z0 - 1; z <= p.z1 + 1; z++) {
+    const g = world.heightAt(x, z);
+    for (let yy = g + 1; yy <= g + 3; yy++) put(x, yy, z, B.AIR);
+    if (g < p.y) for (let yy = g + 1; yy <= p.y; yy++) put(x, yy, z, B.DIRT);
+    const gy = Math.max(g, p.y);
+    put(x, gy, z, B.GRASS);
+    const edge = x === p.x0 - 1 || x === p.x1 + 1 || z === p.z0 - 1 || z === p.z1 + 1;
+    if (edge && !(x === p.gate.x && z === p.gate.z)) put(x, gy + 1, z, B.FENCE);
+  }
+  put(p.trough.x, p.y + 1, p.trough.z, B.TROUGH);
+  put(p.x1, p.y + 1, p.z1, B.HAY); put(p.x1 - 1, p.y + 1, p.z1, B.HAY); put(p.x1, p.y + 2, p.z1, B.HAY);
   return out;
 }
 
@@ -439,6 +542,9 @@ export function villageBlocks(world, plan) {
   for (const f of plan.fields ?? []) list.push(...fieldBlueprint(world, plan, f));
   for (const s of plan.stalls ?? []) list.push(...stallBlueprint(plan, s));
   if (plan.castle) list.push(...castleBlueprint(world, plan, plan.castle));
+  if (plan.church) list.push(...churchBlueprint(world, plan, plan.church));
+  if (plan.school) list.push(...houseBlueprint(world, plan, plan.school));
+  if (plan.pen) list.push(...penBlueprint(world, plan, plan.pen));
   if (plan.port) list.push(...portBlueprint(world, plan));
   for (const h of plan.houses) list.push(...houseBlueprint(world, plan, h));
   plan._blocks = list;

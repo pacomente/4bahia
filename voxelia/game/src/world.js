@@ -3,6 +3,7 @@ import { B, BLOCKS } from './blocks.js';
 import { placeVillages, insideVillage } from './villages.js';
 import { placeCamps, insideCamp } from './camps.js';
 import { placeWrecks } from './wrecks.js';
+import { placeRoads } from './roads.js';
 
 export const CS = 16;          // tamaño de chunk (x, z)
 export const H = 96;           // altura del mundo
@@ -225,6 +226,7 @@ export class World {
       }
     }
     this.decorate(c);
+    placeRoads(this, c);
     placeVillages(this, c);
     placeCamps(this, c);
     placeWrecks(this, c);

@@ -169,6 +169,7 @@ export class UI {
     $('#v-sub').textContent = [info.profession, info.trait, `Ánimo: ${info.mood}`].filter(Boolean).join(' · ');
     $('#v-village').innerHTML = `${info.levelName} <b>${info.village}</b> (${info.style}) · ${info.pop}/${info.cap} habitantes · ${info.homes} casas${info.building ? ' · <span class="busy">construyendo</span>' : ''} · <i>${info.repText}</i>`
       + (info.economy ? `<div class="v-stock">Economía${info.port ? ' de puerto' : ''}: ${info.economy.cheap.length ? `<span class="cheap">barato: ${info.economy.cheap.join(', ')}</span>` : ''}${info.economy.dear.length ? ` · <span class="dear">caro: ${info.economy.dear.join(', ')}</span>` : ''}${info.economy.imports ? ' · <b>llegó un barco: lo importado está más barato</b>' : ''}</div>` : '')
+      + `<div class="v-stock">💰 Bolsa: ${info.silver} de plata${info.treasury !== null && info.treasury !== undefined ? ` · 👑 Tesoro real: ${info.treasury}` : ''}${info.edu ? ` · 📚 Fue ${info.edu} ${info.edu === 1 ? 'vez' : 'veces'} a la escuela` : ''}${info.buildings?.length ? ` · Tiene ${info.buildings.join(', ')}` : ''}</div>`
       + `<div class="v-stock">Reservas: 🍞 ${info.stock.food} · 🪵 ${info.stock.wood} · 🪨 ${info.stock.stone}${info.partner ? ` · Pareja: ${info.partner}` : ''}${info.moodWhy.length ? ` · ${info.moodWhy.join(', ')}` : ''}</div>`;
     $('#v-line').textContent = `“${info.line}”`;
     const silver = inventory[131] ?? 0;

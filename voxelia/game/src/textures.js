@@ -6,7 +6,7 @@ import { drawFurniture, N as ICON_N } from './icons.js';
 const S = 16;
 const NAMES = ['grass_top', 'grass_side', 'dirt', 'stone', 'sand', 'water', 'log_top', 'log_side', 'leaves', 'planks',
   'cobble', 'glass', 'snow', 'snow_side', 'brick', 'coal', 'cactus_top', 'cactus_side', 'bedrock', 'gravel', 'iron',
-  'birch_top', 'birch_side', 'birch_leaves', 'clay', 'lamp', 'wool_red', 'wool_blue', 'wool_white', 'crystal', 'faro_top', 'faro_side', 'torch', 'bench_top', 'bench_side', 'roof', 'thatch', 'adobe', 'farmland', 'wheat_young', 'wheat_ripe', 'bed_top', 'bed_side', 'door', 'window', 'lava', 'glow_mushroom', 'moss', 'gold_ore', 'wool_black', 'bars', 'campfire', 'chest_top', 'chest_side', 'table_top', 'bookshelf', 'fireplace', 'carpet', 'barrel_top', 'barrel_side', 'hay_top', 'hay_side', 'anvil', 'throne', 'flower_red', 'flower_yellow', 'pine_leaves', 'palm_top', 'palm_side', 'palm_leaves', 'tall_grass', 'berry_bush', 'dead_bush', 'kelp', 'seagrass', 'coral_red', 'coral_yellow', 'coral_purple', 'coral_fan'];
+  'birch_top', 'birch_side', 'birch_leaves', 'clay', 'lamp', 'wool_red', 'wool_blue', 'wool_white', 'crystal', 'faro_top', 'faro_side', 'torch', 'bench_top', 'bench_side', 'roof', 'thatch', 'adobe', 'farmland', 'wheat_young', 'wheat_ripe', 'bed_top', 'bed_side', 'door', 'window', 'lava', 'glow_mushroom', 'moss', 'gold_ore', 'wool_black', 'bars', 'campfire', 'chest_top', 'chest_side', 'table_top', 'bookshelf', 'fireplace', 'carpet', 'barrel_top', 'barrel_side', 'hay_top', 'hay_side', 'anvil', 'throne', 'flower_red', 'flower_yellow', 'pine_leaves', 'palm_top', 'palm_side', 'palm_leaves', 'tall_grass', 'berry_bush', 'dead_bush', 'kelp', 'seagrass', 'coral_red', 'coral_yellow', 'coral_purple', 'coral_fan', 'bell', 'altar_top', 'altar_side', 'blackboard', 'stained_glass', 'trough_top'];
 const COLS = 8;
 export const ATLAS_COLS = COLS;
 export const ATLAS_ROWS = Math.ceil(NAMES.length / COLS);
@@ -187,6 +187,36 @@ function paint(name, px) {
         const frame = x < 2 || y < 2 || x > 13 || y > 13 || x === 7 || x === 8 || y === 7 || y === 8;
         set(x, y, frame ? shade(hex('#7a5230'), 0.9 + r() * 0.15) : hex('#dff1f8'), frame ? 255 : (x + y) % 9 === 0 ? 150 : 60);
       }
+      break;
+    case 'bell':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, shade(hex('#d8a83a'), (x < 3 ? 0.75 : x > 12 ? 0.85 : 1.05) * (0.92 + r() * 0.12)));
+      for (let x = 0; x < S; x++) set(x, 13, hex('#a87a20'));
+      break;
+    case 'altar_top':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, (x < 2 || x > 13) ? hex('#d8b14a') : shade(hex('#f2efe6'), 0.94 + r() * 0.08));
+      break;
+    case 'altar_side':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const cross = (x >= 7 && x <= 8 && y >= 3 && y <= 13) || (y >= 6 && y <= 7 && x >= 4 && x <= 11);
+        set(x, y, y < 3 ? shade(hex('#f2efe6'), 0.95) : cross ? hex('#e8c040') : shade(hex('#7a1e2a'), 0.9 + r() * 0.12));
+      }
+      break;
+    case 'blackboard':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, (x < 1 || y < 1 || x > 14 || y > 14) ? hex('#7a5230') : shade(hex('#24402e'), 0.92 + r() * 0.12));
+      // "A B C" y una suma con tiza.
+      for (const [x, y] of [[3, 4], [4, 3], [5, 4], [3, 5], [5, 5], [4, 4], [8, 3], [8, 4], [8, 5], [9, 3], [9, 4], [10, 5], [9, 5], [12, 3], [13, 3], [12, 4], [12, 5], [13, 5], [3, 9], [4, 9], [5, 9], [4, 8], [4, 10], [7, 9], [8, 9], [10, 8], [10, 9], [11, 9], [12, 9], [10, 10], [11, 10], [12, 10]]) set(x, y, hex('#e8ece8'));
+      for (let x = 2; x < 14; x++) set(x, 12, hex('#9ab0a0'));
+      break;
+    case 'stained_glass': {
+      const cols = [hex('#c0392b'), hex('#2f6fd8'), hex('#e8c040'), hex('#3aa860'), hex('#9b59b6')];
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const lead = x < 1 || y < 1 || x > 14 || y > 14 || (x + y) % 6 === 0 || (x - y + 16) % 6 === 0;
+        set(x, y, lead ? hex('#2a2a2e') : cols[(Math.floor((x + y) / 6) + Math.floor((x - y + 16) / 6)) % cols.length], lead ? 255 : 170);
+      }
+      break;
+    }
+    case 'trough_top':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, (x < 2 || x > 13 || y < 2 || y > 13) ? shade(hex('#8a5a33'), 0.9 + r() * 0.15) : r() < 0.5 ? hex('#d8b14a') : hex('#b8902a'));
       break;
     case 'lava':
       // Lava: naranja brillante con manchas amarillas y costra oscura.

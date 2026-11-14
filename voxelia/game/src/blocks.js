@@ -9,6 +9,7 @@ export const B = {
   TABLE: 47, CHAIR: 48, BOOKSHELF: 49, FIREPLACE: 50, CARPET: 51, BARREL: 52, HAY: 53, ANVIL: 54, THRONE: 55, FLOWER_RED: 56, FLOWER_YELLOW: 57,
   PINE_LEAVES: 58, PALM_LOG: 59, PALM_LEAVES: 60, TALL_GRASS: 61, BERRY_BUSH: 62, KELP: 63, SEAGRASS: 64,
   CORAL_RED: 65, CORAL_YELLOW: 66, CORAL_PURPLE: 67, CORAL_FAN: 68, DEAD_BUSH: 69,
+  FENCE: 70, BELL: 71, PEW: 72, ALTAR: 73, BLACKBOARD: 74, STAINED_GLASS: 75, TROUGH: 76,
 };
 
 export const BLOCKS = [];
@@ -103,11 +104,19 @@ def(B.CORAL_RED, 'Coral rojo', 'coral_red', { hardness: 0.8, sound: 'stone', too
 def(B.CORAL_YELLOW, 'Coral amarillo', 'coral_yellow', { hardness: 0.8, sound: 'stone', tool: 'pick' });
 def(B.CORAL_PURPLE, 'Coral violeta', 'coral_purple', { hardness: 0.8, sound: 'stone', tool: 'pick' });
 def(B.CORAL_FAN, 'Abanico de coral', 'coral_fan', { solid: false, transparent: true, hardness: 0.05, shape: 'crop', water: true });
+// Vida de pueblo: corrales, iglesia y escuela.
+def(B.FENCE, 'Cerca', 'planks', { transparent: true, hardness: 0.8, sound: 'wood', tool: 'axe', shape: 'fence' });
+def(B.BELL, 'Campana', 'bell', { transparent: true, hardness: 3, tool: 'pick', shape: 'bell' });
+def(B.PEW, 'Banco de iglesia', 'planks', { transparent: true, hardness: 0.8, sound: 'wood', tool: 'axe', shape: 'pew' });
+def(B.ALTAR, 'Altar', ['altar_top', 'altar_side', 'planks'], { transparent: true, hardness: 2, sound: 'wood', tool: 'axe', shape: 'altar' });
+def(B.BLACKBOARD, 'Pizarrón', ['planks', 'blackboard', 'planks'], { hardness: 1, sound: 'wood', tool: 'axe' });
+def(B.STAINED_GLASS, 'Vitral', 'stained_glass', { transparent: true, alpha: true, hardness: 0.3, sound: 'glass' });
+def(B.TROUGH, 'Comedero', ['trough_top', 'planks', 'planks'], { transparent: true, hardness: 0.8, sound: 'wood', tool: 'axe', shape: 'trough' });
 def(B.TORCH, 'Antorcha', 'torch', { solid: false, transparent: true, hardness: 0.05, emissive: true, sound: 'wood', shape: 'torch', light: 13 });
 
 // Bloques disponibles en el inventario creativo (orden de la grilla).
 export const PLACEABLE = [B.GRASS, B.DIRT, B.STONE, B.COBBLE, B.PLANKS, B.LOG, B.BIRCH_LOG, B.LEAVES, B.BIRCH_LEAVES,
-  B.GLASS, B.BRICK, B.SAND, B.GRAVEL, B.CLAY, B.SNOW, B.CACTUS, B.COAL, B.IRON, B.LAMP, B.WOOL_RED, B.WOOL_BLUE, B.WOOL_WHITE, B.CRYSTAL, B.FARO, B.TORCH, B.WORKBENCH, B.ROOF, B.THATCH, B.ADOBE, B.FARMLAND, B.BED, B.DOOR, B.WINDOW, B.MOSS, B.GOLD_ORE, B.WOOL_BLACK, B.BARS, B.GLOW_MUSHROOM, B.CAMPFIRE, B.TABLE, B.CHAIR, B.BOOKSHELF, B.FIREPLACE, B.CARPET, B.BARREL, B.HAY, B.ANVIL, B.THRONE, B.FLOWER_RED, B.FLOWER_YELLOW, B.PINE_LEAVES, B.PALM_LOG, B.PALM_LEAVES, B.TALL_GRASS, B.BERRY_BUSH, B.KELP, B.CORAL_RED, B.CORAL_YELLOW, B.CORAL_PURPLE, B.CORAL_FAN];
+  B.GLASS, B.BRICK, B.SAND, B.GRAVEL, B.CLAY, B.SNOW, B.CACTUS, B.COAL, B.IRON, B.LAMP, B.WOOL_RED, B.WOOL_BLUE, B.WOOL_WHITE, B.CRYSTAL, B.FARO, B.TORCH, B.WORKBENCH, B.ROOF, B.THATCH, B.ADOBE, B.FARMLAND, B.BED, B.DOOR, B.WINDOW, B.MOSS, B.GOLD_ORE, B.WOOL_BLACK, B.BARS, B.GLOW_MUSHROOM, B.CAMPFIRE, B.TABLE, B.CHAIR, B.BOOKSHELF, B.FIREPLACE, B.CARPET, B.BARREL, B.HAY, B.ANVIL, B.THRONE, B.FLOWER_RED, B.FLOWER_YELLOW, B.PINE_LEAVES, B.PALM_LOG, B.PALM_LEAVES, B.TALL_GRASS, B.BERRY_BUSH, B.KELP, B.CORAL_RED, B.CORAL_YELLOW, B.CORAL_PURPLE, B.CORAL_FAN, B.FENCE, B.BELL, B.PEW, B.ALTAR, B.BLACKBOARD, B.STAINED_GLASS, B.TROUGH];
 
 // Bloques que emiten luz (iluminan alrededor y repelen a las Sombras).
 export const LIGHT_BLOCKS = new Set(BLOCKS.filter((b) => b?.light > 0).map((b) => b.id));

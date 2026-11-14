@@ -275,7 +275,7 @@ export function drawFurniture(id, B) {
     poly(set, [[3, 12], [16, 6], [29, 12], [16, 18]], (x) => pickRamp(W, 0.95 - Math.abs(x - 16) / 40));
     poly(set, [[3, 12], [16, 18], [16, 21], [3, 15]], () => W[1]); poly(set, [[16, 18], [29, 12], [29, 15], [16, 21]], () => W[0]);
     legs([[5, 15], [15, 20], [27, 15]], 11);
-  } else if (id === B.CHAIR || id === B.THRONE) {
+  } else if (id === B.CHAIR || id === B.THRONE || id === B.PEW) {
     const throne = id === B.THRONE;
     const M = throne ? RAMPS.red : W; const T = throne ? RAMPS.gold : D;
     poly(set, [[8, 3], [20, 1], [20, throne ? 14 : 15], [8, 17]], (x, y) => pickRamp(M, 0.9 - (y - 2) / 30));   // respaldo
@@ -283,6 +283,15 @@ export function drawFurniture(id, B) {
     poly(set, [[6, 18], [17, 14], [27, 18], [16, 22]], () => M[2]);      // asiento
     poly(set, [[6, 18], [16, 22], [16, 24], [6, 20]], () => T[1]); poly(set, [[16, 22], [27, 18], [27, 20], [16, 24]], () => T[0]);
     legs([[7, 20], [16, 23], [26, 20]], 8);
+  } else if (id === B.FENCE) {
+    for (const x of [6, 25]) poly(set, [[x - 2, 4], [x + 2, 4], [x + 2, 29], [x - 2, 29]], (xx) => pickRamp(W, 0.9 - (xx - x + 2) / 8));
+    for (const y of [10, 20]) poly(set, [[4, y], [28, y], [28, y + 3], [4, y + 3]], (xx, yy) => pickRamp(W, 0.75 - (yy - y) / 6));
+  } else if (id === B.BELL) {
+    const G = RAMPS.gold;
+    thickLine(set, 16, 3, 16, 8, 2, D);
+    poly(set, [[11, 8], [21, 8], [24, 22], [8, 22]], (x) => pickRamp(G, 0.95 - Math.abs(x - 13) / 18));
+    poly(set, [[5, 22], [27, 22], [27, 26], [5, 26]], (x) => pickRamp(G, 0.7 - x / 70));
+    disk(set, 16, 27, 2, G);
   } else if (id === B.ANVIL) {
     const I = RAMPS.stone;
     poly(set, [[2, 9], [22, 7], [30, 10], [25, 15], [7, 15]], (x) => pickRamp(I, 0.95 - x / 50));

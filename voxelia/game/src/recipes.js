@@ -60,6 +60,13 @@ export const RECIPES = [
       desc: ['Protege la cabeza.', 'La pieza que más protege.', 'Protege las piernas.', 'Protege los pies.'][i] + ' Equipala desde el inventario (E).',
     }));
   }),
+  { id: 'fence', name: 'Cercas', in: { [B.PLANKS]: 4, [B.LOG]: 1 }, out: { [B.FENCE]: 6 }, cat: 'furniture', mesa: true, desc: 'Para hacer corrales: se unen solas con las de al lado.' },
+  { id: 'trough', name: 'Comedero', in: { [B.PLANKS]: 3, [I.WHEAT]: 2 }, out: { [B.TROUGH]: 1 }, cat: 'furniture', mesa: true, desc: 'Comedero de madera con heno para los animales del corral.' },
+  { id: 'pew', name: 'Bancos de iglesia', in: { [B.PLANKS]: 4 }, out: { [B.PEW]: 2 }, cat: 'furniture', mesa: true, desc: 'Miran solos hacia el altar más cercano.' },
+  { id: 'altar', name: 'Altar', in: { [B.PLANKS]: 3, [B.WOOL_WHITE]: 2, [I.GOLD]: 1 }, out: { [B.ALTAR]: 1 }, cat: 'furniture', mesa: true, desc: 'Mesa con mantel blanco y una cruz dorada.' },
+  { id: 'bell', name: 'Campana', in: { [I.GOLD]: 2, [I.IRON]: 1 }, out: { [B.BELL]: 1 }, cat: 'furniture', mesa: true, desc: 'Para el campanario de tu iglesia o tu torre.' },
+  { id: 'blackboard', name: 'Pizarrón', in: { [B.PLANKS]: 2, [B.WOOL_BLACK]: 1 }, out: { [B.BLACKBOARD]: 1 }, cat: 'furniture', mesa: true, desc: 'Para tu propia escuela.' },
+  { id: 'stained', name: 'Vitrales', in: { [B.GLASS]: 4, [B.WOOL_RED]: 1, [B.WOOL_BLUE]: 1 }, out: { [B.STAINED_GLASS]: 4 }, cat: 'build', mesa: true, desc: 'Vidrio de colores: la luz entra pintada.' },
   { id: 'table', name: 'Mesa', in: { [B.PLANKS]: 4 }, out: { [B.TABLE]: 1 }, cat: 'furniture', mesa: true, desc: 'Para comer en familia. Las sillas al lado miran hacia la mesa solas.' },
   { id: 'chair', name: 'Sillas', in: { [B.PLANKS]: 3 }, out: { [B.CHAIR]: 2 }, cat: 'furniture', mesa: true, desc: 'El respaldo se acomoda solo: mira a la mesa o da la espalda a la pared.' },
   { id: 'bookshelf', name: 'Biblioteca', in: { [B.PLANKS]: 4, [B.WOOL_WHITE]: 2 }, out: { [B.BOOKSHELF]: 1 }, cat: 'furniture', mesa: true, desc: 'Estante lleno de libros de colores.' },
