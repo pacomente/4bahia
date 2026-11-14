@@ -4,6 +4,7 @@ import { I } from './items.js';
 import { villagesNear, villagePlan, houseBlueprint, chimneyTop, furnish, STYLES, REGION } from './villages.js';
 import { createHumanoid, animateHumanoid, lightHumanoid, makeProp } from './humanoid.js';
 import { standY, stepToward, settle, turnTo } from './walk.js';
+import { GUARD_HP, threats, assign, fight, blocks } from './guards.js';
 import { hash3 } from './world.js';
 import { SHOPS, PRICE, sellPrice, villageLevel, LEVELS, makeQuest, rankFor, localPrice, trend, economySummary } from './economy.js';
 
@@ -15,7 +16,7 @@ import { SHOPS, PRICE, sellPrice, villageLevel, LEVELS, makeQuest, rankFor, loca
 
 export const PROFESSIONS = {
   builder: { name: 'Constructor', fem: 'Constructora', prop: 'hammer', apron: '#7a5230' },
-  guard: { name: 'Guardia', fem: 'Guardia', prop: 'spear', hat: 'helmet', cape: '#8f2b26' },
+  guard: { name: 'Guardia', fem: 'Guardia', prop: 'sword', offhand: 'shield', hat: 'helmet', cape: '#8f2b26' },
   farmer: { name: 'Granjero', fem: 'Granjera', prop: 'basket', hat: 'cap', hatColor: '#d8b45a' },
   smith: { name: 'Herrero', fem: 'Herrera', prop: 'hammer', apron: '#2f2f33' },
   merchant: { name: 'Mercader', fem: 'Mercadera', prop: null, cape: '#3c2f7a' },
@@ -51,7 +52,12 @@ const LINES = {
   build: ['¡Una casa nueva!', 'Un bloque más…', '¡Esto va a quedar hermoso!'],
   baby: ['¡Nació alguien en la aldea!', '¡Bienvenida, pequeña!'],
   hurt: ['¡Ey! ¡Eso duele!', '¡¿Qué te pasa?!', '¡Guardias!'],
-  guard: ['Yo vigilo. Dormí tranquilo.', 'Ningún zombi pasa por acá.', 'Atento a la noche.'],
+  guard: ['Yo vigilo. Dormí tranquilo.', 'Ningún zombi pasa por acá.', 'Atento a la noche.', 'Espada afilada, escudo firme.'],
+  alarm: ['¡A las armas!', '¡Enemigos en la aldea!', '¡Guardias, conmigo!', '¡Protejan a los vecinos!'],
+  fight: ['¡Atrás!', '¡No pasarás!', '¡Por la aldea!', '¡Tomá!', '¡Ja!'],
+  block: ['¡Bloqueado!', '¡Ni lo intentes!', '¡Ja!'],
+  hurtGuard: ['¡Estoy herido, cúbranme!', '¡Necesito un respiro!'],
+  victory: ['¡Victoria!', '¡Los echamos!', 'La aldea está a salvo.', '¡Bien peleado, compañeros!'],
   king: ['Bienvenido a mi reino.', 'Mi pueblo es mi orgullo.', 'Los que ayudan a la aldea son mis amigos.'],
   market: ['¡Pan fresco!', '¡Pasen y vean!', '¡Precios del día!', '¡Lo mejor de la comarca!'],
   eat: ['¡Qué rico!', 'Mmm, pan calentito.', 'Hora de almorzar.'],
@@ -69,6 +75,9 @@ const LINES = {
   pen: ['¡A comer, bichitos!', 'Hoy hay leche fresca.', 'Qué lindos están los animales.'],
   talk: ['¿Viste lo que construyeron?', 'Dicen que en las cuevas brillan cristales.', 'Mañana llueve, seguro.', 'Necesitamos más casas.', '¡Ja, ja!', '¿Y tu familia?', 'El herrero arregla herramientas.'],
 };
+
+// Color del escudo de los guardias según la aldea.
+const SHIELD_COLORS = { medieval: '#8f2b26', rustic: '#3f6b2c', desert: '#c9774a', snow: '#2f4fb8' };
 
 const NAMES = {
   medieval: { m: ['Tomás', 'Rodrigo', 'Gonzalo', 'Ramiro', 'Mateo', 'Bruno', 'Álvaro', 'Fermín', 'Sancho', 'Lope'], f: ['Elena', 'Inés', 'Jimena', 'Beatriz', 'Clara', 'Urraca', 'Leonor', 'Teresa', 'Elvira', 'Mencía'] },
@@ -358,11 +367,12 @@ export class Villages {
     const e = {
       data: v, a, home, parts, pos, heading: r() * Math.PI * 2, vy: 0, stuck: 0, side: 1,
       state: 'idle', timer: r() * 3, target: null, path: [], action: 'idle', phase: r() * 6, walk: 0,
-      lookYaw: 0, hp: 10, flash: 0, bubble: null, bubbleT: 0, greetT: 0, talkWith: null, hidden: false, child,
+      lookYaw: 0, hp: v.prof === 'guard' && !child ? GUARD_HP : 10, maxHp: v.prof === 'guard' && !child ? GUARD_HP : 10, swing: -1, block: 0, flash: 0, bubble: null, bubbleT: 0, greetT: 0, talkWith: null, hidden: false, child,
       trait: TRAITS[v.trait] ?? TRAITS.cheerful,
     };
     if (nightNow && v.prof !== 'guard' && !Number.isFinite(v.x)) { e.state = 'inside'; e.hidden = true; e.sleeping = true; }
     if (prof.prop && !child) { e.prop = makeProp(prof.prop); parts.tool.add(e.prop); }
+    if (prof.offhand && !child) { e.offKind = 'shield'; parts.offhand.add(makeProp(`shield:${SHIELD_COLORS[plan.style] ?? '#2f4fb8'}`)); }
     parts.root.position.copy(pos);
     this.scene.add(parts.root);
     a.list.push(e);
@@ -393,6 +403,7 @@ export class Villages {
     if (this.scanTimer <= 0) { this.scanTimer = 1; this.scan(ctx.player); }
     for (const a of this.active.values()) {
       for (const e of [...a.list]) this.think(e, a, dt, ctx);
+      this.guardTick(a, dt, ctx);
       // Campana de la iglesia a la hora de misa.
       const tNow = ctx.time ?? 0.25;
       if (a.plan.church && a.lastTime !== undefined && a.lastTime < 0.3 && tNow >= 0.3) {
@@ -419,6 +430,27 @@ export class Villages {
       if (s.life <= 0) { this.scene.remove(s.mesh); s.mesh.material.dispose(); return false; }
       return true;
     });
+  }
+
+  // Guardias de una aldea: ven las amenazas, se reparten los enemigos, dan la alarma y festejan.
+  guardTick(a, dt, ctx) {
+    a.guardT = (a.guardT ?? 0) - dt;
+    if (a.guardT > 0) return;
+    a.guardT = 0.3;
+    const guards = a.list.filter((e) => e.data.prof === 'guard' && !e.child);
+    if (!guards.length) return;
+    const list = threats(a.plan, ctx.zombies ?? [], a.list.filter((e) => e.data.prof !== 'guard'), ctx.player);
+    assign(guards, list);
+    if (list.length && !a.alarm) {
+      a.alarm = true;
+      const g = guards.filter((x) => x.foe).sort((p, q) => Math.hypot(p.pos.x - p.foe.pos.x, p.pos.z - p.foe.pos.z) - Math.hypot(q.pos.x - q.foe.pos.x, q.pos.z - q.foe.pos.z))[0];
+      if (g) this.say(g, pick(Math.random, LINES.alarm), 2.5);
+      ctx.onAlarm?.(a.plan);
+    } else if (!list.length && a.alarm) {
+      a.alarm = false;
+      for (const g of guards) if (g.fought) { g.fought = false; g.state = 'cheer'; g.timer = 2.5; if (Math.random() < 0.6) this.say(g, pick(Math.random, LINES.victory), 2.5); }
+      ctx.onVictory?.(a.plan);
+    }
   }
 
   // Humo de chimeneas (más al atardecer, cuando todos cocinan).
@@ -494,14 +526,32 @@ export class Villages {
 
     // 1. Peligro o noche: a casa (los guardias, en cambio, salen a pelear y patrullar).
     if (prof === 'guard') {
-      if (zombie) { goal = { x: zombie.pos.x, z: zombie.pos.z, near: 1.2 }; speed = 3; e.state = 'fight'; }
-      else if (night) {
+      // Vida: se cura de a poco cuando no pelea.
+      if (!e.foe) { e.regenT = (e.regenT ?? 0) + dt * (e.retreating ? 2 : 1); if (e.regenT > 3) { e.regenT = 0; e.hp = Math.min(e.maxHp, e.hp + 1); } }
+      // Muy herido y con compañeros peleando: se repliega a la plaza hasta recuperarse.
+      const others = a.list.filter((o) => o !== e && o.data.prof === 'guard' && o.foe && !o.retreating && o.hp > o.maxHp * 0.3).length;
+      if (!e.retreating && e.foe && e.hp < e.maxHp * 0.3 && others > 0) { e.retreating = true; e.foe = null; this.say(e, pick(Math.random, LINES.hurtGuard), 2.5); }
+      if (e.retreating && (e.hp >= e.maxHp * 0.6 || !others)) e.retreating = false;
+      if (e.retreating) {
+        e.state = 'retreat'; speed = 2.8; e.block = Math.max(0, e.block - dt * 4);
+        goal = { x: a.plan.x + 0.5 + Math.sin(e.phase) * 2, z: a.plan.z + 0.5 + Math.cos(e.phase) * 2, near: 1.2 };
+      } else if (e.foe) {
+        e.state = 'fight'; e.fought = true;
+        const r = fight(e, a.plan, dt, { hitZombie: ctx.hitZombie, onGuardHit: (g, z, heavy) => { ctx.onGuardHit?.(g, z, heavy); if (Math.random() < (heavy ? 0.35 : 0.08)) this.say(g, pick(Math.random, LINES.fight), 1.6); } }, this.t);
+        if (r) { goal = r.goal; speed = r.speed; }
+      } else if (night) {
         if (e.state !== 'patrol' || !e.target) { const posts = a.plan.posts; const p = posts[Math.floor(Math.random() * posts.length)]; e.target = { x: p.x + 1.5, z: p.z + 0.5 }; e.state = 'patrol'; }
         goal = e.target;
       }
-      if (!night && !zombie && (e.state === 'patrol' || e.state === 'fight')) { e.state = 'idle'; e.target = null; }
-      if (e.prop && e.propKind !== (night ? 'torch' : 'spear')) {   // de noche patrulla con antorcha
-        e.parts.tool.remove(e.prop); e.prop = makeProp(night ? 'torch' : 'spear'); e.propKind = night ? 'torch' : 'spear'; e.parts.tool.add(e.prop);
+      if (!e.foe && !e.retreating && (e.state === 'fight' || e.state === 'retreat')) { e.state = 'idle'; e.timer = 1; e.swing = -1; }
+      if (!night && !e.foe && e.state === 'patrol') { e.state = 'idle'; e.target = null; }
+      if (!e.foe) e.block = Math.max(0, e.block - dt * 5);
+      // Mano izquierda: escudo de día o peleando; antorcha de noche en la ronda.
+      const want = night && !e.foe ? 'torch' : 'shield';
+      if (e.offKind && e.offKind !== want) {
+        e.parts.offhand.clear(); e.offKind = want;
+        e.parts.offhand.add(want === 'torch' ? makeProp('torch') : makeProp(`shield:${SHIELD_COLORS[a.plan.style] ?? '#2f4fb8'}`));
+        e.torch = want === 'torch' ? e.parts.offhand.children[0] : null;
       }
     } else if (night || zombie || e.scaredT > 0) {
       e.scaredT = Math.max(0, (e.scaredT ?? 0) - dt);
@@ -571,7 +621,7 @@ export class Villages {
 
     // 3. Día: rutina según la hora y el oficio.
     if (!['home', 'inside', 'leave'].includes(e.state)) e.prevDay = e.state;
-    if (!goal && !['home', 'inside', 'leave', 'patrol', 'fight', 'visit', 'exit'].includes(e.state)) {
+    if (!goal && !['home', 'inside', 'leave', 'patrol', 'fight', 'retreat', 'visit', 'exit'].includes(e.state)) {
       if (prof === 'builder' && a.rec.build && !e.blockedT) {
         const h = a.plan.slots[a.rec.build.slot];
         goal = { x: h.outside.x, z: h.outside.z, near: 2.5 };
@@ -609,6 +659,7 @@ export class Villages {
         if (e.shoutT <= 0) { e.shoutT = 14 + Math.random() * 12; if (distPlayer < 16) this.say(e, pick(Math.random, LINES.market), 2.5); }
         if (e.timer <= 0 || time > 0.42) { e.state = 'idle'; e.timer = 1; }
       } else if (e.state === 'cheer') { e.action = 'cheer'; if (e.timer <= 0) e.state = 'idle'; }
+      else if (e.state === 'post') { e.action = 'guard'; e.block = 0; if (e.timer <= 0) { e.state = 'idle'; e.timer = 1; } }
       else if (e.state === 'idle' && e.timer <= 0) this.chooseActivity(e, a, time);
     }
     e.blockedT = Math.max(0, (e.blockedT ?? 0) - dt);
@@ -654,20 +705,15 @@ export class Villages {
       }
     }
     if (a.rec.boost > 0) a.rec.boost -= dt;
-    if (e.state === 'fight' && zombie && Math.hypot(zombie.pos.x - e.pos.x, zombie.pos.z - e.pos.z) < 1.8) {
-      e.action = 'attack';
-      e.attackT = (e.attackT ?? 0) - dt;
-      if (e.attackT <= 0) { e.attackT = 0.9; ctx.hitZombie?.(zombie, 3, e); }
-      e.heading = Math.atan2(zombie.pos.x - e.pos.x, zombie.pos.z - e.pos.z);
-    } else if (e.state === 'fight' && !zombie) e.state = 'idle';
-    if (prof === 'guard' && night && !zombie && !moving) e.action = 'guard';
+    if (prof === 'guard' && night && !e.foe && !moving && e.state === 'patrol') e.action = 'guard';
+    if (e.state === 'fight' && e.foe) e.action = 'fight';
 
     // 6. Animación y luz.
     e.walk += ((moving ? 1 : 0) - e.walk) * Math.min(1, dt * 8);
     if (moving) e.phase += dt * speed * 4.2;
     if (moving) e.action = e.state === 'home' && zombie ? 'scared' : ['build', 'eat', 'farm'].includes(e.action) ? 'walk' : e.action;
     // Mira al jugador si está cerca (los tímidos no lo miran a los ojos).
-    if (distPlayer < 6 && !moving && !e.sleeping && e.state !== 'talk' && e.state !== 'build') {
+    if (distPlayer < 6 && !moving && !e.sleeping && e.state !== 'talk' && e.state !== 'build' && e.state !== 'fight') {
       const want = Math.atan2(player.pos.x - e.pos.x, player.pos.z - e.pos.z) - e.heading;
       const wrap = ((want + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
       e.lookYaw += ((v.trait === 'shy' ? wrap * 0.3 : wrap) - e.lookYaw) * Math.min(1, dt * 5);
@@ -690,12 +736,13 @@ export class Villages {
       root.rotation.x = 0; root.rotation.z = 0;
       root.position.copy(e.pos);
       root.rotation.y = turnTo(root.rotation.y, e.heading, dt, 10);
-      animateHumanoid(e.parts, { t: this.t + e.phase, phase: e.phase, walk: e.walk, action: e.hidden ? 'idle' : e.action, lookYaw: e.lookYaw, lookPitch: e.hidden ? 0.25 : 0 });
+      animateHumanoid(e.parts, { t: this.t + e.phase, phase: e.phase, walk: e.walk, action: e.hidden ? 'idle' : e.action, lookYaw: e.lookYaw, lookPitch: e.hidden ? 0.25 : 0, swing: e.swing ?? -1, block: e.block ?? 0 });
     }
     e.lightT = (e.lightT ?? 0) - dt;
     if (e.lightT <= 0) { e.lightT = 0.3; e.light = ctx.lightAt(e.pos.x, e.pos.y + 1.5, e.pos.z); }
     lightHumanoid(e.parts, e.light ?? 1, e.flash);
     if (e.prop?.userData.flame) e.prop.userData.flame.scale.setScalar(0.85 + Math.sin(this.t * 20 + e.phase) * 0.15);
+    if (e.torch?.userData.flame) e.torch.userData.flame.scale.setScalar(0.85 + Math.sin(this.t * 20 + e.phase) * 0.15);
     // Globo de diálogo sobre la cabeza.
     if (e.bubble) {
       e.bubbleT -= dt;
@@ -861,6 +908,11 @@ export class Villages {
       const t = trees[Math.floor(Math.random() * trees.length)];
       if (t) { e.job = { kind: 'tree', x: t.x, y: t.y, z: t.z }; e.workAction = 'chop'; go(t.stand.x, t.stand.z, 'work', 6, 0.8); return; }
     }
+    // Guardias de día: hacen guardia en los faroles de la plaza o recorren la aldea.
+    if (prof === 'guard' && r < 0.65) {
+      const posts = a.plan.posts; const p = posts[Math.floor(Math.random() * posts.length)];
+      go(p.x + 1.5, p.z + 0.5, 'post', 10 + Math.random() * 12, 0.6); return;
+    }
     // Puerto: el pescador pesca en la punta del muelle; el marinero mira el mar desde el muelle.
     if (work && prof === 'fisher' && a.plan.port) { const f = a.plan.port.fishSpot; e.job = { kind: 'fish' }; e.workAction = 'fish'; go(f.x + (Math.random() - 0.5) * 0.6, f.z + (Math.random() - 0.5) * 0.6, 'work', 9 + Math.random() * 6, 0.6); return; }
     if (prof === 'sailor' && a.plan.port && r < 0.7) { const d = a.plan.port.pierWalk; e.workAction = 'guard'; e.job = { kind: 'watch' }; go(d.x + (Math.random() - 0.5) * 1.5, d.z + (Math.random() - 0.5) * 1.5, 'work', 10 + Math.random() * 10, 0.6); return; }
@@ -896,10 +948,27 @@ export class Villages {
   }
 
   // Un zombi lo lastimó. Devuelve true si murió.
-  hurt(e, dmg) {
-    e.hp -= dmg; e.flash = 0.25; e.scaredT = 8;
+  hurt(e, dmg, attacker = null, ranged = false) {
+    if (e.data.prof === 'guard' && !e.child) {
+      // El escudo de frente frena casi todo; de un costado o de atrás, la armadura ayuda un poco.
+      if (blocks(e, attacker?.pos)) {
+        dmg *= 0.12; e.parry = true;
+        this.sound.tone(1250, 0.06, 0.12, 'square'); this.sound.tone(620, 0.12, 0.08, 'triangle');
+        if (!ranged && attacker && Math.random() < 0.35) {
+          // Empujón con el escudo: lo aleja y lo deja aturdido un momento.
+          const a = Math.atan2(attacker.pos.x - e.pos.x, attacker.pos.z - e.pos.z);
+          attacker.pos.x += Math.sin(a) * 0.9; attacker.pos.z += Math.cos(a) * 0.9; attacker.vy = 3;
+          if (attacker.cooldown !== undefined) attacker.cooldown += 0.6;
+          if (Math.random() < 0.4) this.say(e, pick(Math.random, LINES.block), 1.5);
+        }
+        e.hp -= dmg;
+        return false;
+      }
+      dmg *= 0.7;
+    }
+    e.hp -= dmg; e.flash = 0.25; e.scaredT = e.data.prof === 'guard' ? 0 : 8;
     this.sound.tone(280, 0.15, 0.12, 'sawtooth');
-    if (e.hp > 0) { if (Math.random() < 0.5) this.say(e, '¡Ay! ¡Ayuda!', 2); return false; }
+    if (e.hp > 0) { if (Math.random() < 0.5 && e.data.prof !== 'guard') this.say(e, '¡Ay! ¡Ayuda!', 2); return false; }
     const a = e.a;
     a.rec.villagers = a.rec.villagers.filter((v) => v !== e.data);
     a.list = a.list.filter((x) => x !== e);

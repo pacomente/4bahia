@@ -80,9 +80,11 @@ export function createHumanoid(look) {
   body.add(head);
   // Herramienta en la mano derecha (lanza del guardia, martillo del constructor, antorcha).
   const tool = new THREE.Group(); tool.position.set(0, -0.66, 0.08); armR.add(tool);
+  // Mano izquierda: escudo (guardias) o antorcha de noche.
+  const offhand = new THREE.Group(); offhand.position.set(-0.04, -0.5, 0.06); armL.add(offhand);
   root.scale.setScalar(look.scale ?? 1);
   root.rotation.order = 'YXZ';   // para poder acostarse (x) mirando hacia un lado (y)
-  const parts = { root, body, head, armL, armR, legL, legR, tool, mats };
+  const parts = { root, body, head, armL, armR, legL, legR, tool, offhand, mats };
   return parts;
 }
 
@@ -95,6 +97,33 @@ export function makeProp(kind) {
     const tipMat = new THREE.MeshBasicMaterial({ color: '#cfd4da' }); tipMat.userData.base = new THREE.Color('#cfd4da');
     const tip = box(0.1, 0.22, 0.04, tipMat); tip.rotation.x = Math.PI / 2; tip.position.set(0, 0, 1.15);
     g.add(stick, tip); g.rotation.x = -1.2;
+  }
+  if (kind === 'sword') {
+    // Espada de hierro: empuñadura, guarda y hoja con filo claro.
+    const grip = box(0.06, 0.2, 0.06, wood); grip.position.y = 0;
+    const steel = new THREE.MeshBasicMaterial({ color: '#cfd4da' }); steel.userData.base = new THREE.Color('#cfd4da');
+    const dark = new THREE.MeshBasicMaterial({ color: '#7a7f88' }); dark.userData.base = new THREE.Color('#7a7f88');
+    const guard = box(0.28, 0.05, 0.08, dark); guard.position.y = 0.12;
+    const blade = box(0.09, 0.72, 0.03, steel); blade.position.y = 0.5;
+    const edge = box(0.02, 0.7, 0.035, dark); edge.position.y = 0.5;
+    const tip = box(0.05, 0.08, 0.03, steel); tip.position.y = 0.9;
+    const pommel = box(0.08, 0.06, 0.08, dark); pommel.position.y = -0.12;
+    g.add(grip, guard, blade, edge, tip, pommel); g.rotation.x = 1.35;
+  }
+  if (kind === 'shield' || kind.startsWith?.('shield:')) {
+    // Escudo de madera con borde de hierro, umbo y el color de la aldea. Plano en x-z: se gira según la guardia.
+    const color = kind.split(':')[1] ?? '#2f4fb8';
+    const face = new THREE.MeshBasicMaterial({ color }); face.userData.base = new THREE.Color(color);
+    const rim = new THREE.MeshBasicMaterial({ color: '#8a8f98' }); rim.userData.base = new THREE.Color('#8a8f98');
+    const planks = new THREE.MeshBasicMaterial({ color: '#8a5a33' }); planks.userData.base = new THREE.Color('#8a5a33');
+    const board = box(0.6, 0.06, 0.74, planks); board.position.y = -0.06;
+    const paint = box(0.5, 0.065, 0.64, face); paint.position.y = -0.065;
+    const stripe = box(0.12, 0.07, 0.64, planks); stripe.position.y = -0.068;
+    const boss = box(0.16, 0.08, 0.16, rim); boss.position.y = -0.1;
+    const top = box(0.62, 0.07, 0.05, rim); top.position.set(0, -0.06, 0.37); const bot = top.clone(); bot.position.z = -0.37;
+    const l = box(0.05, 0.07, 0.76, rim); l.position.set(-0.31, -0.06, 0); const r2 = l.clone(); r2.position.x = 0.31;
+    g.add(board, paint, stripe, boss, top, bot, l, r2);
+    g.userData.shield = true;
   }
   if (kind === 'hammer') {
     const stick = box(0.06, 0.5, 0.06, wood); stick.position.y = 0.1;
@@ -153,7 +182,22 @@ export function animateHumanoid(p, s) {
   if (s.action === 'scared') { aR = -2.6; aL = -2.6; aRz = 0.4; aLz = -0.4; }
   if (s.action === 'guard') { aR = -0.35; }
   if (s.action === 'attack') aR = -1.8 + Math.sin(s.t * 14) * 0.9;
-  if (s.action === 'chop') { const k = Math.abs(Math.sin(s.t * 4)); aR = -1.9 + k * 1.4; aL = -1.7 + k * 1.3; p.body.rotation.y = -0.4 + k * 0.5; }
+  // Combate con espada y escudo: guardia, tajo (swing 0..1) y escudo arriba (block 0..1).
+  const block = s.block ?? 0;
+  if (s.action === 'fight') {
+    aR = -0.75 + Math.sin(s.t * 2) * 0.05; aRz = -0.1;
+    aL = -0.45 - block * 1.05; aLz = block * 0.45;
+    p.body.rotation.x = 0.08 + block * 0.08;
+    if (s.swing >= 0) { aR = -2.75 + s.swing * 2.7; aRz = -0.2 + s.swing * 0.1; p.legR.rotation.x = -0.35 * Math.sin(s.swing * Math.PI); p.legL.rotation.x = 0.25 * Math.sin(s.swing * Math.PI); }
+  }
+  if (p.offhand?.children.length) {
+    const sh = p.offhand.children[0].userData.shield;
+    // El escudo cuelga al costado y, al cubrirse, gira para tapar el frente.
+    p.offhand.rotation.z = sh ? (1 - (s.action === 'fight' ? Math.max(block, 0.35) : 0)) * Math.PI / 2 : 0;
+    if (sh && s.action === 'fight') p.offhand.rotation.y = -block * 0.4;
+  }
+  if (s.action === 'fight' && s.swing >= 0) p.body.rotation.y = -0.35 + s.swing * 0.7;
+  else if (s.action === 'chop') { const k = Math.abs(Math.sin(s.t * 4)); aR = -1.9 + k * 1.4; aL = -1.7 + k * 1.3; p.body.rotation.y = -0.4 + k * 0.5; }
   else p.body.rotation.y = 0;
   if (s.action === 'eat') { aR = -2.3 + Math.abs(Math.sin(s.t * 6)) * 0.25; aRz = 0.5; p.head.rotation.x = 0.1 + Math.sin(s.t * 12) * 0.05; }
   if (s.action === 'fish') { aR = -1.0 + Math.sin(s.t * 1.5) * 0.08; aL = -0.8; }

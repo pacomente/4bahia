@@ -108,7 +108,7 @@ export class Zombies {
             if (z.cooldown <= 0) {
               z.cooldown = 1.1;
               const dir = new THREE.Vector3(best.pos.x - z.pos.x, 0, best.pos.z - z.pos.z).normalize();
-              if (best.kind === 'player') ctx.onHitPlayer(3, dir); else ctx.onHitVillager(best.e, 3);
+              if (best.kind === 'player') ctx.onHitPlayer(3, dir); else ctx.onHitVillager(best.e, 3, z);
             }
           }
           z.heading = Math.atan2(best.pos.x - z.pos.x, best.pos.z - z.pos.z);

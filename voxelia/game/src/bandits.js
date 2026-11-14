@@ -203,7 +203,7 @@ export class Bandits {
               if (b.cooldown <= 0) {
                 b.cooldown = b.T.cooldown;
                 const dir = new THREE.Vector3(foe.pos.x - b.pos.x, 0, foe.pos.z - b.pos.z).normalize();
-                if (foe.kind === 'player') ctx.onHitPlayer(b.T.dmg, dir, b); else ctx.onHitVillager(foe.e, b.T.dmg);
+                if (foe.kind === 'player') ctx.onHitPlayer(b.T.dmg, dir, b); else ctx.onHitVillager(foe.e, b.T.dmg, b);
               }
             }
           }

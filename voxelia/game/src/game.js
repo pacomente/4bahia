@@ -729,6 +729,10 @@ export class Game {
       const c = this.player.pos.clone(); c.y += 0.9;
       const d0 = p1.clone().sub(p0); const t = Math.max(0, Math.min(1, c.clone().sub(p0).dot(d0) / d0.lengthSq()));
       if (p0.clone().addScaledVector(d0, t).distanceTo(c) < 0.6 && this.mode === 'survival' && !this.dead) return () => this.damage(3, 'Una flecha de un saqueador te alcanzó', d0.clone().normalize());
+      // También a los aldeanos (los guardias las paran con el escudo).
+      const dn = d0.clone().normalize();
+      const hitV = this.villages.hitTest(p0, dn, d0.length() + 0.25);
+      if (hitV) return () => { const from = { pos: arrow.shooter?.pos ?? p0 }; if (this.villages.hurt(hitV, 3, from, true)) this.ui.toast(`Una flecha alcanzó a ${hitV.data.name}`, 2500); };
       return null;
     }
     const d = p1.clone().sub(p0); const len = d.length() + 0.25; d.normalize();
@@ -761,7 +765,7 @@ export class Game {
       player: this.player, daylight: this.sky.daylight, enabled: this.mode === 'survival' && !this.dead, nights: this.stats.nights,
       villagers: this.villages.entities, villages: villagesNear(this.world, this.player.pos.x, this.player.pos.z, 60), lightAt: (x, y, z) => this.lightAt(x, y, z),
       onHitPlayer: (dmg, dir) => { if (!this.damage(dmg, 'Un zombi te alcanzó', dir)) { this.player.vel.x += dir.x * 2; this.player.vel.z += dir.z * 2; return; } this.player.vel.x += dir.x * 6; this.player.vel.z += dir.z * 6; this.player.vel.y = 3.5; },
-      onHitVillager: (e, dmg) => { const name = e.data.name; const village = e.a.plan.name; if (this.villages.hurt(e, dmg)) this.ui.toast(`Los zombis atraparon a ${name} en ${village}`, 3500); },
+      onHitVillager: (e, dmg, att) => { const name = e.data.name; const village = e.a.plan.name; if (this.villages.hurt(e, dmg, att)) this.ui.toast(e.data.prof === 'guard' ? `Cayó ${name}, guardia de ${village}, defendiendo la aldea` : `Los zombis atraparon a ${name} en ${village}`, 3500); },
       onKilled: (pos, byPlayer) => {
         if (!byPlayer) return;
         this.stats.kills += 1;
@@ -836,7 +840,19 @@ export class Game {
         if (d < 24) { if (b.id) { this.sound.place(BLOCKS[b.id].sound); if (d < 16 && Math.random() < 0.35) this.spawnParticles({ x: b.x, y: b.y, z: b.z, block: BLOCKS[b.id] }); } else this.sound.dig('grass'); }
       },
       onBuilt: (plan, rec) => { if (Math.hypot(plan.x - this.player.pos.x, plan.z - this.player.pos.z) < 120) { this.ui.toast(`¡${plan.name} tiene una casa nueva! Ya entran ${rec.villagers.length + 1} o más.`, 3500); this.sound.tone(523, 0.1, 0.12, 'sine'); setTimeout(() => this.sound.tone(784, 0.2, 0.12, 'sine'), 120); } },
-      hitZombie: (z, dmg) => (z.isBandit ? this.bandits.damage(z, dmg, this.banditCtx(), false) : this.zombies.damage(z, dmg, this.zombieCtx(), false)),
+      hitZombie: (z, dmg, _e, push) => (z.isBandit ? this.bandits.damage(z, dmg, this.banditCtx(), false, push) : this.zombies.damage(z, dmg, this.zombieCtx(), false, push)),
+      onGuardHit: (g, z, heavy) => {
+        const d = Math.hypot(g.pos.x - this.player.pos.x, g.pos.z - this.player.pos.z);
+        if (d < 24) { const k = Math.max(0.05, 1 - d / 24); this.sound.noise(0.12, { freq: heavy ? 900 : 1500, q: 2, gain: 0.35 * k }); this.sound.tone(heavy ? 300 : 480, 0.08, 0.08 * k, 'square'); }
+      },
+      onAlarm: (plan) => {
+        const d = Math.hypot(plan.x - this.player.pos.x, plan.z - this.player.pos.z);
+        if (d > 90) return;
+        this.ui.toast(`⚔ ¡Alarma en ${plan.name}! Los guardias salen a defender`, 3000);
+        const g = Math.max(0.05, 0.25 * (1 - d / 90));
+        [0, 350, 700].forEach((ms) => setTimeout(() => this.sound.tone(196, 0.3, g, 'sawtooth'), ms));
+      },
+      onVictory: (plan) => { if (Math.hypot(plan.x - this.player.pos.x, plan.z - this.player.pos.z) < 70) this.ui.toast(`🛡 Los guardias de ${plan.name} defendieron la aldea`, 3000); },
     };
   }
 
@@ -1348,7 +1364,7 @@ export class Game {
       villagers: this.villages.entities, villages: [...this.villages.active.values()].filter((a) => Math.hypot(a.plan.x - pp.x, a.plan.z - pp.z) < 90),
       lightAt: (x, y, z) => this.lightAt(x, y, z),
       onHitPlayer: (dmg, dir, b) => { if (!this.damage(dmg, b.kind === 'leader' ? `${b.name} te derrotó` : 'Un saqueador te derrotó', dir)) { this.player.vel.x += dir.x * 2; this.player.vel.z += dir.z * 2; return; } this.player.vel.x += dir.x * 6; this.player.vel.z += dir.z * 6; this.player.vel.y = 3.5; },
-      onHitVillager: (e, dmg) => { const name = e.data.name; const village = e.a.plan.name; if (this.villages.hurt(e, dmg)) this.ui.toast(`Los saqueadores atacaron a ${name} en ${village}`, 3500); },
+      onHitVillager: (e, dmg, att) => { const name = e.data.name; const village = e.a.plan.name; if (this.villages.hurt(e, dmg, att)) this.ui.toast(e.data.prof === 'guard' ? `Cayó ${name}, guardia de ${village}, defendiendo la aldea` : `Los saqueadores atacaron a ${name} en ${village}`, 3500); },
       onShoot: (from, dir, b) => this.arrows.shoot(from, dir, 26, { enemy: true, shooter: b }),
       onRaid: (plan, campName) => {
         this.ui.toast(`⚔ ¡Saqueadores de ${campName} atacan ${plan.name}!`, 4500);

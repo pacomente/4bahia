@@ -105,6 +105,13 @@ Juego de mundo abierto de bloques para PC, con su propio **launcher**. Todo el c
 - **Carretas de comercio**: van por los caminos llevando lo que le sobra a un pueblo y le falta a otro; el que recibe le paga en plata al tesoro del que manda.
 - **Plata entre vecinos**: cada aldeano tiene su bolsa, cobra su jornal y compra en el mercado (pagándole al que atiende el puesto). El rey o el jefe cobra impuestos, paga a guardias y docentes y compra materiales para las obras.
 - Bloques nuevos: cerca, campana, banco de iglesia, altar, pizarrón, vitral y comedero.
+- **Guardias con espada y escudo**, con un algoritmo de combate propio (`guards.js`):
+  - evalúan las amenazas (peligro de cada enemigo, cercanía a los vecinos y al jugador, vida que le queda);
+  - se reparten los enemigos sin amontonarse (al jefe lo rodean hasta 3, a un zombi o arquero va 1) y cada uno toma un lado;
+  - leen cuándo el enemigo va a pegar, levantan el escudo justo a tiempo (frena el 88 % de frente, y a veces empujan con el escudo) y contraatacan con un golpe fuerte;
+  - cada tercer tajo es pesado y empuja; contra arqueros cargan en zigzag cubiertos;
+  - si quedan muy heridos y hay otro peleando, se repliegan a la plaza a curarse y vuelven;
+  - dan la alarma al empezar y festejan al ganar; de día hacen guardia en la plaza y de noche hacen la ronda con antorcha.
 
 ## Controles
 
