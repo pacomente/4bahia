@@ -492,7 +492,7 @@ export class Villages {
   // Refuerzos: guardias de una aldea aliada llegan a ayudar (se van al amanecer).
   sendReinforcements(a, fromPlan, n = 2) {
     for (let k = 0; k < n; k++) {
-      const v = newVillager(fromPlan, { villagers: [], nextId: 900 + k }, Math.random, { prof: 'guard' });
+      const v = newVillager(fromPlan, { villagers: [], built: [], nextId: 900 + k }, Math.random, { prof: 'guard' });
       v.visitor = fromPlan.name; v.age = 6;
       const e = this.spawn(a, v);
       const ang = Math.random() * Math.PI * 2; const rad = a.plan.radius;
