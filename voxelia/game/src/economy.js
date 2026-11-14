@@ -8,7 +8,8 @@ export const PRICE = {
   [I.BREAD]: 3, [I.APPLE]: 2, [I.CAKE]: 9, [I.WHEAT]: 1, [I.SEEDS]: 1,
   [B.TORCH]: 1, [B.BED]: 8, [B.DOOR]: 6, [B.WINDOW]: 3, [B.ROOF]: 1, [B.THATCH]: 1, [B.ADOBE]: 1, [B.BRICK]: 1, [B.GLASS]: 1, [B.LAMP]: 4,
   [B.WOOL_WHITE]: 2, [B.WOOL_RED]: 3, [B.WOOL_BLUE]: 3, [B.PLANKS]: 1, [B.LOG]: 2, [B.COBBLE]: 1,
-  [I.FISH]: 2, [I.MEAT]: 4, [I.BERRIES]: 1, [I.BOAT]: 10, [I.PEARL]: 14,
+  [I.FISH]: 3, [I.MEAT]: 4, [I.BERRIES]: 1, [I.BOAT]: 10, [I.PEARL]: 14,
+  [I.RAW_FISH]: 2, [I.SALMON]: 3, [I.RAW_MEAT]: 2, [I.CARROT]: 1, [I.POTATO]: 1, [I.BAKED_POTATO]: 2, [I.PUMPKIN_PIE]: 5, [I.STEW]: 8, [I.HONEY]: 4, [I.ROD]: 8, [I.GOLDEN_FISH]: 40, [I.OLD_BOOT]: 1, [I.PUMPKIN_SEEDS]: 2, [B.PUMPKIN]: 3, [I.DRAGON_SCALE]: 120, [I.SERPENT_FANG]: 60, [I.TREASURE_MAP]: 20, [I.BOOK]: 4, [I.CROWN]: 200, [B.BOOKSHELF]: 6, [B.HAY]: 2,
   [I.COAL]: 2, [I.IRON]: 6, [I.GOLD]: 16, [B.WOOL_BLACK]: 3, [I.CRYSTAL]: 10, [I.ESSENCE]: 8, [I.ARROW]: 1,
   [I.BOW]: 14, [I.SHIELD]: 18, [I.SWORD_IRON]: 26, [I.PICK_IRON]: 24, [I.AXE_IRON]: 24, [I.SHOVEL_IRON]: 14,
   [I.HELMET_CLOTH]: 8, [I.CHEST_CLOTH]: 12, [I.LEGS_CLOTH]: 10, [I.BOOTS_CLOTH]: 6,
@@ -20,14 +21,18 @@ export const sellPrice = (id) => Math.max(1, Math.floor((PRICE[id] ?? 1) * 0.5))
 // Qué vende y qué compra cada oficio. `level`: nivel de aldea necesario (1 Aldea, 2 Pueblo, 3 Ciudad).
 // `n`: cuántas unidades vienen por compra.
 export const SHOPS = {
-  farmer: { sells: [{ id: I.BREAD, n: 1 }, { id: I.APPLE, n: 2 }, { id: I.SEEDS, n: 4 }, { id: I.CAKE, n: 1, level: 2 }], buys: [I.WHEAT, I.APPLE, B.WOOL_WHITE] },
+  farmer: { sells: [{ id: I.BREAD, n: 1 }, { id: I.APPLE, n: 2 }, { id: I.SEEDS, n: 4 }, { id: I.CARROT, n: 3 }, { id: I.POTATO, n: 3 }, { id: I.PUMPKIN_SEEDS, n: 2 }, { id: I.HONEY, n: 1 }, { id: I.CAKE, n: 1, level: 2 }], buys: [I.WHEAT, I.APPLE, B.WOOL_WHITE, I.CARROT, I.POTATO, B.PUMPKIN, I.HONEY] },
   builder: { sells: [{ id: B.DOOR, n: 1 }, { id: B.WINDOW, n: 2 }, { id: B.BED, n: 1 }, { id: B.ROOF, n: 8 }, { id: B.THATCH, n: 8 }, { id: B.ADOBE, n: 8 }], buys: [B.LOG, B.PLANKS, B.COBBLE] },
   guard: { sells: [{ id: I.ARROW, n: 8 }, { id: I.BOW, n: 1 }, { id: I.SHIELD, n: 1 }, { id: I.HELMET_CLOTH, n: 1 }, { id: I.CHEST_CLOTH, n: 1 }], buys: [I.ESSENCE] },
   smith: { sells: [{ id: I.HELMET_IRON, n: 1, level: 2 }, { id: I.CHEST_IRON, n: 1, level: 2 }, { id: I.LEGS_IRON, n: 1, level: 2 }, { id: I.BOOTS_IRON, n: 1, level: 2 }, { id: I.SWORD_IRON, n: 1 }, { id: I.PICK_IRON, n: 1 }, { id: I.CHEST_CRYSTAL, n: 1, level: 3 }], buys: [I.IRON, I.COAL, I.GOLD] },
   merchant: { sells: [{ id: I.CRYSTAL, n: 1 }, { id: B.LAMP, n: 2 }, { id: B.WOOL_RED, n: 4 }, { id: B.WOOL_BLUE, n: 4 }, { id: I.CAKE, n: 1 }, { id: I.HELMET_CRYSTAL, n: 1, level: 3 }], buys: [I.CRYSTAL, I.ESSENCE, I.COAL, I.IRON, I.GOLD] },
   woodcutter: { sells: [{ id: B.LOG, n: 4 }, { id: B.PLANKS, n: 8 }, { id: B.TORCH, n: 6 }], buys: [I.APPLE, I.BREAD] },
-  fisher: { sells: [{ id: I.FISH, n: 3 }, { id: I.BOAT, n: 1 }], buys: [I.BERRIES, I.WHEAT, I.BREAD] },
+  fisher: { sells: [{ id: I.FISH, n: 3 }, { id: I.ROD, n: 1 }, { id: I.BOAT, n: 1 }], buys: [I.RAW_FISH, I.SALMON, I.GOLDEN_FISH, I.BERRIES, I.WHEAT, I.BREAD] },
   sailor: { sells: [{ id: I.BOAT, n: 1 }, { id: I.PEARL, n: 1, level: 2 }, { id: I.CRYSTAL, n: 1 }, { id: B.LAMP, n: 2 }], buys: [I.FISH, I.PEARL, I.GOLD, B.LOG] },
+  baker: { sells: [{ id: I.BREAD, n: 2 }, { id: I.CAKE, n: 1 }, { id: I.PUMPKIN_PIE, n: 1 }], buys: [I.WHEAT, I.HONEY, I.BERRIES, B.PUMPKIN] },
+  doctor: { sells: [{ id: I.HONEY, n: 1 }], buys: [I.HONEY, I.BERRIES] },
+  cartographer: { sells: [{ id: I.TREASURE_MAP, n: 1, level: 2 }, { id: I.BOAT, n: 1 }], buys: [I.TREASURE_MAP, I.PEARL] },
+  librarian: { sells: [{ id: I.BOOK, n: 1 }], buys: [B.BOOKSHELF] },
   king: { sells: [], buys: [] },
 };
 
@@ -64,7 +69,8 @@ export function makeQuest(r, level) {
 // la comida; los puertos tienen pescado barato y lo importado en barco. Las reservas también mueven
 // los precios (si falta comida, sube), y cuando atraca un barco mercante lo importado baja un tiempo.
 const CAT = {};
-for (const id of [I.BREAD, I.APPLE, I.CAKE, I.WHEAT, I.FISH, I.MEAT, I.BERRIES, I.SEEDS]) CAT[id] = 'food';
+for (const id of [I.BREAD, I.APPLE, I.CAKE, I.WHEAT, I.FISH, I.MEAT, I.BERRIES, I.SEEDS, I.RAW_FISH, I.SALMON, I.RAW_MEAT, I.CARROT, I.POTATO, I.BAKED_POTATO, I.PUMPKIN_PIE, I.STEW, I.HONEY, B.PUMPKIN, I.PUMPKIN_SEEDS]) CAT[id] = 'food';
+CAT[I.GOLDEN_FISH] = 'gems';
 for (const id of [B.PLANKS, B.LOG, B.THATCH, B.DOOR, B.BED, B.TABLE, B.CHAIR, B.BARREL, I.BOAT, B.TORCH, B.WINDOW, I.ARROW, I.BOW]) CAT[id] = 'wood';
 for (const id of [B.COBBLE, B.BRICK, B.ROOF, B.ADOBE, B.GLASS, B.LAMP]) CAT[id] = 'stone';
 // Herramientas, armas, escudo y armaduras (sin pisar la comida ni la plata, que tienen ids en el medio).

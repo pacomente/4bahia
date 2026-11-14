@@ -40,7 +40,7 @@ export class Player {
     this.sprinting = false;
   }
 
-  eye() { return new THREE.Vector3(this.pos.x, this.pos.y + this.eyeHeight, this.pos.z); }
+  eye() { return new THREE.Vector3(this.pos.x, this.pos.y + this.eyeHeight + (this.mount ?? 0), this.pos.z); }
   look() {
     return new THREE.Vector3(-Math.sin(this.yaw) * Math.cos(this.pitch), Math.sin(this.pitch), -Math.cos(this.yaw) * Math.cos(this.pitch)).normalize();
   }

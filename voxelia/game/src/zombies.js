@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { createHumanoid, animateHumanoid, lightHumanoid } from './humanoid.js';
 import { standY, stepToward, settle, turnTo } from './walk.js';
+import { navigate } from './pathfind.js';
 import { nearLight } from './mobs.js';
 
 // ───────── Zombis ─────────
@@ -108,7 +109,7 @@ export class Zombies {
             if (z.cooldown <= 0) {
               z.cooldown = 1.1;
               const dir = new THREE.Vector3(best.pos.x - z.pos.x, 0, best.pos.z - z.pos.z).normalize();
-              if (best.kind === 'player') ctx.onHitPlayer(3, dir); else ctx.onHitVillager(best.e, 3);
+              if (best.kind === 'player') ctx.onHitPlayer(3, dir, z); else ctx.onHitVillager(best.e, 3, z);
             }
           }
           z.heading = Math.atan2(best.pos.x - z.pos.x, best.pos.z - z.pos.z);
@@ -120,7 +121,7 @@ export class Zombies {
         z.hiddenT = 0;
       }
       let moving = false;
-      if (goal && !attacking && Math.hypot(goal.x - z.pos.x, goal.z - z.pos.z) > 1) moving = stepToward(this.world, z, goal.x, goal.z, speed, dt).moved;
+      if (goal && !attacking && Math.hypot(goal.x - z.pos.x, goal.z - z.pos.z) > 1) moving = navigate(this.world, z, goal, speed, dt).moved;
       settle(this.world, z, dt);
       // Gemidos ocasionales cuando está cerca.
       z.groanT -= dt;

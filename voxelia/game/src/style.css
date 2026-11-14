@@ -204,3 +204,38 @@ img.coin { width: 18px; height: 18px; image-rendering: pixelated; vertical-align
 /* Economía local */
 .v-stock .cheap { color: #2e7a1e; font-weight: 700; } .v-stock .dear { color: #a01e16; font-weight: 700; }
 .tr { font-style: normal; font-size: 11px; margin-right: 2px; } .tr.up { color: #ffb4a8; } .tr.down { color: #b9ffad; }
+
+/* Hambre: muslitos de pollo */
+#food { display: flex; gap: 1px; margin-left: 10px; }
+.drum { width: 16px; height: 16px; background: #000; clip-path: polygon(10% 55%, 25% 25%, 50% 12%, 75% 20%, 85% 45%, 70% 70%, 55% 72%, 45% 85%, 50% 100%, 30% 100%, 32% 82%, 15% 75%); }
+.drum.full { background: linear-gradient(135deg, #e8a060 0 55%, #f2efe6 55%); }
+.drum.half { background: linear-gradient(90deg, #e8a060 50%, #3a2410 50%); }
+.drum.empty { background: #3a2410; }
+#food.starving .drum { animation: hungry 0.6s infinite alternate; }
+@keyframes hungry { to { transform: translateY(-2px); } }
+
+/* Diario de viaje y libros */
+.journal { max-width: 760px; width: 92vw; max-height: 80vh; overflow: auto; text-align: left !important; background: rgba(24, 18, 12, 0.94); border: 3px solid #000; box-shadow: inset 0 0 0 3px #5b3d22; padding: 18px 22px; border-radius: 4px; }
+.journal * { text-align: left; }
+.journal h3 { margin: 14px 0 6px; color: #ffe066; }
+.journal ul { margin: 0; padding-left: 18px; }
+.journal li { margin: 2px 0; }
+.journal .book { font-family: Georgia, serif; font-size: 17px; line-height: 1.6; background: #f2e8cf; color: #3a2a18; padding: 18px 22px; border-radius: 4px; }
+.journal .feats { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 4px 12px; }
+
+/* Golpe cargado: barrita bajo la mira */
+#charge { position: absolute; left: 50%; top: calc(50% + 22px); width: 60px; height: 6px; transform: translateX(-50%); background: #0008; border: 1px solid #000; opacity: 0; transition: opacity .1s; }
+#charge.on { opacity: 1; }
+#charge > div { height: 100%; width: 0; background: #ffd23f; }
+#charge.full > div { background: #ff5a3d; box-shadow: 0 0 6px #ff5a3d; }
+
+/* Accesibilidad: tamaño de la interfaz y modo daltónico */
+.panel, #toast, #status, #hotbar, #mission, #boss, #journal-screen .journal { zoom: var(--ui, 1); }
+body.colorblind .cheap { color: #2f7fd8 !important; }
+body.colorblind .dear { color: #e8902a !important; }
+body.colorblind .tr.up { color: #e8902a !important; }
+body.colorblind .tr.down { color: #2f7fd8 !important; }
+body.colorblind .heart.full { background: #e8902a; }
+.keys { display: flex; flex-wrap: wrap; gap: 4px; }
+.keys .mc-btn { width: auto; }
+.settings select { width: 100%; margin-top: 4px; }

@@ -95,6 +95,44 @@ Juego de mundo abierto de bloques para PC, con su propio **launcher**. Todo el c
 - **Economía local**: cada aldea tiene sus propios precios según el bioma, sus reservas y si es puerto (▲ caro / ▼ barato en la tienda).
 - Nota: el generador de terreno cambió; en mundos guardados de versiones anteriores las zonas nuevas pueden quedar con mares.
 
+## Vida de pueblo (0.10)
+
+- **Iglesia** con campanario, campana, vitrales, altar y bancos. La atiende un sacerdote o sacerdotisa; a la tarde suena la campana y los vecinos van a misa.
+- **Escuela** con pupitres y pizarrón: a la mañana los chicos van a clase con el maestro o la maestra. Los que estudian terminan la escuela sabiendo leer y escribir.
+- **Corral** con cerca, comedero y heno: lanudos, gallinas y un caballo. El granjero les da de comer y la aldea suma comida y lana.
+- **Caballos**: en las praderas y en los corrales. Clic derecho para montar (corre el doble), Shift para bajar.
+- **Caminos** de grava con faroles entre aldeas vecinas, con puentes de madera sobre el agua.
+- **Carretas de comercio**: van por los caminos llevando lo que le sobra a un pueblo y le falta a otro; el que recibe le paga en plata al tesoro del que manda.
+- **Plata entre vecinos**: cada aldeano tiene su bolsa, cobra su jornal y compra en el mercado (pagándole al que atiende el puesto). El rey o el jefe cobra impuestos, paga a guardias y docentes y compra materiales para las obras.
+- Bloques nuevos: cerca, campana, banco de iglesia, altar, pizarrón, vitral y comedero.
+- **Guardias con espada y escudo**, con un algoritmo de combate propio (`guards.js`):
+  - evalúan las amenazas (peligro de cada enemigo, cercanía a los vecinos y al jugador, vida que le queda);
+  - se reparten los enemigos sin amontonarse (al jefe lo rodean hasta 3, a un zombi o arquero va 1) y cada uno toma un lado;
+  - leen cuándo el enemigo va a pegar, levantan el escudo justo a tiempo (frena el 88 % de frente, y a veces empujan con el escudo) y contraatacan con un golpe fuerte;
+  - cada tercer tajo es pesado y empuja; contra arqueros cargan en zigzag cubiertos;
+  - si quedan muy heridos y hay otro peleando, se repliegan a la plaza a curarse y vuelven;
+  - dan la alarma al empezar y festejan al ganar; de día hacen guardia en la plaza y de noche hacen la ronda con antorcha.
+
+## 0.11 a 0.17
+
+- **Base (0.11):** las mallas del mundo se arman en *workers* (sin tirones) y los personajes buscan caminos con A* (rodean casas, usan puertas, no se meten al agua).
+- **Sensaciones (0.12):** tormentas con rayos y truenos, nieve en el frío, auroras, luna con fases, estrellas fugaces, sonido ambiente (viento, olas, pájaros, grillos, mercado) y música por zona.
+- **Supervivencia (0.13):** hambre (10 muslitos), cocina en fogata/hogar/horno, pesca con caña (salmón, pez dorado…), zanahorias, papas, calabazas, manzanos, colmenas con miel y refuerzos del herrero hasta +3.
+- **Exploración (0.14):** pantanos, selvas y cañones; ruinas (torre, templo, mina) con cofres y mapas del tesoro; lobos (se domestican con carne), loros, serpiente marina, dragón en su guarida y tormentas que dan vuelta el bote.
+- **Pueblos vivos (0.15):** panadero, médico, cartógrafo y bibliotecario; encargos de cada vecino; memoria y chismes; aldeas aliadas y rivales (refuerzos); fiestas, casamientos, sucesión del rey; diario de viaje (J).
+- **Combate y objetivos (0.16):** golpe cargado, desvío con escudo, escuderos y lanzadores de bombas, amenaza creciente, señorío, casa propia y mazmorras con el Rey Sombrío (tres fases).
+- **Presentación (0.17):** tutorial, logros, dificultad, teclas configurables, tamaño de interfaz, modo daltónico, tercera persona (F5), arena que cae, árboles que caen, agua que corre, aviso de actualización y copias de seguridad automáticas en el launcher.
+
+## Gráficos (0.18)
+
+- Luz del sol según la hora (cálida al amanecer/atardecer, luna azulada de noche), con la sombra del color del cielo.
+- Cielo con degradé del cenit al horizonte y resplandor alrededor del sol.
+- Agua con olas, reflejo del cielo según el ángulo (Fresnel) y brillo del sol.
+- Hojas y plantas que se mecen con el viento; luz de faroles y antorchas que titila.
+- Brillo suave (bloom) en luces, sol y lava; corrección de color con viñeta.
+- Nubes 3D, luciérnagas de noche y hojas que caen.
+- Opciones → Calidad gráfica: alta, media o baja (para PCs lentas).
+
 ## Controles
 
 | Tecla | Acción |

@@ -14,6 +14,8 @@ export const I = {
   HELMET_IRON: 144, CHEST_IRON: 145, LEGS_IRON: 146, BOOTS_IRON: 147,
   HELMET_CRYSTAL: 148, CHEST_CRYSTAL: 149, LEGS_CRYSTAL: 150, BOOTS_CRYSTAL: 151,
   GOLD: 152, BERRIES: 153, FISH: 154, MEAT: 155, BOAT: 156, PEARL: 157,
+  RAW_MEAT: 158, RAW_FISH: 159, CARROT: 160, POTATO: 161, BAKED_POTATO: 162, PUMPKIN_PIE: 163, STEW: 164, HONEY: 165, ROD: 166, GOLDEN_FISH: 167, SALMON: 168, OLD_BOOT: 169, PUMPKIN_SEEDS: 170,
+  TREASURE_MAP: 171, DRAGON_SCALE: 172, SERPENT_FANG: 173, BOOK: 174, CROWN: 175,
 };
 
 // Niveles de herramienta: velocidad de minado, daño, usos antes de romperse y color.
@@ -51,17 +53,36 @@ ITEMS[I.BOW] = { name: 'Arco', kind: 'tool', tool: 'bow', tier: 'wood', speed: 1
 ITEMS[I.ARROW] = { name: 'Flecha', kind: 'material', color: '#cfcfcf' };
 ITEMS[I.SHIELD] = { name: 'Escudo', kind: 'gear', color: '#8f2b26', description: 'Llevalo en la mano: los golpes te sacan mucho menos.' };
 
-// Moneda y comida. La comida cura corazones y devuelve energía (no hay hambre que te mate).
-ITEMS[I.BERRIES] = { name: 'Bayas', kind: 'food', heal: 2, energy: 20, color: '#c8352b' };
-ITEMS[I.FISH] = { name: 'Pescado', kind: 'food', heal: 4, energy: 30, color: '#7aa8c8' };
-ITEMS[I.MEAT] = { name: 'Carne asada', kind: 'food', heal: 6, energy: 40, color: '#8a4a2a' };
+// Moneda y comida. La comida cura corazones, llena la panza (hambre: food) y devuelve energía.
+// Lo crudo alimenta poco: se cocina en una fogata, un hogar o un horno (clic derecho con lo crudo en la mano).
+ITEMS[I.BERRIES] = { name: 'Bayas', kind: 'food', heal: 2, food: 3, energy: 20, color: '#c8352b' };
+ITEMS[I.FISH] = { name: 'Pescado asado', kind: 'food', heal: 4, food: 6, energy: 30, color: '#7aa8c8' };
+ITEMS[I.MEAT] = { name: 'Carne asada', kind: 'food', heal: 6, food: 8, energy: 40, color: '#8a4a2a' };
+ITEMS[I.RAW_MEAT] = { name: 'Carne cruda', kind: 'food', heal: 1, food: 2, energy: 5, raw: true, color: '#d86a6a', description: 'Mejor cocinala: clic derecho sobre una fogata, un hogar o un horno.' };
+ITEMS[I.RAW_FISH] = { name: 'Pescado crudo', kind: 'food', heal: 1, food: 2, energy: 5, raw: true, color: '#8ab8d8', description: 'Cocinalo en una fogata, un hogar o un horno.' };
+ITEMS[I.SALMON] = { name: 'Salmón crudo', kind: 'food', heal: 1, food: 3, energy: 5, raw: true, color: '#e8866a', description: 'Asado vale el doble.' };
+ITEMS[I.CARROT] = { name: 'Zanahoria', kind: 'food', heal: 2, food: 3, energy: 15, plant: true, color: '#f08a2a', description: 'Se come o se planta en tierra arada.' };
+ITEMS[I.POTATO] = { name: 'Papa', kind: 'food', heal: 1, food: 1, energy: 5, plant: true, raw: true, color: '#c8a060', description: 'Se planta en tierra arada; asada alimenta mucho.' };
+ITEMS[I.BAKED_POTATO] = { name: 'Papa asada', kind: 'food', heal: 4, food: 6, energy: 30, color: '#d8a050' };
+ITEMS[I.PUMPKIN_PIE] = { name: 'Pastel de calabaza', kind: 'food', heal: 6, food: 8, energy: 50, color: '#e8902a' };
+ITEMS[I.STEW] = { name: 'Guiso', kind: 'food', heal: 8, food: 12, energy: 70, color: '#a8642a', description: 'Carne, zanahoria y papa: llena como nada.' };
+ITEMS[I.HONEY] = { name: 'Miel', kind: 'food', heal: 3, food: 4, energy: 60, color: '#f2b52a', description: 'Da mucha energía. Sale de las colmenas.' };
+ITEMS[I.ROD] = { name: 'Caña de pescar', kind: 'gear', uses: 64, color: '#8a5a33', description: 'Clic derecho al agua para tirar. Cuando el corcho se hunde, clic derecho otra vez para sacar el pez.' };
+ITEMS[I.GOLDEN_FISH] = { name: 'Pez dorado', kind: 'material', color: '#f2c94c', description: 'Rarísimo: sale de noche o en mar abierto. Vale mucha plata.' };
+ITEMS[I.OLD_BOOT] = { name: 'Bota vieja', kind: 'material', color: '#5c3a26', description: 'Alguien la perdió en el agua…' };
+ITEMS[I.TREASURE_MAP] = { name: 'Mapa del tesoro', kind: 'gear', color: '#e8d8a0', description: 'Clic derecho para leerlo: marca con una X dónde está enterrado el tesoro. Cavá ahí.' };
+ITEMS[I.CROWN] = { name: 'Corona Sombría', kind: 'material', color: '#6a1f8a', description: 'La corona del Rey Sombrío. La prueba de que venciste la mazmorra.' };
+ITEMS[I.BOOK] = { name: 'Libro de historias', kind: 'gear', color: '#5a3a7a', description: 'Clic derecho para leer una historia del mundo.' };
+ITEMS[I.DRAGON_SCALE] = { name: 'Escama de dragón', kind: 'material', color: '#8f2b26', description: 'Del dragón de las montañas. Dicen que ningún herrero vio algo igual.' };
+ITEMS[I.SERPENT_FANG] = { name: 'Colmillo de serpiente marina', kind: 'material', color: '#e8e4d8', description: 'Trofeo del monstruo del mar profundo.' };
+ITEMS[I.PUMPKIN_SEEDS] = { name: 'Semillas de calabaza', kind: 'seed', color: '#e8d8a0', description: 'Clic derecho sobre tierra arada: crece una planta que da calabazas al lado.' };
 ITEMS[I.BOAT] = { name: 'Bote', kind: 'gear', color: '#a87442', description: 'Clic derecho sobre el agua para ponerlo; clic derecho al bote para subir. W/S reman, A/D giran, Shift para bajar.' };
 ITEMS[I.PEARL] = { name: 'Perla', kind: 'material', color: '#f4eef8', description: 'Se encuentra en los barcos hundidos. Vale mucho en los puertos.' };
 ITEMS[I.GOLD] = { name: 'Lingote de oro', kind: 'material', color: '#f2c94c', description: 'Vale mucho en cualquier aldea.' };
 ITEMS[I.SILVER] = { name: 'Moneda de plata', kind: 'material', color: '#d9dde3', description: 'La moneda de las aldeas: con ella se compra y se vende.' };
-ITEMS[I.APPLE] = { name: 'Manzana', kind: 'food', heal: 3, energy: 25, color: '#c8352b' };
-ITEMS[I.BREAD] = { name: 'Pan', kind: 'food', heal: 5, energy: 40, color: '#c98a3e' };
-ITEMS[I.CAKE] = { name: 'Pastel', kind: 'food', heal: 10, energy: 100, color: '#f2d8c0' };
+ITEMS[I.APPLE] = { name: 'Manzana', kind: 'food', heal: 3, food: 4, energy: 25, color: '#c8352b' };
+ITEMS[I.BREAD] = { name: 'Pan', kind: 'food', heal: 5, food: 6, energy: 40, color: '#c98a3e' };
+ITEMS[I.CAKE] = { name: 'Pastel', kind: 'food', heal: 10, food: 14, energy: 100, color: '#f2d8c0' };
 ITEMS[I.WHEAT] = { name: 'Trigo', kind: 'material', color: '#e0bf55' };
 ITEMS[I.SEEDS] = { name: 'Semillas de trigo', kind: 'seed', color: '#7cab4a', description: 'Clic derecho sobre tierra arada para sembrar.' };
 
@@ -91,9 +112,14 @@ ITEMS[I.SHIELD].description = 'Equipalo en la mano izquierda (E) y mantené clic
 export function armorPoints(equip) { return ARMOR_SLOTS.reduce((n, s) => n + (ITEMS[equip?.[s]]?.points ?? 0), 0); }
 export const armorReduction = (points) => Math.min(0.8, points * 0.04);
 export const isFood = (id) => ITEMS[id]?.kind === 'food';
+// Qué sale al cocinar cada cosa cruda.
+export const COOKS = { [I.RAW_MEAT]: I.MEAT, [I.RAW_FISH]: I.FISH, [I.SALMON]: I.FISH, [I.POTATO]: I.BAKED_POTATO };
+// Mejoras del herrero: +1, +2, +3 (más daño, más velocidad, más protección).
+export const MAX_UPGRADE = 3;
+export const upgradeCost = (lvl) => ({ silver: [12, 25, 45][lvl], iron: [1, 2, 4][lvl] });
 
 // Usos máximos de una herramienta (null si no se gasta).
-export const maxUses = (id) => (['tool', 'armor'].includes(ITEMS[id]?.kind) || id === I.SHIELD ? ITEMS[id].uses : null);
+export const maxUses = (id) => (['tool', 'armor'].includes(ITEMS[id]?.kind) || id === I.SHIELD || id === I.ROD ? ITEMS[id].uses : null);
 
 // Aclara u oscurece un color "#rrggbb".
 function shadeHex(h, f) { return '#' + [1, 3, 5].map((i) => Math.max(0, Math.min(255, Math.round(parseInt(h.slice(i, i + 2), 16) * f))).toString(16).padStart(2, '0')).join(''); }
@@ -102,15 +128,15 @@ export const isItem = (id) => id >= 100;
 export const itemName = (id, BLOCKS) => (isItem(id) ? ITEMS[id]?.name : BLOCKS[id]?.name) ?? '?';
 
 // Multiplicador de velocidad de minado según la herramienta en la mano.
-export function mineSpeed(heldId, block) {
+export function mineSpeed(heldId, block, lvl = 0) {
   const it = ITEMS[heldId];
   if (!it || it.kind !== 'tool' || !block.tool || it.tool !== block.tool) return 1;
-  return it.speed;
+  return it.speed * (1 + 0.15 * lvl);
 }
 
-export function attackDamage(heldId) {
+export function attackDamage(heldId, lvl = 0) {
   const it = ITEMS[heldId];
-  return it?.kind === 'tool' ? it.damage : 2;
+  return it?.kind === 'tool' ? it.damage * (1 + 0.2 * lvl) : 2;
 }
 
 // Íconos pixel-art de los ítems (dibujados en una grilla de 16×16).

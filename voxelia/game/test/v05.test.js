@@ -107,6 +107,6 @@ test('caminata: un aldeano entra a su casa por la puerta (afuera → puerta → 
 test('trueques y armas nuevas: arco, flechas y escudo', () => {
   for (const id of ['bow', 'arrows', 'shield']) assert.ok(RECIPES.find((r) => r.id === id), id);
   assert.ok(TRADES.smith.some((t) => t.repair), 'el herrero repara');
-  for (const list of Object.values(TRADES)) for (const t of list) assert.ok(Object.keys(t.give).length && (t.repair || Object.keys(t.get).length));
+  for (const list of Object.values(TRADES)) for (const t of list) assert.ok(t.upgrade || t.heal || t.reveal || (Object.keys(t.give).length && (t.repair || Object.keys(t.get).length)));
   assert.ok(I.BOW && I.ARROW && I.SHIELD);
 });

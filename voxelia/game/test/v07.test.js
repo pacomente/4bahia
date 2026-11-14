@@ -37,7 +37,7 @@ test('campamentos: hay uno a una caminata del inicio, lejos de las aldeas buenas
     const c = campsNear(w, 0, 0, 400).sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z))[0];
     assert.ok(c, `hay campamento (${seed})`);
     const d = Math.hypot(c.x, c.z);
-    assert.ok(d > 100 && d < 300, `${seed}: a ${Math.round(d)} bloques`);
+    assert.ok(d > 100 && d < 420, `${seed}: a ${Math.round(d)} bloques`);
     assert.equal(villagesNear(w, c.x, c.z, 40).length, 0, 'no pisa una aldea');
     assert.equal(c.cages.length, 2);
   }

@@ -6,7 +6,7 @@ import { drawFurniture, N as ICON_N } from './icons.js';
 const S = 16;
 const NAMES = ['grass_top', 'grass_side', 'dirt', 'stone', 'sand', 'water', 'log_top', 'log_side', 'leaves', 'planks',
   'cobble', 'glass', 'snow', 'snow_side', 'brick', 'coal', 'cactus_top', 'cactus_side', 'bedrock', 'gravel', 'iron',
-  'birch_top', 'birch_side', 'birch_leaves', 'clay', 'lamp', 'wool_red', 'wool_blue', 'wool_white', 'crystal', 'faro_top', 'faro_side', 'torch', 'bench_top', 'bench_side', 'roof', 'thatch', 'adobe', 'farmland', 'wheat_young', 'wheat_ripe', 'bed_top', 'bed_side', 'door', 'window', 'lava', 'glow_mushroom', 'moss', 'gold_ore', 'wool_black', 'bars', 'campfire', 'chest_top', 'chest_side', 'table_top', 'bookshelf', 'fireplace', 'carpet', 'barrel_top', 'barrel_side', 'hay_top', 'hay_side', 'anvil', 'throne', 'flower_red', 'flower_yellow', 'pine_leaves', 'palm_top', 'palm_side', 'palm_leaves', 'tall_grass', 'berry_bush', 'dead_bush', 'kelp', 'seagrass', 'coral_red', 'coral_yellow', 'coral_purple', 'coral_fan'];
+  'birch_top', 'birch_side', 'birch_leaves', 'clay', 'lamp', 'wool_red', 'wool_blue', 'wool_white', 'crystal', 'faro_top', 'faro_side', 'torch', 'bench_top', 'bench_side', 'roof', 'thatch', 'adobe', 'farmland', 'wheat_young', 'wheat_ripe', 'bed_top', 'bed_side', 'door', 'window', 'lava', 'glow_mushroom', 'moss', 'gold_ore', 'wool_black', 'bars', 'campfire', 'chest_top', 'chest_side', 'table_top', 'bookshelf', 'fireplace', 'carpet', 'barrel_top', 'barrel_side', 'hay_top', 'hay_side', 'anvil', 'throne', 'flower_red', 'flower_yellow', 'pine_leaves', 'palm_top', 'palm_side', 'palm_leaves', 'tall_grass', 'berry_bush', 'dead_bush', 'kelp', 'seagrass', 'coral_red', 'coral_yellow', 'coral_purple', 'coral_fan', 'bell', 'altar_top', 'altar_side', 'blackboard', 'stained_glass', 'trough_top', 'carrot_young', 'carrot_ripe', 'potato_young', 'potato_ripe', 'pumpkin_top', 'pumpkin_side', 'pumpkin_stem', 'hive_top', 'hive_side', 'oven', 'fruit_leaves', 'mud', 'lily_pad', 'vines', 'jungle_leaves', 'red_sand', 'red_rock', 'orange_rock', 'rail', 'mossy_cobble', 'sandstone', 'sandstone_top', 'chiseled_sandstone'];
 const COLS = 8;
 export const ATLAS_COLS = COLS;
 export const ATLAS_ROWS = Math.ceil(NAMES.length / COLS);
@@ -187,6 +187,109 @@ function paint(name, px) {
         const frame = x < 2 || y < 2 || x > 13 || y > 13 || x === 7 || x === 8 || y === 7 || y === 8;
         set(x, y, frame ? shade(hex('#7a5230'), 0.9 + r() * 0.15) : hex('#dff1f8'), frame ? 255 : (x + y) % 9 === 0 ? 150 : 60);
       }
+      break;
+    case 'mud': noise(hex('#4a3a2a'), 0.3); speckle(hex('#2e241a'), 18); speckle(hex('#5f4a34'), 10); break;
+    case 'lily_pad':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) { const d = Math.hypot(x - 7.5, y - 7.5); const notch = x > 7 && Math.abs(y - 7.5) < 1.2; set(x, y, shade(hex('#3f8a2c'), 0.85 + r() * 0.25), d < 7 && !notch ? 255 : 0); }
+      set(5, 6, hex('#f2a8d8')); set(6, 6, hex('#ffffff')); set(5, 5, hex('#f2a8d8'));
+      break;
+    case 'vines':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, [0, 0, 0], 0);
+      for (const x0 of [2, 6, 10, 13]) { let x = x0; for (let y = 0; y < S; y++) { set(Math.round(x), y, shade(hex('#3f7a2c'), 0.8 + r() * 0.4)); if (y % 3 === 1) set(Math.round(x) + 1, y, hex('#5f9a3c')); x += (r() - 0.5) * 0.6; } }
+      break;
+    case 'jungle_leaves': { for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) { const v = r(); set(x, y, shade(hex('#2f7a1c'), 0.65 + v * 0.55), v < 0.12 ? 0 : 255); } break; }
+    case 'red_sand': noise(hex('#c8642a'), 0.25); speckle(hex('#a84a1a'), 16); break;
+    case 'red_rock': case 'orange_rock': {
+      const c = name === 'red_rock' ? hex('#a8482a') : hex('#d8803a');
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, shade(c, (y % 5 === 0 ? 0.82 : 1) * (0.9 + r() * 0.12)));
+      break;
+    }
+    case 'rail':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, [0, 0, 0], 0);
+      for (let y = 1; y < S; y += 4) for (let x = 1; x < 15; x++) set(x, y, shade(hex('#7a5230'), 0.85 + r() * 0.2)), set(x, y + 1, shade(hex('#5b3d22'), 0.9));
+      for (let y = 0; y < S; y++) { set(3, y, hex('#9aa0a8')); set(4, y, hex('#6a6e76')); set(11, y, hex('#9aa0a8')); set(12, y, hex('#6a6e76')); }
+      break;
+    case 'mossy_cobble':
+      noise(stone, 0.2);
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) if ((x + Math.floor(y / 4) * 3) % 5 === 0 || y % 4 === 0) set(x, y, shade(stone, 0.6));
+      blob(hex('#4f8a2c'), 8, 3); speckle(hex('#6fb043'), 14);
+      break;
+    case 'sandstone': for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, shade(hex('#e0cc8a'), (y === 4 || y === 11 ? 0.85 : 1) * (0.93 + r() * 0.1))); break;
+    case 'sandstone_top': noise(hex('#e8d49a'), 0.12); break;
+    case 'chiseled_sandstone':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, shade(hex('#e0cc8a'), 0.93 + r() * 0.1));
+      for (let k = 2; k < 14; k++) { set(k, 2, hex('#a8904a')); set(k, 13, hex('#a8904a')); set(2, k, hex('#a8904a')); set(13, k, hex('#a8904a')); }
+      for (const [x, y] of [[7, 5], [8, 5], [6, 6], [9, 6], [6, 7], [9, 7], [7, 8], [8, 8], [7, 9], [8, 9], [7, 10], [8, 10]]) set(x, y, hex('#8a7234'));   // ojo tallado
+      break;
+    case 'carrot_young': case 'carrot_ripe': case 'potato_young': case 'potato_ripe': {
+      // Matas de hojas; las maduras asoman la zanahoria o tienen florcitas (papa).
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, [0, 0, 0], 0);
+      const ripe = name.endsWith('ripe'); const carrot = name.startsWith('carrot');
+      for (let k = 0; k < 5; k++) {
+        const x = 1 + k * 3; const top = ripe ? 4 + Math.floor(r() * 3) : 9 + Math.floor(r() * 3);
+        for (let y = top; y < 15; y++) { set(x, y, shade(hex(carrot ? '#4f9a2c' : '#3f7a2c'), 0.8 + r() * 0.35)); if (y % 3 === 0 && x + 1 < S) set(x + 1, y - 1, hex(carrot ? '#7cc24a' : '#5f9a3c')); }
+        if (ripe && carrot) { set(x, 15, hex('#f08a2a')); set(x, 14, hex('#f08a2a')); if (x + 1 < S) set(x + 1, 15, hex('#d86a1a')); }
+        if (ripe && !carrot) { set(x, top, hex('#f4f0e8')); if (x + 1 < S) set(x + 1, top, hex('#e8d0f0')); }
+      }
+      break;
+    }
+    case 'pumpkin_side':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, shade(hex('#e8902a'), (x % 4 === 0 ? 0.72 : 1) * (0.9 + r() * 0.12)));
+      break;
+    case 'pumpkin_top':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) { const d = Math.hypot(x - 7.5, y - 7.5); set(x, y, shade(hex('#e8902a'), (d < 2 ? 0.6 : 1) * (0.88 + r() * 0.12))); }
+      set(7, 7, hex('#5a3a1a')); set(8, 7, hex('#5a3a1a')); set(7, 8, hex('#3f7a2c'));
+      break;
+    case 'pumpkin_stem':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, [0, 0, 0], 0);
+      for (let k = 0; k < 3; k++) { let x = 4 + k * 4; for (let y = 15; y > 6; y--) { set(Math.round(x), y, shade(hex('#5f9a3c'), 0.8 + r() * 0.3)); x += (r() - 0.5) * 0.8; } set(Math.round(x) - 1, 6, hex('#7cc24a')); set(Math.round(x) + 1, 7, hex('#7cc24a')); }
+      set(12, 12, hex('#f2d84a')); set(4, 10, hex('#f2d84a'));
+      break;
+    case 'hive_side':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, (y % 4 === 3) ? hex('#a87a2a') : shade(hex('#e8c060'), 0.9 + r() * 0.15));
+      for (let x = 6; x <= 9; x++) for (let y = 9; y <= 11; y++) set(x, y, hex('#3a2414'));   // entrada
+      break;
+    case 'hive_top':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, ((x + y) % 4 === 0 || (x - y + 16) % 4 === 0) ? hex('#c89a3a') : shade(hex('#f2c94c'), 0.9 + r() * 0.12));
+      break;
+    case 'oven':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, shade(hex('#8b8b8b'), (y % 4 === 0 || (x + (Math.floor(y / 4) % 2) * 3) % 6 === 0 ? 0.65 : 1) * (0.9 + r() * 0.12)));
+      for (let y = 6; y < 13; y++) for (let x = 4; x < 12; x++) { const arch = y === 6 && (x === 4 || x === 11); if (!arch) set(x, y, y > 9 ? (r() < 0.5 ? hex('#ff8a1e') : hex('#ffd34d')) : hex('#2a1810')); }
+      break;
+    case 'fruit_leaves': {
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) { const v = r(); set(x, y, shade(hex('#3f8f2c'), 0.7 + v * 0.5), v < 0.16 ? 0 : 255); }
+      for (const [x, y] of [[3, 4], [11, 3], [7, 9], [13, 11], [2, 12]]) { set(x, y, hex('#d8352b')); set(x + 1, y, hex('#a01e16')); set(x, y + 1, hex('#a01e16')); }
+      break;
+    }
+    case 'bell':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, shade(hex('#d8a83a'), (x < 3 ? 0.75 : x > 12 ? 0.85 : 1.05) * (0.92 + r() * 0.12)));
+      for (let x = 0; x < S; x++) set(x, 13, hex('#a87a20'));
+      break;
+    case 'altar_top':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, (x < 2 || x > 13) ? hex('#d8b14a') : shade(hex('#f2efe6'), 0.94 + r() * 0.08));
+      break;
+    case 'altar_side':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const cross = (x >= 7 && x <= 8 && y >= 3 && y <= 13) || (y >= 6 && y <= 7 && x >= 4 && x <= 11);
+        set(x, y, y < 3 ? shade(hex('#f2efe6'), 0.95) : cross ? hex('#e8c040') : shade(hex('#7a1e2a'), 0.9 + r() * 0.12));
+      }
+      break;
+    case 'blackboard':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, (x < 1 || y < 1 || x > 14 || y > 14) ? hex('#7a5230') : shade(hex('#24402e'), 0.92 + r() * 0.12));
+      // "A B C" y una suma con tiza.
+      for (const [x, y] of [[3, 4], [4, 3], [5, 4], [3, 5], [5, 5], [4, 4], [8, 3], [8, 4], [8, 5], [9, 3], [9, 4], [10, 5], [9, 5], [12, 3], [13, 3], [12, 4], [12, 5], [13, 5], [3, 9], [4, 9], [5, 9], [4, 8], [4, 10], [7, 9], [8, 9], [10, 8], [10, 9], [11, 9], [12, 9], [10, 10], [11, 10], [12, 10]]) set(x, y, hex('#e8ece8'));
+      for (let x = 2; x < 14; x++) set(x, 12, hex('#9ab0a0'));
+      break;
+    case 'stained_glass': {
+      const cols = [hex('#c0392b'), hex('#2f6fd8'), hex('#e8c040'), hex('#3aa860'), hex('#9b59b6')];
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const lead = x < 1 || y < 1 || x > 14 || y > 14 || (x + y) % 6 === 0 || (x - y + 16) % 6 === 0;
+        set(x, y, lead ? hex('#2a2a2e') : cols[(Math.floor((x + y) / 6) + Math.floor((x - y + 16) / 6)) % cols.length], lead ? 255 : 170);
+      }
+      break;
+    }
+    case 'trough_top':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, (x < 2 || x > 13 || y < 2 || y > 13) ? shade(hex('#8a5a33'), 0.9 + r() * 0.15) : r() < 0.5 ? hex('#d8b14a') : hex('#b8902a'));
       break;
     case 'lava':
       // Lava: naranja brillante con manchas amarillas y costra oscura.

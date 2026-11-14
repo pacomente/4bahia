@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { B } from './blocks.js';
 import { createHumanoid, animateHumanoid, lightHumanoid, makeProp } from './humanoid.js';
 import { standY, stepToward, settle, turnTo } from './walk.js';
+import { navigate } from './pathfind.js';
 import { campsNear } from './camps.js';
 
 // ───────── Saqueadores ─────────
@@ -13,6 +14,10 @@ const TYPES = {
   leader: { hp: 40, dmg: 5, speed: 2.1, scale: 1.18, cooldown: 1.2 },
   raider: { hp: 14, dmg: 3, speed: 2.3, scale: 1, cooldown: 1.0 },
   archer: { hp: 10, dmg: 3, speed: 2.1, scale: 1, cooldown: 2.4 },
+  // Escudero: frena de frente casi todo (hay que rodearlo o romperle la guardia con un golpe cargado).
+  shieldbearer: { hp: 18, dmg: 3, speed: 1.9, scale: 1.05, cooldown: 1.3, shield: true },
+  // Lanzador: tira bombas que explotan al caer (desde lejos, como el arquero).
+  thrower: { hp: 10, dmg: 4, speed: 2.2, scale: 1, cooldown: 3.2, ranged: true },
 };
 const LEADER_NAMES = ['Brago el Rojo', 'Tuerta Malvina', 'Garrón', 'La Víbora', 'Mordaz', 'Cuervo Viejo'];
 const SHOUTS = { aggro: ['¡Un intruso!', '¡A él!', '¡Nadie entra al campamento!', '¡Agárrenlo!'], raid: ['¡Saqueen todo!', '¡La comida es nuestra!', '¡Ja, ja, ja!'], flee: ['¡Retirada!', '¡Se hace de día, vámonos!'], leader: ['¿Te atrevés a venir a mi campamento?', '¡Vas a pagar caro!'] };
@@ -57,8 +62,9 @@ export class Bandits {
       hat: kind === 'leader' ? 'helmet' : 'bandana', hatColor: kind === 'archer' ? '#26232a' : '#8f2b26',
       cape: kind === 'leader' ? '#1c1a20' : null, beard: kind === 'leader' ? '#2b1d12' : r() < 0.4 ? '#2b1d12' : null, scale: T.scale,
     });
-    const prop = makeProp(kind === 'archer' ? 'bow' : 'axe');
+    const prop = makeProp(kind === 'archer' ? 'bow' : kind === 'thrower' ? 'torch' : kind === 'shieldbearer' ? 'sword' : 'axe');
     parts.tool.add(prop);
+    if (kind === 'shieldbearer') { const sh = makeProp('shield:#3a2a22'); parts.offhand.add(sh); parts.offhand.rotation.z = 0; parts.armL.rotation.x = -1.4; }
     parts.root.position.set(x, y, z);
     this.scene.add(parts.root);
     const b = { kind, parts, pos: new THREE.Vector3(x, y, z), heading: r() * 6.28, vy: 0, stuck: 0, side: 1, hp: T.hp, max: T.hp, T, flash: 0, cooldown: 1 + r(), phase: r() * 6, walk: 0, state: 'idle', timer: r() * 3, target: null, dead: false, deadT: 0, bubble: null, bubbleT: 0, aggro: false, isBandit: true, ...extra };
@@ -92,6 +98,8 @@ export class Bandits {
         a.members.push(this.spawn('leader', ...at(3), { camp: a, name: rec.leaderName }));
         for (let k = 0; k < 3 - rec.killed.raider; k++) a.members.push(this.spawn('raider', ...at(4 + Math.random() * 4), { camp: a }));
         for (let k = 0; k < 2 - rec.killed.archer; k++) a.members.push(this.spawn('archer', ...at(5 + Math.random() * 3), { camp: a }));
+        if (!(rec.killed.shieldbearer > 0)) a.members.push(this.spawn('shieldbearer', ...at(4 + Math.random() * 3), { camp: a }));
+        if (!(rec.killed.thrower > 0)) a.members.push(this.spawn('thrower', ...at(6 + Math.random() * 3), { camp: a }));
       }
       plan.cages.forEach((c, i) => { if (!rec.freed.includes(i)) a.captives.push(this.spawnCaptive(a, i, c)); });
     }
@@ -120,10 +128,12 @@ export class Bandits {
   startRaid(villagePlan, camp) {
     const ang = Math.atan2(camp.z - villagePlan.z, camp.x - villagePlan.x);
     const raid = { village: villagePlan, campName: camp.name, stolen: 0 };
-    for (let k = 0; k < 4; k++) {
-      const a = ang + (k - 1.5) * 0.25; const rad = villagePlan.radius + 6;
+    const n = 4 + Math.floor((this.threat ?? 0) / 3);
+    const kinds = ['raider', 'raider', 'raider', 'archer', 'shieldbearer', 'thrower', 'raider'];
+    for (let k = 0; k < n; k++) {
+      const a = ang + (k - (n - 1) / 2) * 0.25; const rad = villagePlan.radius + 6;
       const x = villagePlan.x + 0.5 + Math.cos(a) * rad; const z = villagePlan.z + 0.5 + Math.sin(a) * rad;
-      const b = this.spawn(k === 3 ? 'archer' : 'raider', x, this.ground(x, z, villagePlan.y + 4), z, { raid });
+      const b = this.spawn(kinds[k % kinds.length], x, this.ground(x, z, villagePlan.y + 4), z, { raid });
       b.aggro = true;
       if (k === 0) this.say(b, pick(SHOUTS.raid), 3);
     }
@@ -141,7 +151,7 @@ export class Bandits {
     if (night && !this.wasNight && ctx.enabled) {
       for (const v of ctx.villages ?? []) {
         const camp = campsNear(this.world, v.plan.x, v.plan.z, 420).find((c) => !this.record(c).defeated);
-        if (camp && Math.random() < 0.45) { this.startRaid(v.plan, camp); ctx.onRaid?.(v.plan, camp.name); }
+        if (camp && Math.random() < 0.35 + (this.threat ?? 0) * 0.05) { this.startRaid(v.plan, camp); ctx.onRaid?.(v.plan, camp.name); }
       }
     }
     this.wasNight = night;
@@ -183,7 +193,7 @@ export class Bandits {
         if (foe) {
           const d = Math.hypot(foe.pos.x - b.pos.x, foe.pos.z - b.pos.z);
           facing = Math.atan2(foe.pos.x - b.pos.x, foe.pos.z - b.pos.z);
-          if (b.kind === 'archer') {
+          if (b.kind === 'archer' || b.kind === 'thrower') {
             // Mantiene distancia y dispara con un poco de elevación (la flecha cae).
             if (d < 6) { goal = { x: b.pos.x - (foe.pos.x - b.pos.x), z: b.pos.z - (foe.pos.z - b.pos.z) }; }
             else if (d > 14) goal = { x: foe.pos.x, z: foe.pos.z };
@@ -193,7 +203,7 @@ export class Bandits {
               const to = new THREE.Vector3(foe.pos.x, foe.pos.y + 1.0, foe.pos.z);
               const dir = to.sub(from); const dist = dir.length(); dir.normalize();
               dir.y += (0.5 * 16 * (dist / 26) ** 2) / dist + (Math.random() - 0.5) * 0.04;
-              ctx.onShoot?.(from, dir.normalize(), b, foe);
+              if (b.kind === 'thrower') ctx.onThrow?.(from, foe, b); else ctx.onShoot?.(from, dir.normalize(), b, foe);
               attacking = true;
             }
           } else {
@@ -203,7 +213,7 @@ export class Bandits {
               if (b.cooldown <= 0) {
                 b.cooldown = b.T.cooldown;
                 const dir = new THREE.Vector3(foe.pos.x - b.pos.x, 0, foe.pos.z - b.pos.z).normalize();
-                if (foe.kind === 'player') ctx.onHitPlayer(b.T.dmg, dir, b); else ctx.onHitVillager(foe.e, b.T.dmg);
+                if (foe.kind === 'player') ctx.onHitPlayer(b.T.dmg, dir, b); else ctx.onHitVillager(foe.e, b.T.dmg, b);
               }
             }
           }
@@ -222,7 +232,7 @@ export class Bandits {
         }
       }
       let moving = false;
-      if (goal) moving = stepToward(this.world, b, goal.x, goal.z, speed, dt).moved;
+      if (goal) moving = navigate(this.world, b, goal, speed, dt).moved;
       settle(this.world, b, dt);
       if (facing !== null) b.heading = facing;
       // Animación.
@@ -294,6 +304,15 @@ export class Bandits {
   // Daño desde cualquier fuente. Devuelve true si murió.
   damage(b, dmg, ctx, byPlayer, push) {
     if (b.dead) return false;
+    if (b.T.shield && push && b.stunT === undefined) b.stunT = 0;
+    if (b.T.shield && ctx?.attackerPos) {
+      // De frente, el escudo frena; un golpe cargado (empujón fuerte) le rompe la guardia.
+      const a = Math.atan2(ctx.attackerPos.x - b.pos.x, ctx.attackerPos.z - b.pos.z);
+      const front = Math.abs(((a - b.heading + Math.PI * 3) % (Math.PI * 2)) - Math.PI) < 1.1;
+      const heavy = push && Math.hypot(push.x, push.z) > 1.2;
+      if (front && !heavy) { dmg *= 0.15; this.sound.tone(1250, 0.06, 0.12, 'square'); if (Math.random() < 0.3) this.say(b, '¡Ja! ¡No pasás!'); }
+      if (front && heavy) { this.say(b, '¡Mi escudo!'); b.cooldown = Math.max(b.cooldown, 1.5); }
+    }
     b.hp -= dmg; b.flash = 0.2;
     if (byPlayer) { b.aggro = true; for (const o of b.camp?.members ?? []) o.aggro = true; }
     if (push) { b.pos.x += push.x * (b.kind === 'leader' ? 0.3 : 0.6); b.pos.z += push.z * (b.kind === 'leader' ? 0.3 : 0.6); b.vy = 4; }
@@ -305,6 +324,7 @@ export class Bandits {
       const rec = b.camp.rec;
       if (b.kind === 'leader') {
         rec.defeated = true;
+        ctx?.onLeaderDown?.();
         // Sin jefe, el resto huye.
         let shouted = false;
         for (const o of b.camp.members) if (o !== b && !o.dead) { o.fleeing = true; o.target = { x: o.pos.x + (Math.random() - 0.5) * 120, z: o.pos.z + (Math.random() - 0.5) * 120 }; if (!shouted) { this.say(o, '¡Cayó el jefe! ¡Corran!'); shouted = true; } }
@@ -331,7 +351,7 @@ export class Bandits {
   }
 
   // Al amanecer los campamentos reclutan a los que faltan (salvo los que perdieron a su jefe).
-  dawn() { for (const rec of this.records.values()) if (!rec.defeated) rec.killed = { raider: 0, archer: 0 }; }
+  dawn() { for (const rec of this.records.values()) if (!rec.defeated) rec.killed = { raider: 0, archer: 0, shieldbearer: 0, thrower: 0 }; }
 
   // Jefe enojado más cercano (para la barra de vida en pantalla).
   boss(player) {

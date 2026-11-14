@@ -23,7 +23,22 @@ export const MISSIONS = [
   { id: 'port', title: 'Visitá un puerto', hint: 'Las aldeas junto al mar tienen muelle y faro. Ahí viven pescadores y marineros.', goal: 1, progress: (s) => s.ports ?? 0 },
   { id: 'boat', title: 'Navegá en bote', hint: 'Taller: 5 tablas = Bote. Clic derecho sobre el agua para ponerlo y otra vez para subir.', goal: 1, progress: (s) => s.boated ?? 0 },
   { id: 'wreck', title: 'Encontrá el tesoro de un barco hundido', hint: 'Navegá mar adentro y mirá el fondo: los naufragios guardan un cofre con perlas.', goal: 1, progress: (s) => s.wrecks ?? 0 },
+  { id: 'cook', title: 'Cociná algo', hint: 'Con carne o pescado crudo en la mano, clic derecho sobre una fogata, un hogar o un horno.', goal: 1, progress: (s) => s.cooked ?? 0 },
+  { id: 'fish', title: 'Pescá 3 peces', hint: 'Taller: tablas + lana = Caña de pescar. Tirala al agua y sacá el pez cuando se hunda el corcho.', goal: 3, progress: (s) => s.fished ?? 0 },
+  { id: 'upgrade', title: 'Reforzá tu equipo con el herrero', hint: 'Hablá con un herrero con el arma o la armadura en la mano. Cuesta plata y hierro.', goal: 1, progress: (s) => s.upgraded ?? 0 },
+  { id: 'request', title: 'Cumplí el encargo de un vecino', hint: 'Cada vecino puede pedirte algo distinto (no solo el rey). Hablá con ellos: si tienen un encargo, aparece en su ventana.', goal: 1, progress: (s) => s.requests ?? 0 },
+  { id: 'horse', title: 'Montá a caballo', hint: 'Hay caballos en las praderas y en los corrales de las aldeas. Clic derecho para subir, Shift para bajar.', goal: 1, progress: (s) => s.rode ?? 0 },
+  { id: 'caravan', title: 'Mirá llegar una carreta de comercio', hint: 'Los caminos de grava unen las aldeas. Las carretas llevan comida, madera y piedra de un pueblo a otro.', goal: 1, progress: (s) => s.caravans ?? 0 },
+  { id: 'ruin', title: 'Explorá una ruina', hint: 'Torres abandonadas, templos de arenisca y minas viejas: en el mapa aparecen al acercarte. Buscá el cofre.', goal: 1, progress: (s) => s.ruins ?? 0 },
+  { id: 'treasure', title: 'Encontrá un tesoro enterrado', hint: 'Algunas ruinas guardan un mapa del tesoro. Leelo (clic derecho), seguí la X roja del mapa y cavá.', goal: 1, progress: (s) => s.treasures ?? 0 },
+  { id: 'pet', title: 'Domesticá un lobo', hint: 'De noche salen lobos. Dale carne (clic derecho con carne en la mano) hasta que acepte el collar.', goal: 1, progress: (s) => s.pets ?? 0 },
   { id: 'leader', title: 'Derrotá a un jefe saqueador', hint: 'Llevá armadura y escudo: el jefe pega fuerte y los arqueros disparan desde lejos.', goal: 1, progress: (s) => s.leaders ?? 0 },
+  { id: 'heavy', title: 'Dá un golpe cargado', hint: 'Con una espada en la mano, mantené apretado el clic izquierdo hasta que la barrita se ponga roja y soltá.', goal: 1, progress: (s) => s.heavy ?? 0 },
+  { id: 'parry', title: 'Desviá un golpe con el escudo', hint: 'Levantá el escudo (clic derecho o V) justo antes de que te peguen: el enemigo queda aturdido.', goal: 1, progress: (s) => s.parries ?? 0 },
+  { id: 'house', title: 'Tené tu casa en un pueblo', hint: 'Hablá con el rey o el jefe: te vende un terreno y el constructor te levanta la casa.', goal: 1, progress: (s) => s.house ?? 0 },
+  { id: 'lord', title: 'Convertite en señor de una aldea', hint: 'Con el aprecio del pueblo y encargos reales cumplidos, el rey te puede dar el señorío.', goal: 1, progress: (s) => s.lord ?? 0 },
+  { id: 'dungeon', title: 'Vencé al Rey Sombrío de la mazmorra', hint: 'Las mazmorras tienen una entrada de piedra con barrotes. Bajá la escalera hasta la sala del trono. Tres fases: ¡saltá sus ondas!', goal: 1, progress: (s) => s.kings ?? 0 },
+  { id: 'dragon', title: 'Vencé al dragón de las montañas', hint: 'Su guarida aparece en el mapa en lo alto de las montañas. Llevá arco, flechas, armadura y mucha comida.', goal: 1, progress: (s) => s.dragons ?? 0 },
 ];
 
 export const emptyStats = () => ({ collected: {}, crafted: {}, placed: {}, nights: 0, kills: 0, visited: 0, trades: 0, met: 0, equipped: 0, honor: 0, freed: 0, leaders: 0 });

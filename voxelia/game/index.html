@@ -12,14 +12,14 @@
 
     <!-- HUD -->
     <div id="hud">
-      <div id="crosshair"></div>
+      <div id="charge"><div></div></div><div id="crosshair"></div>
       <div id="break"></div>
       <div id="top-left"><span id="world-title"></span> · <span id="clock"></span><span id="day"></span> <span id="fps"></span></div>
       <canvas id="minimap" width="144" height="144"></canvas>
       <pre id="debug"></pre>
       <div id="toast" class="toast"></div>
       <div id="item-name" class="toast item"></div>
-      <div id="status"><div id="bubbles"></div><div id="armor" title="Armadura"></div><div class="status-row"><div id="hearts"></div><div id="stamina" title="Energía"><div></div></div></div></div>
+      <div id="status"><div id="bubbles"></div><div id="armor" title="Armadura"></div><div class="status-row"><div id="hearts"></div><div id="food" title="Hambre"></div><div id="stamina" title="Energía"><div></div></div></div></div>
       <div id="silver" title="Monedas de plata"></div>
       <div id="mission"></div>
       <div id="glide-tag">Planeando</div>
@@ -75,6 +75,12 @@
           <label class="check"><input type="checkbox" id="s-bob" /> Balanceo de cámara al caminar</label>
           <label class="check"><input type="checkbox" id="s-hand" /> Mostrar la mano</label>
           <label class="check"><input type="checkbox" id="s-fps" /> Mostrar FPS</label>
+          <label>Calidad gráfica: <select id="s-gfx"><option value="high">Alta (brillos, nubes 3D, luciérnagas, hojas que caen)</option><option value="medium">Media (luz del sol, agua con olas, plantas que se mueven)</option><option value="low">Baja (para PCs lentas)</option></select></label>
+          <label>Dificultad: <select id="s-diff"><option value="peaceful">Pacífico (sin daño de criaturas)</option><option value="normal">Normal</option><option value="hard">Difícil</option></select></label>
+          <label>Tamaño de la interfaz: <b id="v-ui"></b><input type="range" id="s-ui" min="0.8" max="1.4" step="0.05" /></label>
+          <label class="check"><input type="checkbox" id="s-cb" /> Modo daltónico (azul/naranja en vez de verde/rojo)</label>
+          <h3 class="v-title">Teclas</h3>
+          <div id="s-keys" class="keys"></div>
         </div>
         <div id="controls-box" class="settings" hidden>
           <table>
@@ -90,7 +96,11 @@
             <tr><td>C</td><td>Taller (supervivencia). Con una Mesa de trabajo cerca, todas las recetas</td></tr>
             <tr><td>Clic derecho en la Mesa</td><td>Abrir el Taller completo (agachado coloca bloques)</td></tr>
             <tr><td>Espacio en el aire</td><td>Planear (con Planeador)</td></tr>
-            <tr><td>M</td><td>Mapa: faros, aldeas y punto de reaparición</td></tr>
+            <tr><td>M</td><td>Mapa: faros, aldeas, ruinas, mazmorras y tesoros</td></tr>
+            <tr><td>J</td><td>Diario de viaje</td></tr>
+            <tr><td>F5</td><td>Cambiar la vista (primera / tercera persona)</td></tr>
+            <tr><td>Clic izquierdo sostenido (espada)</td><td>Golpe cargado: barrido que empuja</td></tr>
+            <tr><td>Escudo justo antes del golpe</td><td>Desvío: sin daño y el enemigo queda aturdido</td></tr>
             <tr><td>Clic derecho a un aldeano</td><td>Hablar y hacer trueques</td></tr>
             <tr><td>Clic derecho con el arco</td><td>Disparar una flecha</td></tr>
             <tr><td>Clic derecho sostenido / V</td><td>Cubrirse con el escudo (equipalo con E)</td></tr>
@@ -137,6 +147,14 @@
       <div class="panel center" style="max-width:none;width:auto">
         <div class="row between"><h2>Mapa</h2><span class="muted">Turquesa: faros · Naranja: aldeas · Rojo: saqueadores · Amarillo: reaparición · M para cerrar</span></div>
         <canvas id="bigmap" width="600" height="600"></canvas>
+      </div>
+    </div>
+
+    <!-- Diario de viaje (J) y libros -->
+    <div id="journal-screen" class="screen">
+      <div class="panel center journal">
+        <div class="row between"><h2 id="j-title">Diario de viaje</h2><span class="muted">J o Esc para cerrar</span></div>
+        <div id="j-body"></div>
       </div>
     </div>
 

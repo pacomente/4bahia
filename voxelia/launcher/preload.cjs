@@ -15,5 +15,7 @@ contextBridge.exposeInMainWorld('voxelia', {
   exitGame: () => ipcRenderer.invoke('game:exit'),
   info: () => ipcRenderer.invoke('app:info'),
   openDataFolder: () => ipcRenderer.invoke('app:open-data'),
+  checkUpdate: () => ipcRenderer.invoke('app:check-update'),
+  openRelease: (url) => ipcRenderer.invoke('app:open-release', url),
   onWorldsChanged: (fn) => ipcRenderer.on('worlds-changed', fn),
 });

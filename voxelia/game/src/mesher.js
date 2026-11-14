@@ -26,9 +26,13 @@ function faceVisible(id, n) {
   return true;
 }
 
+// Hojas y plantas se mecen con el viento (en el shader); el valor es cuánto.
+const LEAFY = new Set([B.LEAVES, B.BIRCH_LEAVES, B.PINE_LEAVES, B.PALM_LEAVES, B.FRUIT_LEAVES, B.JUNGLE_LEAVES]);
+
 class Builder {
-  constructor() { this.pos = []; this.uv = []; this.col = []; this.emi = []; this.sky = []; this.idx = []; }
-  quad(p, uv, c, emissive, flip, sky = 1) {
+  constructor() { this.pos = []; this.uv = []; this.col = []; this.emi = []; this.sky = []; this.nrm = []; this.sway = []; this.idx = []; }
+  // normal: hacia dónde mira la cara (para la luz del sol); sway: cuánto se mueve con el viento (número o uno por vértice).
+  quad(p, uv, c, emissive, flip, sky = 1, normal = [0, 1, 0], sway = 0) {
     const n = this.pos.length / 3;
     for (let i = 0; i < 4; i++) {
       this.pos.push(p[i][0], p[i][1], p[i][2]);
@@ -36,9 +40,17 @@ class Builder {
       this.col.push(c[i], c[i], c[i]);
       this.emi.push(Array.isArray(emissive) ? emissive[i] : emissive);
       this.sky.push(sky);
+      this.nrm.push(normal[0], normal[1], normal[2]);
+      this.sway.push(Array.isArray(sway) ? sway[i] : sway);
     }
     if (flip) this.idx.push(n, n + 1, n + 3, n, n + 3, n + 2);
     else this.idx.push(n, n + 1, n + 2, n + 2, n + 1, n + 3);
+  }
+  // Arreglos crudos (para mandarlos desde el worker sin copiar).
+  data() {
+    if (!this.idx.length) return null;
+    const n = this.pos.length / 3;
+    return { pos: new Float32Array(this.pos), uv: new Float32Array(this.uv), col: new Float32Array(this.col), emi: new Float32Array(this.emi), sky: new Float32Array(this.sky), nrm: new Float32Array(this.nrm), sway: new Float32Array(this.sway), idx: n > 65535 ? new Uint32Array(this.idx) : new Uint16Array(this.idx) };
   }
   geometry() {
     if (!this.idx.length) return null;
@@ -48,6 +60,8 @@ class Builder {
     g.setAttribute('color', new THREE.Float32BufferAttribute(this.col, 3));
     g.setAttribute('emissive', new THREE.Float32BufferAttribute(this.emi, 1));
     g.setAttribute('sky', new THREE.Float32BufferAttribute(this.sky, 1));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(this.nrm, 3));
+    g.setAttribute('sway', new THREE.Float32BufferAttribute(this.sway, 1));
     g.setIndex(this.idx);
     g.computeBoundingSphere();
     return g;
@@ -67,7 +81,7 @@ function torchQuads(out, x, y, z, b) {
     if (f.dir[1] === 1) uv = f.uv.map(([a, c]) => [U(a ? T1 : T0), V(c ? 13 / 16 : 12 / 16)]);       // punta de la llama
     else if (f.dir[1] === -1) uv = f.uv.map(([a, c]) => [U(a ? T1 : T0), V(c ? 1 / 16 : 0)]);
     else uv = f.uv.map(([a, c]) => [U(a ? T1 : T0), V(c ? TH : 0)]);
-    out.quad(pos, uv, [1, 1, 1, 1], 1, false);
+    out.quad(pos, uv, [1, 1, 1, 1], 1, false, 1, f.dir);
   }
 }
 
@@ -81,8 +95,8 @@ function shapeQuads(out, get, x, y, z, id, b, em, sky) {
     const c = [0.9, 0.9, 0.9, 0.9];
     for (const [ax, az, bx, bz] of [[0.15, 0.15, 0.85, 0.85], [0.15, 0.85, 0.85, 0.15]]) {
       const p = [[x + ax, y + 1, z + az], [x + ax, y, z + az], [x + bx, y + 1, z + bz], [x + bx, y, z + bz]];
-      out.quad(p, uv, c, em, false, sky);
-      out.quad([p[2], p[3], p[0], p[1]], [uv[0], uv[1], uv[2], uv[3]], c, em, false, sky);   // del otro lado
+      out.quad(p, uv, c, em, false, sky, [0, 1, 0], [1, 0, 1, 0]);   // las puntas de la planta se mecen
+      out.quad([p[2], p[3], p[0], p[1]], [uv[0], uv[1], uv[2], uv[3]], c, em, false, sky, [0, 1, 0], [1, 0, 1, 0]);   // del otro lado
     }
     return;
   }
@@ -106,6 +120,31 @@ function shapeQuads(out, get, x, y, z, id, b, em, sky) {
     case 'carpet': boxes = [[0, 0, 0, 1, P, 1]]; break;
     case 'anvil': boxes = [[2 * P, 0, 3 * P, 14 * P, 4 * P, 13 * P], [5 * P, 4 * P, 5 * P, 11 * P, 9 * P, 11 * P], [0, 9 * P, 4 * P, 1, 1, 12 * P]]; break;
     case 'fireplace': boxes = [[0, 0, 0, 1, 1, 1]]; break;
+    case 'fence': {
+      // Poste central y travesaños hacia las cercas o bloques vecinos.
+      boxes = [[6 * P, 0, 6 * P, 10 * P, 1, 10 * P]];
+      const link = (dx, dz) => { const n = get(x + dx, y, z + dz); return n === B.FENCE || (n !== B.AIR && BLOCKS[n].solid && !BLOCKS[n].transparent); };
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        if (!link(dx, dz)) continue;
+        for (const [y0, y1] of [[6 * P, 8 * P], [12 * P, 14 * P]]) {
+          if (dx) boxes.push([dx > 0 ? 10 * P : 0, y0, 7 * P, dx > 0 ? 1 : 6 * P, y1, 9 * P]);
+          else boxes.push([7 * P, y0, dz > 0 ? 10 * P : 0, 9 * P, y1, dz > 0 ? 1 : 6 * P]);
+        }
+      }
+      break;
+    }
+    case 'bell': boxes = [[7 * P, 14 * P, 7 * P, 9 * P, 1, 9 * P], [5 * P, 6 * P, 5 * P, 11 * P, 14 * P, 11 * P], [4 * P, 3 * P, 4 * P, 12 * P, 6 * P, 12 * P]]; break;
+    case 'altar': boxes = [[0, 0, 0, 1, 1, 1]]; break;
+    case 'trough': boxes = [[0, 0, 0, 1, 2 * P, 1], [0, 0, 0, 2 * P, 7 * P, 1], [14 * P, 0, 0, 1, 7 * P, 1], [0, 0, 0, 1, 7 * P, 2 * P], [0, 0, 14 * P, 1, 7 * P, 1], [2 * P, 2 * P, 2 * P, 14 * P, 5 * P, 14 * P]]; break;
+    case 'pew': {
+      // Mira hacia el altar más cercano en línea recta; si no hay, como una silla.
+      let f = null;
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) for (let k = 1; k <= 9 && !f; k++) if (get(x + dx * k, y, z + dz * k) === B.ALTAR) f = [dx, dz];
+      f ??= facing();
+      boxes = [f[0] ? [2 * P, 6 * P, 0, 14 * P, 8 * P, 1] : [0, 6 * P, 2 * P, 1, 8 * P, 14 * P], ...legs(6 * P, 1)];
+      boxes.push(backBox(f, 8 * P, 15 * P));
+      break;
+    }
     default: {
       // Puertas: pared a lo largo de x → la puerta ocupa todo x y es fina en z.
       const alongX = solidAt(1, 0) || solidAt(-1, 0) || !(solidAt(0, 1) || solidAt(0, -1));
@@ -137,13 +176,35 @@ function shapeQuads(out, get, x, y, z, id, b, em, sky) {
         uv.push([u0 + (u1 - u0) * fu, v0 + (v1 - v0) * fv]);
       }
       const l = f.light;
-      out.quad(pos, uv, [l, l, l, l], fire ? 1 : em, false, sky);
+      out.quad(pos, uv, [l, l, l, l], fire ? 1 : em, false, sky, f.dir);
     }
   }
 }
 
+// Geometría de Three.js a partir de los arreglos crudos.
+export function toGeometry(d) {
+  if (!d) return null;
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(d.pos, 3));
+  g.setAttribute('uv', new THREE.BufferAttribute(d.uv, 2));
+  g.setAttribute('color', new THREE.BufferAttribute(d.col, 3));
+  g.setAttribute('emissive', new THREE.BufferAttribute(d.emi, 1));
+  g.setAttribute('sky', new THREE.BufferAttribute(d.sky, 1));
+  g.setAttribute('normal', new THREE.BufferAttribute(d.nrm, 3));
+  g.setAttribute('sway', new THREE.BufferAttribute(d.sway, 1));
+  g.setIndex(new THREE.BufferAttribute(d.idx, 1));
+  g.computeBoundingSphere();
+  return g;
+}
+
 // Construye la geometría de un chunk: una malla opaca (incluye hojas y vidrio con alpha-test) y otra de agua.
 export function meshChunk(world, chunk) {
+  const d = meshChunkData(world, chunk);
+  return { opaque: toGeometry(d.opaque), water: toGeometry(d.water) };
+}
+
+// Lo mismo, pero devuelve arreglos crudos (lo usa el worker).
+export function meshChunkData(world, chunk) {
   const opaque = new Builder();
   const water = new Builder();
   const x0 = chunk.cx * CS; const z0 = chunk.cz * CS;
@@ -226,44 +287,89 @@ export function meshChunk(world, chunk) {
           }
           // El atributo "emissive" lleva la luz de bloques por vértice (1 = el propio bloque brilla).
           const em = b.emissive ? [1, 1, 1, 1] : lightFn ? lit.map((l) => Math.pow(l, 1.4)) : 0;
-          out.quad(pos, uv, col, em, ao[0] + ao[3] > ao[1] + ao[2], sky);
+          out.quad(pos, uv, col, em, ao[0] + ao[3] > ao[1] + ao[2], sky, f.dir, LEAFY.has(id) ? 0.6 : isWater && dy === 1 ? -1 : 0);
         }
       }
     }
   }
-  return { opaque: opaque.geometry(), water: water.geometry() };
+  return { opaque: opaque.data(), water: water.data() };
 }
 
-// Material propio: textura × color de vértice × luz del día (las lámparas ignoran la noche) + niebla.
+// Material propio de los bloques. Calidad (uniform quality): 0 baja, 1 media, 2 alta.
+// - Luz del sol según la hora: las caras que miran al sol se iluminan más y con su color (cálido al
+//   amanecer y al atardecer); la sombra toma el color del cielo. De noche, luz de luna azulada.
+// - Luz de bloques cálida (lámparas, antorchas), que titila un poco.
+// - Hojas y plantas que se mecen con el viento; agua con olas, reflejo del cielo y brillo del sol.
 export function createBlockMaterial(atlasTex, { transparent = false } = {}) {
   return new THREE.ShaderMaterial({
     uniforms: {
       map: { value: atlasTex }, daylight: { value: 1 }, fogColor: { value: new THREE.Color(0x9fd3ff) },
       fogNear: { value: 40 }, fogFar: { value: 100 }, opacity: { value: transparent ? 0.78 : 1 },
+      time: { value: 0 }, quality: { value: 2 }, sunDir: { value: new THREE.Vector3(0.3, 0.9, 0.2) },
+      sunColor: { value: new THREE.Color(1, 1, 1) }, ambient: { value: new THREE.Color(0.85, 0.9, 1) }, skyTop: { value: new THREE.Color(0x4a8fe0) },
     },
     vertexShader: `
-      attribute float emissive; attribute float sky;
+      attribute float emissive; attribute float sky; attribute float sway;
+      uniform float time; uniform float quality;
       varying vec2 vUv; varying vec3 vColor; varying float vEmissive; varying float vSky; varying float vDepth;
+      varying vec3 vNormal; varying vec3 vWorld; varying float vWater;
       void main() {
-        vUv = uv; vColor = color; vEmissive = emissive; vSky = sky;
-        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vUv = uv; vColor = color; vEmissive = emissive; vSky = sky; vNormal = normal; vWater = sway < 0.0 ? 1.0 : 0.0;
+        vec3 p = position;
+        if (quality > 0.5) {
+          if (sway > 0.0) {
+            float w = sin(time * 1.6 + p.x * 0.9 + p.z * 0.6) + 0.5 * sin(time * 2.7 + p.z * 1.3 + p.y);
+            p.x += w * 0.035 * sway; p.z += cos(time * 1.3 + p.x * 0.7 + p.y * 0.5) * 0.03 * sway;
+          }
+          if (sway < 0.0) p.y += sin(time * 1.4 + p.x * 0.9) * cos(time * 1.1 + p.z * 0.8) * 0.06;
+        }
+        vec4 world = modelMatrix * vec4(p, 1.0);
+        vWorld = world.xyz;
+        vec4 mv = viewMatrix * world;
         vDepth = -mv.z;
         gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: `
       uniform sampler2D map; uniform float daylight; uniform vec3 fogColor; uniform float fogNear; uniform float fogFar; uniform float opacity;
+      uniform float time; uniform float quality; uniform vec3 sunDir; uniform vec3 sunColor; uniform vec3 ambient; uniform vec3 skyTop;
       varying vec2 vUv; varying vec3 vColor; varying float vEmissive; varying float vSky; varying float vDepth;
+      varying vec3 vNormal; varying vec3 vWorld; varying float vWater;
       void main() {
         vec4 tex = texture2D(map, vUv);
         if (tex.a < 0.5 && opacity >= 1.0) discard;
-        // La luz que gana: la del cielo (según la hora y lo tapado que esté) o la de los bloques cercanos.
+        vec3 n = normalize(vNormal);
         float skyLight = daylight * vSky;
-        float light = max(skyLight, vEmissive * 1.1);
-        // Luz de bloques cálida (anaranjada) donde supera a la del cielo; los bloques que brillan no se tiñen.
+        // Luz de bloques cálida (que titila un poquito).
+        float flick = quality > 0.5 ? 1.0 + 0.05 * sin(time * 13.0 + vWorld.x * 3.1 + vWorld.z * 2.3) * sin(time * 7.3 + vWorld.y * 1.7) : 1.0;
         float warm = clamp((vEmissive - skyLight) * 2.2, 0.0, 1.0) * step(vEmissive, 0.995);
-        vec3 c = tex.rgb * vColor * light * mix(vec3(1.0), vec3(1.18, 0.8, 0.46), warm);
+        vec3 blockLight = vec3(vEmissive * 1.1 * flick) * mix(vec3(1.0), vec3(1.18, 0.8, 0.46), warm);
+        vec3 c;
+        if (quality < 0.5) {
+          c = tex.rgb * vColor * max(vec3(skyLight), blockLight);
+        } else {
+          // Sacar la luz fija de la cara (queda solo la oclusión de las esquinas) y poner la del sol.
+          float face = n.y > 0.5 ? 1.0 : n.y < -0.5 ? 0.5 : abs(n.x) > 0.5 ? 0.8 : 0.65;
+          float ao = clamp(vColor.r / face, 0.0, 1.0);
+          float ndl = max(dot(n, sunDir), 0.0);
+          float shade = mix(face, 0.5 + 0.62 * ndl, 0.75);
+          vec3 tint = mix(ambient, sunColor, clamp(ndl * 1.2, 0.0, 1.0));
+          vec3 skyPart = skyLight * shade * tint;
+          c = tex.rgb * ao * max(skyPart, blockLight);
+        }
+        float alpha = opacity;
+        // Agua: olas (normal que se mueve), reflejo del cielo según el ángulo y brillo del sol.
+        if (vWater > 0.5 && quality > 0.5) {
+          vec3 wn = normalize(vec3(cos(time * 1.4 + vWorld.x * 0.9) * 0.12 + sin(time * 2.1 + vWorld.z * 1.7) * 0.05, 1.0, sin(time * 1.1 + vWorld.z * 0.8) * 0.12 + cos(time * 1.9 + vWorld.x * 1.3) * 0.05));
+          vec3 view = normalize(cameraPosition - vWorld);
+          float fres = pow(1.0 - max(dot(wn, view), 0.0), 3.0);
+          vec3 refl = mix(fogColor, skyTop, 0.55) * (0.35 + 0.65 * daylight);
+          c = mix(c, refl, fres * 0.65);
+          float spec = pow(max(dot(reflect(-sunDir, wn), view), 0.0), 80.0) * smoothstep(0.2, 0.6, daylight);
+          c += sunColor * spec * 1.4;
+          alpha = clamp(opacity + fres * 0.25, 0.0, 0.97);
+        }
         float fog = smoothstep(fogNear, fogFar, vDepth);
-        gl_FragColor = vec4(mix(c, fogColor, fog), opacity);
+        gl_FragColor = vec4(mix(c, fogColor, fog), alpha);
         #include <colorspace_fragment>
       }`,
     vertexColors: true,
