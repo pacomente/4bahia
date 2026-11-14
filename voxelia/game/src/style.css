@@ -200,3 +200,7 @@ img.coin { width: 18px; height: 18px; image-rendering: pixelated; vertical-align
 #boss b { font-size: 15px; color: #ffb4a8; }
 .boss-bar { margin-top: 4px; height: 12px; background: #2a0a0a; border: 2px solid #000; }
 .boss-bar i { display: block; height: 100%; background: linear-gradient(#e8463a, #8f1e16); transition: width .2s; }
+
+/* Economía local */
+.v-stock .cheap { color: #2e7a1e; font-weight: 700; } .v-stock .dear { color: #a01e16; font-weight: 700; }
+.tr { font-style: normal; font-size: 11px; margin-right: 2px; } .tr.up { color: #ffb4a8; } .tr.down { color: #b9ffad; }

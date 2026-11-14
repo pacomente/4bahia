@@ -67,16 +67,22 @@ export function villagePlan(world, rx, rz) {
   const r = rng(Math.floor(hash3(world.seed, rx, 777, rz) * 4294967296));
   // Cerca del inicio (regiones -1..0) se busca con más ganas: siempre hay una aldea a mano.
   const home = Math.abs(rx + 0.5) <= 1 && Math.abs(rz + 0.5) <= 1;
-  const tries = home ? 24 : r() < 0.75 ? 6 : 0;
-  let x = 0; let z = 0; let style = null; let y = 0;
+  const tries = home ? 40 : r() < 0.75 ? 6 : 0;
+  let x = 0; let z = 0; let style = null; let y = 0; let fallback = null;
+  // ¿Hay mar cerca? (cerca del inicio se prefiere un lugar con puerto)
+  const coastal = (cx, cz) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => { for (let k = 10; k <= 54; k += 4) if (world.heightAt(cx + dx * k, cz + dz * k) < SEA - 3) return true; return false; });
   for (let t = 0; t < tries && !style; t++) {
     x = rx * REGION + 30 + Math.floor(r() * (REGION - 60));
     z = rz * REGION + 30 + Math.floor(r() * (REGION - 60));
     const s = STYLE_BY_BIOME[world.biome(x, z)];
     y = world.heightAt(x, z);
     const [lo, hi] = heightRange(world, x, z, 12, 3);
-    if (s && y > SEA + 1 && y < SEA + 34 && hi - lo <= 10) style = s;
+    if (s && y > SEA + 1 && y < SEA + 34 && hi - lo <= 10) {
+      if (home && !coastal(x, z) && t < tries - 1) { fallback ??= { x, z, y, s }; continue; }
+      style = s;
+    }
   }
+  if (!style && fallback) ({ x, z, y, s: style } = fallback);
   if (style) {
     {
       const names = NAMES[style];
@@ -124,12 +130,12 @@ export function villagePlan(world, rx, rz) {
       }
       // Campos de trigo con canal de riego, cerca del borde.
       plan.fields = [];
-      for (let k = 0; k < 20 && plan.fields.length < (plan.style === 'desert' ? 1 : 2); k++) {
-        const a = r() * Math.PI * 2; const rad = 15 + r() * 8;
+      for (let k = 0; k < 50 && plan.fields.length < (plan.style === 'desert' ? 1 : 2); k++) {
+        const a = r() * Math.PI * 2; const rad = 14 + r() * 14;
         const fx = Math.round(x + Math.cos(a) * rad); const fz = Math.round(z + Math.sin(a) * rad);
         if (overlaps([...plan.houses, ...plan.slots, ...(plan.castle ? [plan.castle] : [])], fx, fz, 0) || plan.fields.some((f) => Math.hypot(f.x - fx, f.z - fz) < 10)) continue;
         const [flo, fhi] = heightRange(world, fx, fz, 4, 1);
-        if (fhi - flo > 3 || flo <= SEA) continue;
+        if (fhi - flo > 4 || flo <= SEA) continue;
         const fy = world.heightAt(fx, fz);
         const cells = [];
         for (let dx = -3; dx <= 3; dx++) for (let dz = -2; dz <= 2; dz++) if (dz !== 0) cells.push({ x: fx + dx, y: fy, z: fz + dz });
@@ -140,6 +146,9 @@ export function villagePlan(world, rx, rz) {
         plan.posts.push({ x: px, z: pz, y: world.heightAt(px, pz) });
       }
       plan.radius = Math.max(...[...plan.houses, ...plan.slots].map((h) => Math.hypot(h.x - x, h.z - z))) + 6;
+      // Puerto: si el mar está cerca, la aldea tiene muelle, faro y marineros.
+      plan.port = findPort(world, plan);
+      if (plan.port) plan.name = `Puerto ${plan.name}`;
     }
   }
   cache.set(key, plan);
@@ -350,12 +359,87 @@ function fieldBlueprint(world, plan, f) {
 }
 
 // Todos los bloques de la aldea tal como nace (casas iniciales, castillo, mercado, campos). Caché por plan.
+// Busca la costa en las 4 direcciones: tierra firme hasta un punto y después agua profunda por un buen trecho.
+function findPort(world, plan) {
+  let best = null;
+  for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    for (let k = 8; k <= 56; k++) {
+      const x = plan.x + dx * k; const z = plan.z + dz * k;
+      if (world.heightAt(x, z) >= SEA - 1) continue;
+      // Agua: ¿sigue siendo mar al menos 14 bloques más?
+      let wet = 0;
+      for (let j = 0; j < 16; j++) if (world.heightAt(x + dx * j, z + dz * j) < SEA - 1) wet++;
+      if (wet >= 13 && (!best || k < best.k)) best = { k, dir: [dx, dz] };
+      break;
+    }
+  }
+  if (!best) return null;
+  const [dx, dz] = best.dir; const perp = [dz, dx];
+  const start = { x: plan.x + dx * (best.k - 1), z: plan.z + dz * (best.k - 1) };
+  const length = 14;
+  const end = { x: start.x + dx * length, z: start.z + dz * length };
+  // Faro al costado del arranque del muelle, sobre tierra.
+  let lighthouse = null;
+  for (const s of [4, -4, 6, -6]) {
+    const lx = start.x - dx * 2 + perp[0] * s; const lz = start.z - dz * 2 + perp[1] * s;
+    const g = world.heightAt(lx, lz);
+    if (g > SEA && !plan.houses.some((h) => Math.abs(h.x - lx) < 6 && Math.abs(h.z - lz) < 6)) { lighthouse = { x: lx, z: lz, y: g }; break; }
+  }
+  return {
+    dir: best.dir, perp, start, end, length, deckY: SEA + 1, lighthouse,
+    fishSpot: { x: end.x + 0.5 - dx * 1, z: end.z + 0.5 - dz * 1 + 0 },
+    dock: { x: end.x + 0.5 + perp[0] * 3 + dx * 2, z: end.z + 0.5 + perp[1] * 3 + dz * 2 },     // donde atracan los barcos
+    pierWalk: { x: start.x + 0.5 + dx * 6, z: start.z + 0.5 + dz * 6 },
+  };
+}
+
+// Muelle de tablas sobre pilotes, faroles en la punta, faro a rayas y un camino desde la plaza.
+function portBlueprint(world, plan) {
+  const out = []; const put = (x, y, z, id) => out.push({ x, y, z, id });
+  const p = plan.port; const [dx, dz] = p.dir; const [px, pz] = p.perp;
+  const y = p.deckY;
+  for (let k = -2; k <= p.length; k++) for (let w = -1; w <= 1; w++) {
+    const x = p.start.x + dx * k + px * w; const z = p.start.z + dz * k + pz * w;
+    put(x, y, z, B.PLANKS);
+    for (let yy = y + 1; yy <= y + 4; yy++) put(x, yy, z, B.AIR);
+    // Pilotes cada 3 bloques en los bordes, desde el fondo.
+    if (k % 3 === 0 && w !== 0) { const g = world.heightAt(x, z); for (let yy = Math.min(g + 1, y - 1); yy < y; yy++) put(x, yy, z, B.LOG); }
+  }
+  // Barandas bajas y faroles en la punta.
+  for (const w of [-1, 1]) {
+    const ex = p.end.x + px * w; const ez = p.end.z + pz * w;
+    put(ex, y + 1, ez, B.LOG); put(ex, y + 2, ez, B.LOG); put(ex, y + 3, ez, B.LAMP);
+    put(p.start.x + dx * 6 + px * w, y + 1, p.start.z + dz * 6 + pz * w, B.BARREL);
+  }
+  // Camino de grava desde la plaza hasta el muelle.
+  for (let k = 0; k <= Math.abs(p.start.x - plan.x) + Math.abs(p.start.z - plan.z); k++) {
+    const x = plan.x + dx * k; const z = plan.z + dz * k;
+    if (Math.abs(x - plan.x) > Math.abs(p.start.x - plan.x) || Math.abs(z - plan.z) > Math.abs(p.start.z - plan.z)) break;
+    const g = world.heightAt(x, z);
+    if (g > SEA) { put(x, g, z, STYLES[plan.style].path); put(x, g + 1, z, B.AIR); put(x, g + 2, z, B.AIR); }
+  }
+  // Faro: torre de 3×3 a rayas rojas y blancas con una lámpara arriba.
+  const L = p.lighthouse;
+  if (L) {
+    for (let ddx = -1; ddx <= 1; ddx++) for (let ddz = -1; ddz <= 1; ddz++) {
+      const g = world.heightAt(L.x + ddx, L.z + ddz);
+      for (let yy = Math.min(g + 1, L.y); yy <= L.y; yy++) put(L.x + ddx, yy, L.z + ddz, B.COBBLE);
+      for (let yy = L.y + 1; yy <= L.y + 11; yy++) put(L.x + ddx, yy, L.z + ddz, (ddx || ddz) ? (Math.floor((yy - L.y) / 2) % 2 ? B.WOOL_RED : B.WOOL_WHITE) : B.AIR);
+      put(L.x + ddx, L.y + 12, L.z + ddz, B.COBBLE);
+      put(L.x + ddx, L.y + 13, L.z + ddz, (ddx || ddz) ? B.GLASS : B.LAMP);
+      put(L.x + ddx, L.y + 14, L.z + ddz, B.ROOF);
+    }
+  }
+  return out;
+}
+
 export function villageBlocks(world, plan) {
   if (plan._blocks) return plan._blocks;
   const list = plazaBlueprint(world, plan);
   for (const f of plan.fields ?? []) list.push(...fieldBlueprint(world, plan, f));
   for (const s of plan.stalls ?? []) list.push(...stallBlueprint(plan, s));
   if (plan.castle) list.push(...castleBlueprint(world, plan, plan.castle));
+  if (plan.port) list.push(...portBlueprint(world, plan));
   for (const h of plan.houses) list.push(...houseBlueprint(world, plan, h));
   plan._blocks = list;
   return list;
@@ -364,7 +448,8 @@ export function villageBlocks(world, plan) {
 // Coloca en un chunk recién generado los bloques de las aldeas que lo tocan.
 export function placeVillages(world, chunk) {
   const x0 = chunk.cx * CS; const z0 = chunk.cz * CS;
-  for (const plan of villagesNear(world, x0 + CS / 2, z0 + CS / 2, CS)) {
+  // El muelle de los puertos sale bastante más allá del radio de la aldea.
+  for (const plan of villagesNear(world, x0 + CS / 2, z0 + CS / 2, CS + 48)) {
     for (const b of villageBlocks(world, plan)) {
       const lx = b.x - x0; const lz = b.z - z0;
       if (lx < 0 || lz < 0 || lx >= CS || lz >= CS || b.y < 0 || b.y >= 96) continue;

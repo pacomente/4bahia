@@ -5,7 +5,7 @@ import { villagesNear, villagePlan, houseBlueprint, chimneyTop, furnish, STYLES,
 import { createHumanoid, animateHumanoid, lightHumanoid, makeProp } from './humanoid.js';
 import { standY, stepToward, settle, turnTo } from './walk.js';
 import { hash3 } from './world.js';
-import { SHOPS, PRICE, sellPrice, villageLevel, LEVELS, makeQuest, rankFor } from './economy.js';
+import { SHOPS, PRICE, sellPrice, villageLevel, LEVELS, makeQuest, rankFor, localPrice, trend, economySummary } from './economy.js';
 
 // ───────── Aldeanos ─────────
 // Cada aldeano tiene nombre, oficio y personalidad. De día pasean, charlan y trabajan;
@@ -20,6 +20,8 @@ export const PROFESSIONS = {
   smith: { name: 'Herrero', fem: 'Herrera', prop: 'hammer', apron: '#2f2f33' },
   merchant: { name: 'Mercader', fem: 'Mercadera', prop: null, cape: '#3c2f7a' },
   woodcutter: { name: 'Leñador', fem: 'Leñadora', prop: 'axe', hat: 'cap', hatColor: '#8f2b26' },
+  fisher: { name: 'Pescador', fem: 'Pescadora', prop: 'rod', hat: 'cap', hatColor: '#2f4fb8' },
+  sailor: { name: 'Marinero', fem: 'Marinera', prop: null, hat: 'cap', hatColor: '#1e2a4a', apron: '#e8e4d8' },
   king: { name: 'Rey', fem: 'Reina', chief: 'Jefe', chiefFem: 'Jefa', prop: null, hat: 'crown', cape: '#6a1f8a' },
 };
 
@@ -54,6 +56,8 @@ const LINES = {
   sleep: ['Zzz…', 'Zzz…', 'Zzz… zz…'],
   harvest: ['¡Buena cosecha!', 'Este trigo está perfecto.'],
   chop: ['¡Árbol va!', 'Leña para el invierno.'],
+  fish: ['¡Pique!', '¡Uno grande!', 'Hoy el mar está generoso.', 'Shhh, que se espantan.'],
+  sailor: ['¡Barco a la vista!', 'El mar está tranquilo hoy.', 'Mañana llega el mercante.', '¿Querés un bote? Tengo uno lindo.'],
   talk: ['¿Viste lo que construyeron?', 'Dicen que en las cuevas brillan cristales.', 'Mañana llueve, seguro.', 'Necesitamos más casas.', '¡Ja, ja!', '¿Y tu familia?', 'El herrero arregla herramientas.'],
 };
 
@@ -121,6 +125,8 @@ export function neededProfession(plan, rec) {
   if (!has('guard')) return 'guard';
   if (!has('smith') && plan.style !== 'desert') return 'smith';
   if (!has('merchant') && plan.style === 'desert') return 'merchant';
+  if (plan.port && !has('fisher')) return 'fisher';
+  if (plan.port && !has('sailor')) return 'sailor';
   if (!has('woodcutter') && rec.villagers.length >= 4) return 'woodcutter';
   const n = rec.villagers.filter((v) => v.prof === 'guard').length;
   if (n < 2 && rec.villagers.length >= 7) return 'guard';
@@ -164,6 +170,7 @@ export function villageDawn(plan, rec, r = Math.random) {
   // Producción del día: granjeros (comida), leñadores (madera), constructores y guardias (piedra).
   for (const v of rec.villagers) {
     if (v.prof === 'farmer') rec.stock.food += 3;
+    if (v.prof === 'fisher') rec.stock.food += 4;
     if (v.prof === 'woodcutter') rec.stock.wood += 4;
     if (v.prof === 'builder' || v.prof === 'smith') rec.stock.stone += 2;
   }
@@ -636,6 +643,8 @@ export class Villages {
     }
     if (job.kind === 'tree') { a.rec.stock.wood += 1; if (Math.random() < 0.2) this.say(e, pick(Math.random, LINES.chop), 2); }
     if (job.kind === 'forge') a.rec.stock.stone += Math.random() < 0.3 ? 1 : 0;
+    if (job.kind === 'fish') { a.rec.stock.food += 1; if (Math.random() < 0.35) this.say(e, pick(Math.random, LINES.fish), 2); ctx.onSplash?.(e.pos); }
+    if (job.kind === 'watch' && Math.random() < 0.3) this.say(e, pick(Math.random, LINES.sailor), 2.5);
   }
 
   // Árboles cerca de la aldea para el leñador (se buscan una vez).
@@ -696,6 +705,9 @@ export class Villages {
       const t = trees[Math.floor(Math.random() * trees.length)];
       if (t) { e.job = { kind: 'tree', x: t.x, y: t.y, z: t.z }; e.workAction = 'chop'; go(t.stand.x, t.stand.z, 'work', 6, 0.8); return; }
     }
+    // Puerto: el pescador pesca en la punta del muelle; el marinero mira el mar desde el muelle.
+    if (work && prof === 'fisher' && a.plan.port) { const f = a.plan.port.fishSpot; e.job = { kind: 'fish' }; e.workAction = 'fish'; go(f.x + (Math.random() - 0.5) * 0.6, f.z + (Math.random() - 0.5) * 0.6, 'work', 9 + Math.random() * 6, 0.6); return; }
+    if (prof === 'sailor' && a.plan.port && r < 0.7) { const d = a.plan.port.pierWalk; e.workAction = 'guard'; e.job = { kind: 'watch' }; go(d.x + (Math.random() - 0.5) * 1.5, d.z + (Math.random() - 0.5) * 1.5, 'work', 10 + Math.random() * 10, 0.6); return; }
     if (work && (prof === 'smith' || prof === 'builder')) { e.job = { kind: 'forge' }; e.workAction = 'build'; e.state = 'work'; e.timer = 4 + Math.random() * 4; return; }
     if (prof === 'king' && a.plan.castle?.throne && time < 0.4 && r < 0.7) {
       // El rey recibe en la sala del trono (o se da una vuelta por la plaza).
@@ -790,9 +802,10 @@ export class Villages {
     const why = [v.hunger > 0.6 && 'tiene hambre', v.energy < 0.3 && 'está cansado', v.social < 0.25 && 'se siente solo', v.partner && 'está en pareja'].filter(Boolean);
     const partner = v.partner ? rec.villagers.find((x) => x.id === v.partner)?.name : null;
     const repText = rec.rep >= 8 ? 'Te adoran' : rec.rep >= 3 ? 'Te aprecian' : rec.rep <= -5 ? 'Desconfían de vos' : 'Te conocen poco';
+    // Precios locales: cada aldea cobra según su bioma, sus reservas y si llegó un barco.
     const shop = SHOPS[v.prof] && !isChild(v) && rec.rep >= -5 ? {
-      sells: SHOPS[v.prof].sells.map((it) => ({ ...it, price: PRICE[it.id] * it.n, locked: (it.level ?? 1) > level, needs: LEVELS[it.level ?? 1].name })),
-      buys: SHOPS[v.prof].buys.map((id) => ({ id, price: sellPrice(id) })),
+      sells: SHOPS[v.prof].sells.map((it) => { const unit = localPrice(it.id, plan, rec); return { ...it, price: Math.max(1, Math.round(unit * it.n)), trend: trend(it.id, plan, rec), locked: (it.level ?? 1) > level, needs: LEVELS[it.level ?? 1].name }; }),
+      buys: SHOPS[v.prof].buys.map((id) => ({ id, price: Math.max(1, Math.floor(localPrice(id, plan, rec) * 0.5)), trend: trend(id, plan, rec) })),
     } : null;
     return {
       name: v.name, child: isChild(v), king: v.prof === 'king',
@@ -802,7 +815,7 @@ export class Villages {
       level, levelName: LEVELS[level].name, stock: rec.stock,
       mood: mood > 0.66 ? 'Contento' : mood > 0.4 ? 'Normal' : 'Triste', moodWhy: why, partner,
       trades: isChild(v) || rec.rep < -5 ? [] : TRADES[v.prof] ?? [], shop, look: v.look, canDonate: v.prof === 'builder',
-      quest: v.prof === 'king' ? rec.quest : null, rank: rankFor(player.honor ?? 0).name,
+      quest: v.prof === 'king' ? rec.quest : null, rank: rankFor(player.honor ?? 0).name, economy: economySummary(plan, rec), port: !!plan.port,
     };
   }
 

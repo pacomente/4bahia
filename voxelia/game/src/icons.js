@@ -207,6 +207,31 @@ export function drawItem(id, it, I) {
       }
       for (let x = 11; x <= 21; x++) set(x, 18, RAMPS.red[1]);
       break;
+    case I.BERRIES:
+      for (const [x, y] of [[12, 16], [18, 14], [15, 21], [21, 20], [10, 22]]) disk(set, x, y, 3.2, RAMPS.apple);
+      poly(set, [[14, 10], [20, 6], [22, 9], [16, 12]], () => RAMPS.green[2]);
+      break;
+    case I.FISH:
+      disk(set, 15, 16, 10, ['#2e5a7a', '#4f86a8', '#8ab8d8', '#e0f0ff'], { ry: 6 });
+      poly(set, [[24, 16], [30, 10], [30, 22]], () => '#4f86a8');
+      for (let x = 9; x < 21; x += 3) set(x, 18, '#2e5a7a');
+      disk(set, 8, 14, 1.4, RAMPS.coal); set(8, 13, '#ffffff');
+      break;
+    case I.MEAT:
+      disk(set, 14, 16, 10, ['#5a2410', '#8a4a2a', '#b06a40', '#e0a070'], { ry: 8 });
+      thickLine(set, 21, 21, 28, 27, 3, RAMPS.cloth); disk(set, 28, 27, 2.2, RAMPS.cloth);
+      for (let k = 0; k < 3; k++) thickLine(set, 8 + k * 4, 12, 11 + k * 4, 20, 1, ['#4a1a08', '#4a1a08', '#4a1a08', '#4a1a08']);
+      break;
+    case I.BOAT:
+      poly(set, [[2, 15], [30, 15], [26, 23], [6, 23]], (x, y) => pickRamp(RAMPS.wood, 0.95 - (y - 15) / 10));
+      for (let x = 3; x <= 29; x++) set(x, 15, RAMPS.wood[3]);
+      for (let x = 5; x <= 27; x += 5) for (let y = 16; y <= 22; y++) set(x, y, RAMPS.darkwood[1]);
+      thickLine(set, 10, 6, 21, 19, 1.4, RAMPS.darkwood); poly(set, [[19, 17], [24, 20], [22, 22]], () => RAMPS.wood[2]);
+      break;
+    case I.PEARL:
+      disk(set, 16, 17, 9, ['#a89ab8', '#d8cce4', '#f4eef8', '#ffffff']);
+      set(12, 13, '#ffffff'); set(13, 12, '#ffffff'); set(13, 13, '#ffffff');
+      break;
     case I.SEEDS:
       for (const [x, y] of [[9, 12], [15, 9], [21, 13], [12, 19], [18, 18], [24, 21], [8, 24], [15, 25], [22, 27]]) disk(set, x, y, 2, RAMPS.green, { ry: 1.5 });
       break;

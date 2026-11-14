@@ -20,6 +20,9 @@ export const MISSIONS = [
   { id: 'king', title: 'Cumplí un encargo del rey', hint: 'El rey vive en el castillo de las aldeas medievales (en las otras, el jefe). Te paga en plata.', goal: 1, progress: (s) => s.honor ?? 0 },
   { id: 'mushroom', title: 'Juntá un hongo luminoso', hint: 'Bajá a las cavernas profundas (las grietas son una buena entrada). Cuidado con la lava.', goal: 1, progress: (s) => s.collected[40] ?? 0 },
   { id: 'freed', title: 'Liberá a un prisionero', hint: 'En el mapa, los campamentos de saqueadores están en rojo. Rompé los barrotes de una jaula.', goal: 1, progress: (s) => s.freed ?? 0 },
+  { id: 'port', title: 'Visitá un puerto', hint: 'Las aldeas junto al mar tienen muelle y faro. Ahí viven pescadores y marineros.', goal: 1, progress: (s) => s.ports ?? 0 },
+  { id: 'boat', title: 'Navegá en bote', hint: 'Taller: 5 tablas = Bote. Clic derecho sobre el agua para ponerlo y otra vez para subir.', goal: 1, progress: (s) => s.boated ?? 0 },
+  { id: 'wreck', title: 'Encontrá el tesoro de un barco hundido', hint: 'Navegá mar adentro y mirá el fondo: los naufragios guardan un cofre con perlas.', goal: 1, progress: (s) => s.wrecks ?? 0 },
   { id: 'leader', title: 'Derrotá a un jefe saqueador', hint: 'Llevá armadura y escudo: el jefe pega fuerte y los arqueros disparan desde lejos.', goal: 1, progress: (s) => s.leaders ?? 0 },
 ];
 

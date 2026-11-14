@@ -188,7 +188,7 @@ export function meshChunk(world, chunk) {
           const [dx, dy, dz] = f.dir;
           const n = get(x + dx, y + dy, z + dz);
           if (!faceVisible(id, n)) continue;
-          if (isWater && n === B.WATER) continue;
+          if (isWater && BLOCKS[n].water) continue;   // agua contra agua (o plantas de agua): sin cara
           const [u0, v0, u1, v1] = uvRect(b.tex[f.tex]);
           // Luz del cielo: al aire libre 1; bajo un techo 0.6; en lo profundo (cuevas) casi nada.
           const depth = top(x + dx, z + dz) - (y + dy);

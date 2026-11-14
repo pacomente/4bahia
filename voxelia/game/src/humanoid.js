@@ -119,6 +119,13 @@ export function makeProp(kind) {
     const str = new THREE.MeshBasicMaterial({ color: '#e8e4d8' }); str.userData.base = new THREE.Color('#e8e4d8');
     const s2 = box(0.01, 0.84, 0.01, str); s2.position.z = 0.08; g.add(s2);
   }
+  if (kind === 'rod') {
+    const stick = box(0.04, 1.3, 0.04, wood); stick.position.set(0, 0.5, 0.3); stick.rotation.x = 0.5;
+    const lineMat = new THREE.MeshBasicMaterial({ color: '#e8e4d8' }); lineMat.userData.base = new THREE.Color('#e8e4d8');
+    const line = box(0.01, 1.1, 0.01, lineMat); line.position.set(0, 0.6, 1.0);
+    const bob = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.08), new THREE.MeshBasicMaterial({ color: '#d8352b' })); bob.position.set(0, 0.05, 1.0);
+    g.add(stick, line, bob); g.rotation.x = 0.9;
+  }
   if (kind === 'basket') {
     const m = new THREE.MeshBasicMaterial({ color: '#b08a55' }); m.userData.base = new THREE.Color('#b08a55');
     const b = box(0.3, 0.22, 0.24, m); b.position.set(0, 0, 0.12); g.add(b);
@@ -149,6 +156,7 @@ export function animateHumanoid(p, s) {
   if (s.action === 'chop') { const k = Math.abs(Math.sin(s.t * 4)); aR = -1.9 + k * 1.4; aL = -1.7 + k * 1.3; p.body.rotation.y = -0.4 + k * 0.5; }
   else p.body.rotation.y = 0;
   if (s.action === 'eat') { aR = -2.3 + Math.abs(Math.sin(s.t * 6)) * 0.25; aRz = 0.5; p.head.rotation.x = 0.1 + Math.sin(s.t * 12) * 0.05; }
+  if (s.action === 'fish') { aR = -1.0 + Math.sin(s.t * 1.5) * 0.08; aL = -0.8; }
   if (s.action === 'sit') { p.legL.rotation.x = -Math.PI / 2; p.legR.rotation.x = -Math.PI / 2; aR = -1.1 + Math.abs(Math.sin(s.t * 3)) * 0.4; aL = -0.7; p.body.position.y = Math.sin(s.t * 1.8) * 0.006; }
   if (s.action === 'sleep') { aR = 0; aL = 0; p.legL.rotation.x = 0; p.legR.rotation.x = 0; p.head.rotation.y = 0; p.head.rotation.x = 0; p.body.position.y = Math.sin(s.t * 1.2) * 0.01; }
   p.armL.rotation.x = aL; p.armR.rotation.x = aR; p.armL.rotation.z = aLz; p.armR.rotation.z = aRz;

@@ -16,6 +16,8 @@ import { Hand } from './hand.js';
 import { emptyStats, missionStatus } from './missions.js';
 import { Shadows, nearLight } from './mobs.js';
 import { Animals } from './animals.js';
+import { Sea } from './sea.js';
+import { wrecksNear, treasure } from './wrecks.js';
 import { MiniMap } from './minimap.js';
 import { Villages } from './villagers.js';
 import { villagesNear } from './villages.js';
@@ -85,6 +87,8 @@ export class Game {
     this.ui = new UI(this.atlasCanvas, mode);
     this.shadows = new Shadows(this.scene, this.world, this.sound);
     this.animals = new Animals(this.scene, this.world, this.sound);
+    this.sea = new Sea(this.scene, this.world, this.sound);
+    this.sea.load(save?.boats);
     this.minimap = new MiniMap(this.atlasCanvas, this.world);
     this.hand = new Hand(this.atlasTex);
     // Aldeas con sus aldeanos, zombis nocturnos y flechas.
@@ -256,7 +260,7 @@ export class Game {
           lastSpace = performance.now();
         }
       }
-      if (e.code === 'ShiftLeft') this.player.input.down = true;
+      if (e.code === 'ShiftLeft') { this.player.input.down = true; if (this.sea.riding && !e.repeat) { this.sea.dismount(this.player); this.ui.toast('Te bajaste del bote', 1200); } }
       if (e.code === 'ControlLeft' || e.code === 'KeyR') this.player.input.sprint = true;
       if (e.code.startsWith('Digit')) { const n = Number(e.code.slice(5)); if (n >= 1 && n <= 9) this.select(n - 1); }
       if (e.code === 'F3') { e.preventDefault(); this.showDebug = !this.showDebug; document.querySelector('#debug').style.display = this.showDebug ? 'block' : 'none'; }
@@ -442,6 +446,8 @@ export class Game {
   // Amanecer (natural o después de dormir): aldeas que crecen y una noche más sobrevivida.
   onDawn() {
     this.bandits.dawn();
+    // Lo que trajeron los barcos dura un par de días en los puertos.
+    for (const rec of this.villages.records.values()) if (rec.importDays > 0) rec.importDays -= 1;
     for (const ev of this.villages.dawn()) {
       if (!ev.near) continue;
       if (ev.type === 'born') this.ui.toast(`¡Nació ${ev.name} en ${ev.village}${ev.parents?.length ? `, hij${ev.female ? 'a' : 'o'} de ${ev.parents.join(' y ')}` : ''}! Ya son ${ev.pop}.`, 4500);
@@ -564,14 +570,35 @@ export class Game {
     const eye = this.player.eye(); const dir = this.player.look(); const dmg = attackDamage(this.held());
     const v = this.villages.hitTest(eye, dir, 3.6);
     if (v) { this.villages.annoy(v); this.attackCooldown = 0.35; return true; }
+    const boat = !this.sea.riding && this.sea.boatHit(eye, dir, 4);
+    if (boat) { this.sea.removeBoat(boat); if (this.mode === 'survival') this.addItem(I.BOAT); this.sound.dig('wood'); this.attackCooldown = 0.35; return true; }
     const hit = (this.bandits.list.length && this.bandits.hit(eye, dir, 3.6, dmg, this.banditCtx()))
       || (this.zombies.list.length && this.zombies.hit(eye, dir, 3.6, dmg, this.zombieCtx()))
       || (this.shadows.list.length && this.shadows.hit(eye, dir, 3.6, dmg, this.mobCtx()))
-      || (this.animals.list.length && this.animals.hit(eye, dir, 3.6, dmg, { onKilled: () => { if (this.mode === 'survival') { this.addItem(B.WOOL_WHITE, 2); this.checkMissions(); } } }));
+      || (this.animals.list.length && this.animals.hit(eye, dir, 3.6, dmg, { onKilled: (_p, sp) => { if (this.mode === 'survival') { this.animalDrops(sp); this.checkMissions(); } } }));
     if (hit) { this.attackCooldown = 0.35; this.useTool(); }
     return !!hit;
   }
   attackShadow() { return this.attackMob(); }
+  // Lo que deja cada animal: el Lanudo lana y algo de carne; el ciervo carne; el conejo y el cangrejo un poco.
+  animalDrops(species) {
+    if (species === 'deer') this.addItem(I.MEAT, 2 + Math.floor(Math.random() * 2));
+    else if (species === 'rabbit') this.addItem(I.MEAT, 1);
+    else if (species === 'crab') { this.addItem(I.MEAT, 1); if (Math.random() < 0.15) this.addItem(I.PEARL); }
+    else { this.addItem(B.WOOL_WHITE, 2); if (Math.random() < 0.5) this.addItem(I.MEAT, 1); }
+  }
+
+  // Punto del agua (superficie) que mira el jugador, para poner un bote.
+  waterTarget() {
+    const eye = this.player.eye(); const dir = this.player.look();
+    for (let t = 0.5; t < 6; t += 0.2) {
+      const q = eye.clone().addScaledVector(dir, t); const x = Math.floor(q.x); const y = Math.floor(q.y); const z = Math.floor(q.z);
+      const id = this.world.getBlock(x, y, z);
+      if (BLOCKS[id].water) return BLOCKS[this.world.getBlock(x, y + 1, z)].water ? null : { x: q.x, z: q.z };
+      if (BLOCKS[id].solid) return null;
+    }
+    return null;
+  }
 
   // Clic derecho: hablar con un aldeano o disparar el arco. Devuelve true si hizo algo.
   interact() {
@@ -580,6 +607,19 @@ export class Game {
     const t = this.target();
     const held = this.held();
     if (v && (!t || Math.hypot(t.x + 0.5 - eye.x, t.y + 0.5 - eye.y, t.z + 0.5 - eye.z) > v.pos.distanceTo(eye) - 0.5)) { this.openVillager(v); return true; }
+    const boat = !this.sea.riding && this.sea.boatHit(eye, dir, 4.5);
+    if (boat && (!t || Math.hypot(t.x + 0.5 - eye.x, t.y + 0.5 - eye.y, t.z + 0.5 - eye.z) > boat.mesh.position.distanceTo(eye) - 0.8)) {
+      this.sea.riding = boat; this.player.flying = false; this.ui.toast('W/S: remar · A/D: girar · Shift: bajarse', 2600); this.stats.boated = 1; this.checkMissions(); return true;
+    }
+    if (held === I.BOAT && !this.sea.riding) {
+      const w = this.waterTarget();
+      if (w) {
+        this.sea.placeBoat(w.x, w.z, this.player.yaw); this.sound.splash();
+        if (this.mode === 'survival') { this.inventory[I.BOAT] -= 1; if (this.inventory[I.BOAT] <= 0) delete this.inventory[I.BOAT]; this.syncHotbar(); }
+        return true;
+      }
+      this.ui.toast('El bote se pone sobre el agua', 1400); return true;
+    }
     if (t && (t.id === B.DOOR || t.id === B.DOOR_OPEN) && !this.player.sneaking) { this.toggleDoor(t); return true; }
     if (t && t.id === B.BED && !this.player.sneaking) { this.trySleep(t); return true; }
     if (isFood(held)) { if (this.health < this.maxHealth || this.player.stamina < 95 || this.mode === 'creative') this.eat(held); else this.ui.toast('No tenés hambre: estás con la vida llena', 1400); return true; }
@@ -630,7 +670,7 @@ export class Game {
     if (this.bandits.hit(p0, d, len, 6, this.banditCtx())) return () => {};
     if (this.zombies.hit(p0, d, len, 6, this.zombieCtx())) return () => {};
     if (this.shadows.hit(p0, d, len, 6, this.mobCtx())) return () => {};
-    if (this.animals.hit(p0, d, len, 6, { onKilled: () => { if (this.mode === 'survival') this.addItem(B.WOOL_WHITE, 2); } })) return () => {};
+    if (this.animals.hit(p0, d, len, 6, { onKilled: (_p, sp) => { if (this.mode === 'survival') this.animalDrops(sp); } })) return () => {};
     return null;
   }
 
@@ -666,8 +706,30 @@ export class Game {
     };
   }
 
+  // Mar: puertos cargados cerca (para los barcos mercantes) y qué pasa cuando uno amarra.
+  seaCtx() {
+    const pp = this.player.pos;
+    return {
+      player: this.player, daylight: this.sky.daylight,
+      ports: [...this.villages.active.values()].filter((a) => a.plan.port && Math.hypot(a.plan.x - pp.x, a.plan.z - pp.z) < 200),
+      onDock: (plan, pos) => {
+        const a = this.villages.active.get(plan.id); const rec = a?.rec ?? this.villages.records.get(plan.id);
+        if (rec) { rec.importDays = 2; rec.stock.food += 6; rec.stock.wood += 4; rec.stock.stone += 2; rec.ships = (rec.ships ?? 0) + 1; }
+        for (const e of a?.list ?? []) if (!e.hidden && (e.data.prof === 'sailor' || e.data.prof === 'fisher' || e.data.prof === 'merchant')) { e.state = 'cheer'; e.timer = 3; this.villages.say?.(e, '¡Llegó el barco!', 3); }
+        const d = Math.hypot(pos.x - pp.x, pos.z - pp.z);
+        if (d < 120) {
+          this.ui.toast(`⚓ Llegó un barco mercante a ${plan.name}: hay gemas, hierro y lana más baratos`, 4500);
+          const g = Math.max(0.05, 0.35 * (1 - d / 120));
+          this.sound.tone(147, 1.1, g, 'sawtooth'); setTimeout(() => this.sound.tone(110, 1.4, g, 'sawtooth'), 900);
+        }
+      },
+      onLeave: () => {},
+    };
+  }
+
   villagerCtx() {
     return {
+      onSplash: (pos) => { if (Math.hypot(pos.x - this.player.pos.x, pos.z - this.player.pos.z) < 18) this.sound.noise(0.25, { freq: 900, q: 0.5, gain: 0.12, type: 'lowpass' }); },
       player: this.player, daylight: this.sky.daylight, zombies: [...this.zombies.list, ...this.bandits.list.filter((b) => !b.camp || b.aggro)], lightAt: (x, y, z) => this.lightAt(x, y, z),
       canPlace: (b) => !(BLOCKS[b.id].solid && this.player.intersectsBlock(b.x, b.y, b.z)),
       onPlace: (b) => {
@@ -806,7 +868,14 @@ export class Game {
     this.spawnParticles(t);
     if (t.id === B.FARO) this.removeBeam(t.x, t.y, t.z);
     // Cofre del botín: todo lo que había adentro, y el campamento se enoja si sigue en pie.
-    if (t.id === B.LOOT_CHEST) {
+    const wreck = t.id === B.LOOT_CHEST && t.y < 40 ? wrecksNear(this.world, t.x, t.z)[0] : null;
+    if (wreck) {
+      if (this.mode === 'survival') for (const [id, n] of Object.entries(treasure())) this.addItem(Number(id), n);
+      this.ui.toast(`¡El tesoro de «${wreck.name}»! Perlas, oro y plata`, 3500);
+      this.stats.wrecks = (this.stats.wrecks ?? 0) + 1;
+      this.sound.tone(660, 0.12, 0.12, 'sine'); setTimeout(() => this.sound.tone(880, 0.12, 0.12, 'sine'), 120); setTimeout(() => this.sound.tone(1320, 0.3, 0.12, 'sine'), 240);
+      this.renderStatus();
+    } else if (t.id === B.LOOT_CHEST) {
       const loot = lootTable();
       if (this.mode === 'survival') for (const [id, n] of Object.entries(loot)) if (n > 0) this.addItem(Number(id), n);
       this.ui.toast('¡Botín! Plata, oro, hierro y más', 3000);
@@ -822,7 +891,7 @@ export class Game {
     if (this.mode === 'survival') {
       this.addItem(t.block.drop); this.useTool();
       // Extras: semillas del pasto y del trigo, manzanas de las hojas.
-      if (t.id === B.GRASS && Math.random() < 0.12) this.addItem(I.SEEDS);
+      if ((t.id === B.GRASS && Math.random() < 0.12) || (t.id === B.TALL_GRASS && Math.random() < 0.25)) this.addItem(I.SEEDS);
       if (t.id === B.WHEAT_RIPE) this.addItem(I.SEEDS, 1 + Math.floor(Math.random() * 2));
       if ((t.id === B.LEAVES || t.id === B.BIRCH_LEAVES) && Math.random() < 0.08) { this.addItem(I.APPLE); this.ui.toast('¡Una manzana!', 1200); }
       this.checkMissions();
@@ -971,7 +1040,7 @@ export class Game {
       player: { x: this.player.pos.x, y: this.player.pos.y, z: this.player.pos.z, yaw: this.player.yaw, pitch: this.player.pitch, flying: this.player.flying },
       spawn: this.spawn, time: this.sky.time, health: this.health, inventory: this.inventory, hotbar: this.hotbar, selected: this.selected,
       playTime: this.playTime, mods: this.world.serializeMods(), savedAt: new Date().toISOString(),
-      stats: this.stats, maxHealth: this.maxHealth, faros: this.faros, toolWear: this.toolWear, villages: this.villages.serialize(), bandits: this.bandits.serialize(), equip: this.equip, armorWear: this.armorWear, crops: this.crops,
+      stats: this.stats, maxHealth: this.maxHealth, faros: this.faros, toolWear: this.toolWear, villages: this.villages.serialize(), bandits: this.bandits.serialize(), equip: this.equip, armorWear: this.armorWear, crops: this.crops, boats: this.sea.serialize(),
     };
   }
   async save() {
@@ -1026,7 +1095,7 @@ export class Game {
     this.updateChunks(this.paused ? 4 : 6);
     if (!this.paused && !this.dead) {
       this.playTime += dt;
-      const ev = this.player.update(dt);
+      const ev = this.sea.riding ? (this.sea.ride(dt, this.player.input, this.player), {}) : this.player.update(dt);
       if (ev.step) this.sound.step(BLOCKS[ev.step]?.sound);
       if (ev.landed) { this.landDip = Math.min(0.3, ev.landed * 0.016); if (ev.landed > 6) this.sound.step(BLOCKS[this.world.getBlock(Math.floor(this.player.pos.x), Math.floor(this.player.pos.y - 0.5), Math.floor(this.player.pos.z))]?.sound); }
       if (ev.fallDamage) this.damage(ev.fallDamage, 'Te caíste desde muy alto');
@@ -1045,6 +1114,7 @@ export class Game {
       this.attackCooldown = Math.max(0, this.attackCooldown - dt);
       this.shadows.update(dt, this.mobCtx());
       this.animals.update(dt, { player: this.player, daylight: this.sky.daylight });
+      this.sea.update(dt, this.seaCtx());
       this.lightClock += dt;
       this.villages.update(dt, this.villagerCtx());
       this.zombies.update(dt, this.zombieCtx());
@@ -1132,8 +1202,9 @@ export class Game {
     const v = this.villages.villageAt(p.x, p.z);
     if (v && v.id !== this.villageNow) {
       const rec = this.villages.records.get(v.id);
-      this.ui.toast(`Aldea ${v.name}${rec ? ` · ${rec.villagers.length} habitantes` : ''}`, 3500);
+      this.ui.toast(`${v.port ? '⚓ ' : 'Aldea '}${v.name}${rec ? ` · ${rec.villagers.length} habitantes` : ''}`, 3500);
       this.stats.visited = (this.stats.visited ?? 0) + 1;
+      if (v.port) this.stats.ports = (this.stats.ports ?? 0) + 1;
       this.checkMissions();
     }
     this.villageNow = v?.id ?? null;

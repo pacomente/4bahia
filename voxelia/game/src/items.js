@@ -13,7 +13,7 @@ export const I = {
   HELMET_CLOTH: 140, CHEST_CLOTH: 141, LEGS_CLOTH: 142, BOOTS_CLOTH: 143,
   HELMET_IRON: 144, CHEST_IRON: 145, LEGS_IRON: 146, BOOTS_IRON: 147,
   HELMET_CRYSTAL: 148, CHEST_CRYSTAL: 149, LEGS_CRYSTAL: 150, BOOTS_CRYSTAL: 151,
-  GOLD: 152,
+  GOLD: 152, BERRIES: 153, FISH: 154, MEAT: 155, BOAT: 156, PEARL: 157,
 };
 
 // Niveles de herramienta: velocidad de minado, daño, usos antes de romperse y color.
@@ -52,6 +52,11 @@ ITEMS[I.ARROW] = { name: 'Flecha', kind: 'material', color: '#cfcfcf' };
 ITEMS[I.SHIELD] = { name: 'Escudo', kind: 'gear', color: '#8f2b26', description: 'Llevalo en la mano: los golpes te sacan mucho menos.' };
 
 // Moneda y comida. La comida cura corazones y devuelve energía (no hay hambre que te mate).
+ITEMS[I.BERRIES] = { name: 'Bayas', kind: 'food', heal: 2, energy: 20, color: '#c8352b' };
+ITEMS[I.FISH] = { name: 'Pescado', kind: 'food', heal: 4, energy: 30, color: '#7aa8c8' };
+ITEMS[I.MEAT] = { name: 'Carne asada', kind: 'food', heal: 6, energy: 40, color: '#8a4a2a' };
+ITEMS[I.BOAT] = { name: 'Bote', kind: 'gear', color: '#a87442', description: 'Clic derecho sobre el agua para ponerlo; clic derecho al bote para subir. W/S reman, A/D giran, Shift para bajar.' };
+ITEMS[I.PEARL] = { name: 'Perla', kind: 'material', color: '#f4eef8', description: 'Se encuentra en los barcos hundidos. Vale mucho en los puertos.' };
 ITEMS[I.GOLD] = { name: 'Lingote de oro', kind: 'material', color: '#f2c94c', description: 'Vale mucho en cualquier aldea.' };
 ITEMS[I.SILVER] = { name: 'Moneda de plata', kind: 'material', color: '#d9dde3', description: 'La moneda de las aldeas: con ella se compra y se vende.' };
 ITEMS[I.APPLE] = { name: 'Manzana', kind: 'food', heal: 3, energy: 25, color: '#c8352b' };

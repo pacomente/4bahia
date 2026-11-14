@@ -7,6 +7,8 @@ export const B = {
   FARMLAND: 32, WHEAT_YOUNG: 33, WHEAT_RIPE: 34, BED: 35, DOOR: 36, DOOR_OPEN: 37, WINDOW: 38,
   LAVA: 39, GLOW_MUSHROOM: 40, MOSS: 41, GOLD_ORE: 42, WOOL_BLACK: 43, BARS: 44, CAMPFIRE: 45, LOOT_CHEST: 46,
   TABLE: 47, CHAIR: 48, BOOKSHELF: 49, FIREPLACE: 50, CARPET: 51, BARREL: 52, HAY: 53, ANVIL: 54, THRONE: 55, FLOWER_RED: 56, FLOWER_YELLOW: 57,
+  PINE_LEAVES: 58, PALM_LOG: 59, PALM_LEAVES: 60, TALL_GRASS: 61, BERRY_BUSH: 62, KELP: 63, SEAGRASS: 64,
+  CORAL_RED: 65, CORAL_YELLOW: 66, CORAL_PURPLE: 67, CORAL_FAN: 68, DEAD_BUSH: 69,
 };
 
 export const BLOCKS = [];
@@ -17,7 +19,8 @@ function def(id, name, tex, opts = {}) {
     solid: opts.solid ?? true, transparent: opts.transparent ?? false, liquid: opts.liquid ?? false,
     alpha: opts.alpha ?? false, hardness: opts.hardness ?? 1, emissive: opts.emissive ?? false,
     drop: opts.drop ?? id, breakable: opts.breakable ?? true, sound: opts.sound ?? 'stone',
-    tool: opts.tool ?? null,   // herramienta que acelera el minado: 'pick' | 'axe' | 'shovel'
+    tool: opts.tool ?? null,
+    water: opts.water ?? false,   // agua o planta de agua (se nada adentro)   // herramienta que acelera el minado: 'pick' | 'axe' | 'shovel'
     shape: opts.shape ?? 'cube', // 'cube' | 'torch' (modelo fino)
     light: opts.light ?? 0,      // nivel de luz que emite (0-15)
   };
@@ -28,7 +31,7 @@ def(B.GRASS, 'Pasto', ['grass_top', 'grass_side', 'dirt'], { hardness: 0.6, drop
 def(B.DIRT, 'Tierra', 'dirt', { hardness: 0.5, sound: 'grass', tool: 'shovel' });
 def(B.STONE, 'Piedra', 'stone', { hardness: 1.5, drop: B.COBBLE, tool: 'pick' });
 def(B.SAND, 'Arena', 'sand', { hardness: 0.5, sound: 'sand', tool: 'shovel' });
-def(B.WATER, 'Agua', 'water', { solid: false, transparent: true, liquid: true, breakable: false });
+def(B.WATER, 'Agua', 'water', { solid: false, transparent: true, liquid: true, breakable: false, water: true });
 def(B.LOG, 'Tronco', ['log_top', 'log_side'], { hardness: 1.2, sound: 'wood', tool: 'axe' });
 def(B.LEAVES, 'Hojas', 'leaves', { transparent: true, alpha: true, hardness: 0.2, sound: 'grass' });
 def(B.PLANKS, 'Tablas', 'planks', { hardness: 1, sound: 'wood', tool: 'axe' });
@@ -86,11 +89,25 @@ def(B.ANVIL, 'Yunque', 'anvil', { transparent: true, hardness: 4, tool: 'pick', 
 def(B.THRONE, 'Trono', 'throne', { transparent: true, hardness: 3, sound: 'wood', shape: 'throne' });
 def(B.FLOWER_RED, 'Amapolas', 'flower_red', { solid: false, transparent: true, hardness: 0.05, sound: 'grass', shape: 'crop' });
 def(B.FLOWER_YELLOW, 'Margaritas', 'flower_yellow', { solid: false, transparent: true, hardness: 0.05, sound: 'grass', shape: 'crop' });
+// Vegetación: pinos, palmeras, pasto alto, arbustos de bayas y matas secas.
+def(B.PINE_LEAVES, 'Hojas de pino', 'pine_leaves', { transparent: true, alpha: true, hardness: 0.2, sound: 'grass' });
+def(B.PALM_LOG, 'Tronco de palmera', ['palm_top', 'palm_side'], { hardness: 1.2, sound: 'wood', tool: 'axe' });
+def(B.PALM_LEAVES, 'Hojas de palmera', 'palm_leaves', { transparent: true, alpha: true, hardness: 0.2, sound: 'grass' });
+def(B.TALL_GRASS, 'Pasto alto', 'tall_grass', { solid: false, transparent: true, hardness: 0.02, sound: 'grass', shape: 'crop', drop: 0 });
+def(B.BERRY_BUSH, 'Arbusto de bayas', 'berry_bush', { solid: false, transparent: true, hardness: 0.1, sound: 'grass', shape: 'crop', drop: 153 });
+def(B.DEAD_BUSH, 'Mata seca', 'dead_bush', { solid: false, transparent: true, hardness: 0.02, sound: 'grass', shape: 'crop', drop: 0 });
+// Fondo del mar: algas, pasto marino y corales (las plantas de agua cuentan como agua para nadar).
+def(B.KELP, 'Algas', 'kelp', { solid: false, transparent: true, hardness: 0.05, sound: 'grass', shape: 'crop', water: true, drop: 0 });
+def(B.SEAGRASS, 'Pasto marino', 'seagrass', { solid: false, transparent: true, hardness: 0.02, sound: 'grass', shape: 'crop', water: true, drop: 0 });
+def(B.CORAL_RED, 'Coral rojo', 'coral_red', { hardness: 0.8, sound: 'stone', tool: 'pick' });
+def(B.CORAL_YELLOW, 'Coral amarillo', 'coral_yellow', { hardness: 0.8, sound: 'stone', tool: 'pick' });
+def(B.CORAL_PURPLE, 'Coral violeta', 'coral_purple', { hardness: 0.8, sound: 'stone', tool: 'pick' });
+def(B.CORAL_FAN, 'Abanico de coral', 'coral_fan', { solid: false, transparent: true, hardness: 0.05, shape: 'crop', water: true });
 def(B.TORCH, 'Antorcha', 'torch', { solid: false, transparent: true, hardness: 0.05, emissive: true, sound: 'wood', shape: 'torch', light: 13 });
 
 // Bloques disponibles en el inventario creativo (orden de la grilla).
 export const PLACEABLE = [B.GRASS, B.DIRT, B.STONE, B.COBBLE, B.PLANKS, B.LOG, B.BIRCH_LOG, B.LEAVES, B.BIRCH_LEAVES,
-  B.GLASS, B.BRICK, B.SAND, B.GRAVEL, B.CLAY, B.SNOW, B.CACTUS, B.COAL, B.IRON, B.LAMP, B.WOOL_RED, B.WOOL_BLUE, B.WOOL_WHITE, B.CRYSTAL, B.FARO, B.TORCH, B.WORKBENCH, B.ROOF, B.THATCH, B.ADOBE, B.FARMLAND, B.BED, B.DOOR, B.WINDOW, B.MOSS, B.GOLD_ORE, B.WOOL_BLACK, B.BARS, B.GLOW_MUSHROOM, B.CAMPFIRE, B.TABLE, B.CHAIR, B.BOOKSHELF, B.FIREPLACE, B.CARPET, B.BARREL, B.HAY, B.ANVIL, B.THRONE, B.FLOWER_RED, B.FLOWER_YELLOW];
+  B.GLASS, B.BRICK, B.SAND, B.GRAVEL, B.CLAY, B.SNOW, B.CACTUS, B.COAL, B.IRON, B.LAMP, B.WOOL_RED, B.WOOL_BLUE, B.WOOL_WHITE, B.CRYSTAL, B.FARO, B.TORCH, B.WORKBENCH, B.ROOF, B.THATCH, B.ADOBE, B.FARMLAND, B.BED, B.DOOR, B.WINDOW, B.MOSS, B.GOLD_ORE, B.WOOL_BLACK, B.BARS, B.GLOW_MUSHROOM, B.CAMPFIRE, B.TABLE, B.CHAIR, B.BOOKSHELF, B.FIREPLACE, B.CARPET, B.BARREL, B.HAY, B.ANVIL, B.THRONE, B.FLOWER_RED, B.FLOWER_YELLOW, B.PINE_LEAVES, B.PALM_LOG, B.PALM_LEAVES, B.TALL_GRASS, B.BERRY_BUSH, B.KELP, B.CORAL_RED, B.CORAL_YELLOW, B.CORAL_PURPLE, B.CORAL_FAN];
 
 // Bloques que emiten luz (iluminan alrededor y repelen a las Sombras).
 export const LIGHT_BLOCKS = new Set(BLOCKS.filter((b) => b?.light > 0).map((b) => b.id));

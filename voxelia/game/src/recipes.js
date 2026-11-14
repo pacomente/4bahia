@@ -44,6 +44,7 @@ export const RECIPES = [
 
   { id: 'bow', name: 'Arco', in: { [B.PLANKS]: 3, [B.WOOL_WHITE]: 2 }, out: { [I.BOW]: 1 }, cat: 'weapons', mesa: true, desc: 'Clic derecho dispara flechas. Ideal para zombis que vienen en grupo.' },
   { id: 'arrows', name: 'Flechas', in: { [B.PLANKS]: 1, [B.COBBLE]: 1 }, out: { [I.ARROW]: 6 }, cat: 'weapons', mesa: true, desc: 'Munición para el arco. Las que se clavan en bloques se pueden juntar.' },
+  { id: 'boat', name: 'Bote', in: { [B.PLANKS]: 5 }, out: { [I.BOAT]: 1 }, cat: 'basic', mesa: true, desc: 'Para andar por el mar. Clic derecho sobre el agua para ponerlo.' },
   { id: 'shield', name: 'Escudo', in: { [B.PLANKS]: 4, [I.IRON]: 1 }, out: { [I.SHIELD]: 1 }, cat: 'weapons', mesa: true, desc: 'Con el escudo en la mano los golpes te sacan 60% menos.' },
   { id: 'bread', name: 'Pan', in: { [I.WHEAT]: 3 }, out: { [I.BREAD]: 1 }, cat: 'food', desc: 'Cura 5 corazones a medias y devuelve energía.' },
   { id: 'cake', name: 'Pastel', in: { [I.WHEAT]: 3, [I.APPLE]: 2 }, out: { [I.CAKE]: 1 }, cat: 'food', mesa: true, desc: 'Cura mucho y llena la energía. Ideal antes de una pelea.' },

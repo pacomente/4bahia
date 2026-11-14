@@ -11,9 +11,9 @@ export function standY(world, x, y, z, up = 1, down = 3) {
     const fy = by + k;
     if (fy < 1) continue;
     const below = world.getBlock(Math.floor(x), fy - 1, Math.floor(z));
-    if (!BLOCKS[below].solid || below === B.WATER) continue;
+    if (!BLOCKS[below].solid || BLOCKS[below].water) continue;
     if (solid(world, x, fy, z) || solid(world, x, fy + 1, z)) continue;
-    if (world.getBlock(Math.floor(x), fy, Math.floor(z)) === B.WATER) continue;
+    if (BLOCKS[world.getBlock(Math.floor(x), fy, Math.floor(z))].water) continue;
     return fy;
   }
   return null;

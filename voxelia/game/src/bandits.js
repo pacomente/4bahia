@@ -255,7 +255,9 @@ export class Bandits {
           if (c.checkT <= 0) {
             c.checkT = 0.5;
             let broken = false;
-            for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) if ((dx || dz) && this.world.getBlock(c.cell.x + dx, a.plan.y + 1, c.cell.z + dz) !== B.BARS) broken = true;
+            // Si la jaula todavía no está cargada, getBlock da aire: no cuenta como rota.
+            const loaded = [-1, 1].every((dx) => [-1, 1].every((dz) => this.world.getChunk(Math.floor((c.cell.x + dx) / 16), Math.floor((c.cell.z + dz) / 16))));
+            if (loaded) for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) if ((dx || dz) && this.world.getBlock(c.cell.x + dx, a.plan.y + 1, c.cell.z + dz) !== B.BARS) broken = true;
             if (broken) {
               c.free = true; c.freeT = 0;
               if (!a.rec.freed.includes(c.cage)) a.rec.freed.push(c.cage);
