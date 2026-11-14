@@ -81,7 +81,7 @@ export class World {
     const old = c.get(lx, y, lz);
     c.set(lx, y, lz, id);
     c.recomputeTop(lx, lz);
-    c.dirty = true;
+    c.dirty = true; c.edited = true;   // editado: la malla se rehace al toque (no espera al worker)
     const k = this.key(cx, cz);
     if (!this.mods.has(k)) this.mods.set(k, new Map());
     this.mods.get(k).set(idx(lx, y, lz), id);

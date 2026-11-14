@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { B } from './blocks.js';
 import { createHumanoid, animateHumanoid, lightHumanoid, makeProp } from './humanoid.js';
 import { standY, stepToward, settle, turnTo } from './walk.js';
+import { navigate } from './pathfind.js';
 import { campsNear } from './camps.js';
 
 // ───────── Saqueadores ─────────
@@ -222,7 +223,7 @@ export class Bandits {
         }
       }
       let moving = false;
-      if (goal) moving = stepToward(this.world, b, goal.x, goal.z, speed, dt).moved;
+      if (goal) moving = navigate(this.world, b, goal, speed, dt).moved;
       settle(this.world, b, dt);
       if (facing !== null) b.heading = facing;
       // Animación.

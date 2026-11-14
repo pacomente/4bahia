@@ -64,3 +64,47 @@ test('combo: cada tercer tajo es pesado', () => {
   for (let k = 0; k < 400 && dmgs.length < 3; k++) { z.cooldown = 5; fight(g, plan, 0.02, ctx, k * 0.02); }
   assert.deepEqual(dmgs, [4, 4, 6]);
 });
+
+// ───────── Caminos (A*) ─────────
+import { findPath, navigate, navFrame } from '../src/pathfind.js';
+import { B } from '../src/blocks.js';
+import * as THREE from 'three';
+
+// Mundo de prueba: piso en y=9, pared de x=5 de z=-10 a z=10 con un hueco en z=8; agua en x=-3.
+function testWorld(extra = {}) {
+  return {
+    getBlock(x, y, z) {
+      const k = `${x},${y},${z}`;
+      if (k in extra) return extra[k];
+      if (y <= 9) return x === -3 && y === 9 ? B.WATER : B.STONE;
+      if (x === 5 && z >= -10 && z <= 10 && z !== 8 && y <= 12) return B.STONE;
+      return B.AIR;
+    },
+  };
+}
+
+test('caminos: rodea una pared por el hueco', () => {
+  const w = testWorld();
+  const r = findPath(w, { x: 2.5, y: 10, z: 0.5 }, { x: 8.5, y: 10, z: 0.5 });
+  assert.ok(r.complete, 'llega');
+  assert.ok(r.pts.some((p) => Math.abs(p.z - 8.5) < 1.5), 'pasa por el hueco');
+  for (const p of r.pts) assert.ok(!(Math.floor(p.x) === 5 && Math.floor(p.z) !== 8), 'no atraviesa la pared');
+});
+
+test('caminos: las puertas cerradas solo se cruzan si son el destino; no se mete al agua', () => {
+  const extra = { '5,10,8': B.DOOR, '5,11,8': B.DOOR };
+  const w = testWorld(extra);
+  const r = findPath(w, { x: 2.5, y: 10, z: 0.5 }, { x: 8.5, y: 10, z: 0.5 }, { maxNodes: 400 });
+  assert.ok(!r.pts.some((p) => Math.floor(p.x) === 5 && Math.floor(p.z) === 8), 'no cruza la puerta cerrada (da la vuelta)');
+  const r2 = findPath(w, { x: 2.5, y: 10, z: 0.5 }, { x: 5.5, y: 10, z: 8.5 });
+  assert.ok(r2.complete, 'pero puede llegar a la puerta para abrirla');
+  const r3 = findPath(testWorld(), { x: -1.5, y: 10, z: 0.5 }, { x: -5.5, y: 10, z: 0.5 }, { maxNodes: 300 });
+  for (const p of r3.pts) assert.notEqual(Math.floor(p.x), -3, 'no pisa el agua');
+});
+
+test('caminos: un aldeano llega al otro lado de la pared caminando', () => {
+  const w = testWorld();
+  const e = { pos: new THREE.Vector3(2.5, 10, 0.5), heading: 0, vy: 0, stuck: 0, side: 1 };
+  for (let k = 0; k < 900; k++) { navFrame(); navigate(w, e, { x: 8.5, z: 0.5 }, 3, 0.05); if (Math.hypot(e.pos.x - 8.5, e.pos.z - 0.5) < 0.5) break; }
+  assert.ok(Math.hypot(e.pos.x - 8.5, e.pos.z - 0.5) < 1, `llegó (${e.pos.x.toFixed(1)}, ${e.pos.z.toFixed(1)})`);
+});

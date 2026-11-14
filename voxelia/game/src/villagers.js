@@ -4,6 +4,7 @@ import { I } from './items.js';
 import { villagesNear, villagePlan, houseBlueprint, chimneyTop, furnish, STYLES, REGION } from './villages.js';
 import { createHumanoid, animateHumanoid, lightHumanoid, makeProp } from './humanoid.js';
 import { standY, stepToward, settle, turnTo } from './walk.js';
+import { navigate } from './pathfind.js';
 import { GUARD_HP, threats, assign, fight, blocks } from './guards.js';
 import { hash3 } from './world.js';
 import { SHOPS, PRICE, sellPrice, villageLevel, LEVELS, makeQuest, rankFor, localPrice, trend, economySummary } from './economy.js';
@@ -677,7 +678,7 @@ export class Villages {
     let moving = false;
     if (goal) {
       const d = Math.hypot(goal.x - e.pos.x, goal.z - e.pos.z);
-      if (d > (goal.near ?? 0.4)) { moving = stepToward(w, e, goal.x, goal.z, speed, dt).moved; }
+      if (d > (goal.near ?? 0.4)) { moving = navigate(w, e, goal, speed, dt).moved; }
       else {
         if (['home', 'leave', 'visit', 'exit'].includes(e.state)) e.path.shift();
         else if (e.state === 'wander') { e.state = 'idle'; e.timer = 2 + Math.random() * 4; }

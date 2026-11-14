@@ -40,6 +40,12 @@ class Builder {
     if (flip) this.idx.push(n, n + 1, n + 3, n, n + 3, n + 2);
     else this.idx.push(n, n + 1, n + 2, n + 2, n + 1, n + 3);
   }
+  // Arreglos crudos (para mandarlos desde el worker sin copiar).
+  data() {
+    if (!this.idx.length) return null;
+    const n = this.pos.length / 3;
+    return { pos: new Float32Array(this.pos), uv: new Float32Array(this.uv), col: new Float32Array(this.col), emi: new Float32Array(this.emi), sky: new Float32Array(this.sky), idx: n > 65535 ? new Uint32Array(this.idx) : new Uint16Array(this.idx) };
+  }
   geometry() {
     if (!this.idx.length) return null;
     const g = new THREE.BufferGeometry();
@@ -167,8 +173,28 @@ function shapeQuads(out, get, x, y, z, id, b, em, sky) {
   }
 }
 
+// Geometría de Three.js a partir de los arreglos crudos.
+export function toGeometry(d) {
+  if (!d) return null;
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(d.pos, 3));
+  g.setAttribute('uv', new THREE.BufferAttribute(d.uv, 2));
+  g.setAttribute('color', new THREE.BufferAttribute(d.col, 3));
+  g.setAttribute('emissive', new THREE.BufferAttribute(d.emi, 1));
+  g.setAttribute('sky', new THREE.BufferAttribute(d.sky, 1));
+  g.setIndex(new THREE.BufferAttribute(d.idx, 1));
+  g.computeBoundingSphere();
+  return g;
+}
+
 // Construye la geometría de un chunk: una malla opaca (incluye hojas y vidrio con alpha-test) y otra de agua.
 export function meshChunk(world, chunk) {
+  const d = meshChunkData(world, chunk);
+  return { opaque: toGeometry(d.opaque), water: toGeometry(d.water) };
+}
+
+// Lo mismo, pero devuelve arreglos crudos (lo usa el worker).
+export function meshChunkData(world, chunk) {
   const opaque = new Builder();
   const water = new Builder();
   const x0 = chunk.cx * CS; const z0 = chunk.cz * CS;
@@ -256,7 +282,7 @@ export function meshChunk(world, chunk) {
       }
     }
   }
-  return { opaque: opaque.geometry(), water: water.geometry() };
+  return { opaque: opaque.data(), water: water.data() };
 }
 
 // Material propio: textura × color de vértice × luz del día (las lámparas ignoran la noche) + niebla.

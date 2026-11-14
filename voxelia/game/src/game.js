@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { B, BLOCKS, PLACEABLE } from './blocks.js';
 import { World, CS, H } from './world.js';
-import { meshChunk, createBlockMaterial } from './mesher.js';
+import { meshChunk, createBlockMaterial, toGeometry } from './mesher.js';
+import MeshWorker from './meshWorker.js?worker&inline';
 import { buildAtlasCanvas, buildAtlasTexture, uvRect } from './textures.js';
 import { Player } from './player.js';
 import { raycast } from './raycast.js';
@@ -17,6 +18,7 @@ import { emptyStats, missionStatus } from './missions.js';
 import { Shadows, nearLight } from './mobs.js';
 import { Animals } from './animals.js';
 import { Sea } from './sea.js';
+import { navFrame } from './pathfind.js';
 import { wrecksNear, treasure } from './wrecks.js';
 import { Caravans, tradeGoods, applyTrade, GOODS_NAME } from './caravans.js';
 import { linksOf, routeOf } from './roads.js';
@@ -80,6 +82,7 @@ export class Game {
     this.atlasTex = buildAtlasTexture(this.atlasCanvas);
     this.matOpaque = createBlockMaterial(this.atlasTex);
     this.matWater = createBlockMaterial(this.atlasTex, { transparent: true });
+    this.startMeshWorkers();
     this.sky = new Sky(this.scene, save?.time ?? 0.3);
     const spawn = save?.player ?? this.world.spawnPoint();
     this.spawn = save?.spawn ?? this.world.spawnPoint();
@@ -156,11 +159,12 @@ export class Game {
       if (performance.now() - t0 > budgetMs && work > 0) break;
       let c = this.world.getChunk(cx, cz);
       if (!c) { c = this.world.generate(cx, cz); work++; continue; }
-      if (d2 > (r + 0.5) * (r + 0.5) || !c.dirty) continue;
+      if (d2 > (r + 0.5) * (r + 0.5) || !c.dirty || c.pending) continue;
       // Solo se arma la malla cuando los 4 vecinos existen (bordes correctos).
       if (![[1, 0], [-1, 0], [0, 1], [0, -1]].every(([a, b]) => this.world.getChunk(cx + a, cz + b))) continue;
-      this.buildMesh(c);
-      work++;
+      // Lo que tocó el jugador (o una puerta) cerca se rehace al instante; lo demás, en el worker.
+      if ((c.edited && d2 <= 2) || !this.meshWorkers?.length) { this.buildMesh(c); work++; }
+      else if (this.inFlight < this.meshWorkers.length * 3) this.requestMesh(c);
     }
     // Descargar chunks lejanos (los cambios quedan guardados en world.mods).
     for (const [k, c] of this.world.chunks) {
@@ -172,13 +176,48 @@ export class Game {
     return work;
   }
 
+  // ───────── Mallas en segundo plano ─────────
+  startMeshWorkers() {
+    this.meshWorkers = []; this.inFlight = 0; this.meshReq = 0;
+    try {
+      const n = Math.max(1, Math.min(3, (navigator.hardwareConcurrency ?? 2) - 1));
+      for (let i = 0; i < n; i++) {
+        const w = new MeshWorker();
+        w.onmessage = (ev) => this.onMeshDone(ev.data);
+        w.onerror = () => { this.meshWorkers = []; };   // si algo falla, vuelve al modo de un solo hilo
+        this.meshWorkers.push(w);
+      }
+    } catch { this.meshWorkers = []; }
+  }
+  requestMesh(c) {
+    const chunks = [];
+    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+      const n = this.world.getChunk(c.cx + dx, c.cz + dz);
+      if (n) chunks.push({ cx: n.cx, cz: n.cz, data: n.data, top: n.top });
+    }
+    c.pending = true; c.dirty = false; this.inFlight++;
+    const w = this.meshWorkers[this.meshReq++ % this.meshWorkers.length];
+    w.postMessage({ id: this.meshReq, cx: c.cx, cz: c.cz, chunks });
+  }
+  onMeshDone(m) {
+    this.inFlight = Math.max(0, this.inFlight - 1);
+    const c = this.world.getChunk(m.cx, m.cz);
+    if (!c) return;   // se descargó mientras tanto
+    c.pending = false;
+    this.disposeMesh(c);
+    c.meshes = [];
+    const o = toGeometry(m.opaque); const wt = toGeometry(m.water);
+    if (o) { const mesh = new THREE.Mesh(o, this.matOpaque); this.scene.add(mesh); c.meshes.push(mesh); }
+    if (wt) { const mesh = new THREE.Mesh(wt, this.matWater); mesh.renderOrder = 1; this.scene.add(mesh); c.meshes.push(mesh); }
+  }
+
   buildMesh(c) {
     this.disposeMesh(c);
     const { opaque, water } = meshChunk(this.world, c);
     c.meshes = [];
     if (opaque) { const m = new THREE.Mesh(opaque, this.matOpaque); this.scene.add(m); c.meshes.push(m); }
     if (water) { const m = new THREE.Mesh(water, this.matWater); m.renderOrder = 1; this.scene.add(m); c.meshes.push(m); }
-    c.dirty = false;
+    c.dirty = false; c.edited = false; c.pending = false;
   }
 
   disposeMesh(c) {
@@ -194,7 +233,7 @@ export class Game {
     let guard = 0;
     for (;;) {
       this.updateChunks(30);
-      const meshed = [...this.world.chunks.values()].filter((c) => c.meshes || !c.dirty).length;
+      const meshed = [...this.world.chunks.values()].filter((c) => c.meshes || (!c.dirty && !c.pending)).length;
       onProgress(Math.min(1, meshed / (total * 0.75)));
       if (meshed >= total * 0.75 || guard++ > 400) break;
       await new Promise((res) => setTimeout(res, 0));
@@ -1233,6 +1272,7 @@ export class Game {
       this.updateHorse(dt);
       this.caravans.update(dt, this.caravanCtx());
       this.lightClock += dt;
+      navFrame();
       this.villages.update(dt, this.villagerCtx());
       this.zombies.update(dt, this.zombieCtx());
       this.bandits.update(dt, this.banditCtx());
