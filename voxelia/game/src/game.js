@@ -21,6 +21,7 @@ import { Villages } from './villagers.js';
 import { villagesNear } from './villages.js';
 import { Zombies } from './zombies.js';
 import { Arrows } from './projectiles.js';
+import { PlayerPreview } from './preview.js';
 
 export const VERSION = '0.6.0';
 
@@ -235,9 +236,11 @@ export class Game {
     let lastSpace = 0;
     document.addEventListener('keydown', (e) => {
       if (e.code === 'Escape') return;
-      if (e.code === 'KeyE' && this.started && !this.craftOpen) { this.toggleInventory(); return; }
-      if (e.code === 'KeyC' && this.started && this.mode === 'survival' && !this.inventoryOpen) { this.toggleCraft(); return; }
-      if (e.code === 'KeyM' && this.started && !this.inventoryOpen && !this.craftOpen && !this.dead) { this.toggleMap(); return; }
+      // Cada pantalla se cierra con su propia tecla; con otra abierta (o muerto, o en pausa) no se abre otra encima.
+      const busy = this.dead || this.sleeping || this.villagerOpen || (this.paused && !this.inventoryOpen && !this.craftOpen && !this.mapOpen);
+      if (e.code === 'KeyE' && this.started && !busy && !this.craftOpen && !this.mapOpen) { this.toggleInventory(); return; }
+      if (e.code === 'KeyC' && this.started && !busy && this.mode === 'survival' && !this.inventoryOpen && !this.mapOpen) { this.toggleCraft(); return; }
+      if (e.code === 'KeyM' && this.started && !busy && !this.inventoryOpen && !this.craftOpen) { this.toggleMap(); return; }
       if (e.code === 'KeyV') this.keyV = true;
       if (this.paused) return;
       if (keymap[e.code]) this.player.input[keymap[e.code]] = 1;
@@ -262,6 +265,8 @@ export class Game {
       if (e.code === 'ControlLeft' || e.code === 'KeyR') this.player.input.sprint = false;
       if (e.code === 'KeyV') this.keyV = false;
     });
+    // En el inventario, tu personaje sigue el cursor con la mirada.
+    document.addEventListener('mousemove', (e) => { if (this.inventoryOpen) this.preview?.lookAtScreen(e.clientX, e.clientY); });
     document.addEventListener('mousemove', (e) => {
       if (this.paused || document.pointerLockElement !== this.canvas) return;
       const s = 0.0022 * this.settings.sensitivity;
@@ -285,11 +290,15 @@ export class Game {
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     document.addEventListener('wheel', (e) => { if (!this.paused) this.select((this.selected + (e.deltaY > 0 ? 1 : 8)) % 9); }, { passive: true });
     document.addEventListener('pointerlockchange', () => {
-      if (document.pointerLockElement !== this.canvas && this.started && !this.inventoryOpen && !this.craftOpen && !this.mapOpen && !this.villagerOpen && !this.dead) this.pause(true);
+      // Si el mouse se capturó tarde (con una pantalla ya abierta), se suelta: si no, el cursor queda congelado.
+      if (document.pointerLockElement === this.canvas && (this.paused || this.dead || this.sleeping)) { this.unlock(); return; }
+      if (document.pointerLockElement !== this.canvas && this.started && !this.inventoryOpen && !this.craftOpen && !this.mapOpen && !this.villagerOpen && !this.dead && !this.sleeping && performance.now() - (this.selfUnlockAt ?? 0) > 500) this.pause(true);
     });
   }
 
   lock() { this.canvas.requestPointerLock?.(); }
+  // Soltar el mouse a propósito (al abrir una pantalla): esa pérdida del puntero no debe pausar el juego.
+  unlock() { this.selfUnlockAt = performance.now(); if (document.pointerLockElement) document.exitPointerLock(); }
   select(i) { this.selected = i; this.renderHotbar(); this.sound.click(); }
   renderHotbar() { this.ui.renderHotbar(this.hotbar, this.selected, (id) => this.wearOf(id)); }
 
@@ -316,7 +325,7 @@ export class Game {
     this.paused = on;
     for (const k of Object.keys(this.player.input)) this.player.input[k] = typeof this.player.input[k] === 'boolean' ? false : 0;
     this.ui.show('#pause', on);
-    if (on) { this.save(); if (document.pointerLockElement) document.exitPointerLock(); } else this.lock();
+    if (on) { this.save(); this.unlock(); } else this.lock();
   }
 
   toggleInventory() {
@@ -324,12 +333,15 @@ export class Game {
     this.ui.show('#inventory', this.inventoryOpen);
     if (this.inventoryOpen) {
       this.paused = true;
-      if (document.pointerLockElement) document.exitPointerLock();
+      this.unlock();
+      this.preview ??= new PlayerPreview(document.querySelector('#player-preview'), this.atlasCanvas);
       this.renderInventory();
-    } else { this.paused = false; this.lock(); }
+      this.preview.start();
+    } else { this.preview?.stop(); this.paused = false; this.lock(); }
   }
 
   renderInventory() {
+    this.preview?.setEquip(this.mode === 'survival' ? this.equip : {}, this.held());
     this.ui.renderInventory((id) => {
       // Armadura y escudo se equipan; lo demás va a la casilla seleccionada de la barra rápida.
       const it = ITEMS[id];
@@ -337,6 +349,7 @@ export class Game {
       this.hotbar = this.hotbar.map((s) => (s?.id === id ? null : s));
       this.hotbar[this.selected] = { id, count: this.mode === 'survival' ? this.inventory[id] : 1 };
       this.renderHotbar();
+      this.preview?.setEquip(this.mode === 'survival' ? this.equip : {}, this.held());
       this.toggleInventory();
     }, this.inventory, this.mode === 'survival' ? { equip: this.equip, points: armorPoints(this.equip), wear: (slot) => this.equipWear(slot), unequip: (slot) => { this.unequip(slot); this.renderInventory(); } } : null);
   }
@@ -409,7 +422,7 @@ export class Game {
     const near = this.zombies.list.some((z) => !z.dead && z.pos.distanceTo(this.player.pos) < 10) || this.shadows.list.some((s) => s.mesh.position.distanceTo(this.player.pos) < 10);
     if (near && this.mode === 'survival') { this.ui.toast('No podés dormir: hay monstruos cerca', 2200); return; }
     this.sleeping = true; this.paused = true;
-    if (document.pointerLockElement) document.exitPointerLock();
+    this.unlock();
     const fade = document.querySelector('#sleep-fade');
     fade.classList.add('on');
     setTimeout(() => {
@@ -419,7 +432,7 @@ export class Game {
       this.onDawn();
       this.renderStatus();
     }, 1400);
-    setTimeout(() => { fade.classList.remove('on'); this.sleeping = false; this.paused = false; this.lock(); this.ui.toast('Dormiste bien. ¡Buen día!', 2500); }, 2600);
+    setTimeout(() => { fade.classList.remove('on'); this.sleeping = false; this.paused = false; this.ui.show('#pause', false); this.lock(); this.ui.toast('Dormiste bien. ¡Buen día!', 2500); }, 2600);
   }
 
   // Amanecer (natural o después de dormir): aldeas que crecen y una noche más sobrevivida.
@@ -463,7 +476,7 @@ export class Game {
     this.ui.show('#craft', this.craftOpen);
     if (this.craftOpen) {
       this.paused = true;
-      if (document.pointerLockElement) document.exitPointerLock();
+      this.unlock();
       this.renderCraft();
     } else { this.paused = false; this.lock(); }
   }
@@ -474,7 +487,7 @@ export class Game {
     this.ui.show('#map-screen', this.mapOpen);
     if (this.mapOpen) {
       this.paused = true;
-      if (document.pointerLockElement) document.exitPointerLock();
+      this.unlock();
       this.minimap.timer = 0;
       this.minimap.update(0, this.mapCtx(), true);
     } else { this.paused = false; this.lock(); }
@@ -656,7 +669,7 @@ export class Game {
   openVillager(e) {
     this.villagerOpen = true; this.talkingTo = e;
     this.paused = true;
-    if (document.pointerLockElement) document.exitPointerLock();
+    this.unlock();
     e.state = 'idle'; e.timer = 6;
     e.heading = Math.atan2(this.player.pos.x - e.pos.x, this.player.pos.z - e.pos.z);
     this.stats.met = (this.stats.met ?? 0) + 1;
@@ -913,7 +926,7 @@ export class Game {
 
   die(reason) {
     this.dead = true;
-    if (document.pointerLockElement) document.exitPointerLock();
+    this.unlock();
     document.querySelector('#death-reason').textContent = reason;
     this.ui.show('#death', true);
   }

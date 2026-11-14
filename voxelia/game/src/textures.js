@@ -196,7 +196,7 @@ export function buildAtlasCanvas() {
   const canvas = document.createElement('canvas');
   canvas.width = COLS * S;
   canvas.height = ATLAS_ROWS * S;
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   NAMES.forEach((name, i) => {
     const img = ctx.createImageData(S, S);
     paint(name, img.data);

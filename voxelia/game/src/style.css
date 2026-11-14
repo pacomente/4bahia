@@ -182,3 +182,14 @@ img.coin { width: 18px; height: 18px; image-rendering: pixelated; vertical-align
 #sleep-fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 1.2s; z-index: 30; display: grid; place-items: center; font-size: 42px; font-weight: 800; color: #9fb4ff; }
 #sleep-fade.on { opacity: 1; }
 @media (max-width: 760px) { .shop-cols { grid-template-columns: 1fr; } .inv-body { flex-direction: column; } #equip-panel { width: auto; } }
+
+/* Personaje en el inventario */
+#char-panel { display: flex; flex-direction: column; gap: 6px; width: 330px; flex: none; background: #c6c6c6; border: 3px solid #555; padding: 10px; color: #222; }
+.char-row { display: flex; gap: 6px; align-items: stretch; }
+.eq-col { display: flex; flex-direction: column; gap: 6px; width: 58px; }
+.eq-col .eq-slot { height: 58px; }
+.eq-col .eq-empty { font-size: 10px; }
+#player-preview { flex: 1; height: 256px; min-width: 0; background: radial-gradient(ellipse at 50% 90%, #8fa0b8 0%, #5d6b80 55%, #3d4757 100%); border: 2px solid #373737; border-right-color: #fff; border-bottom-color: #fff; }
+#equip-info { display: flex; flex-direction: column; gap: 4px; }
+#equip-info small { font-size: 11px; line-height: 1.3; color: #333; }
+#inv-grid { align-content: start; }

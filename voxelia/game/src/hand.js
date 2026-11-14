@@ -19,8 +19,11 @@ export class Hand {
     this.mats = [];
     // Brazo: manga y piel, en diagonal hacia el centro de la pantalla.
     this.arm = new THREE.Group();
-    const sleeve = this.mat(new THREE.MeshBasicMaterial({ color: SLEEVE }));
-    const skin = this.mat(new THREE.MeshBasicMaterial({ color: SKIN }));
+    // El brazo tiene luz propia (no plano) para que se vea con volumen.
+    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x8888aa, 1.5));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.4); sun.position.set(-1, 2, 1.5); this.scene.add(sun);
+    const sleeve = this.mat(new THREE.MeshLambertMaterial({ color: SLEEVE }));
+    const skin = this.mat(new THREE.MeshLambertMaterial({ color: SKIN }));
     const a1 = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 0.42), sleeve); a1.position.z = 0.17;
     const a2 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.3), skin); a2.position.z = -0.18;
     this.arm.add(a1, a2);
@@ -132,7 +135,6 @@ export class Hand {
     if (this.shield) { this.scene.remove(this.shield); this.shield.geometry.dispose(); this.shield.material.dispose(); this.shield = null; return; }
     const m = this.itemMesh(I.SHIELD);
     this.mats = this.mats.filter((x) => x !== m.material);   // material propio, no se descarta al cambiar de ítem
-    m.scale.setScalar(1.4);
     this.shield = m; this.raise = 0;
     this.scene.add(m);
   }
@@ -177,7 +179,9 @@ export class Hand {
     if (!this.shield) return;
     this.raise += ((blocking ? 1 : 0) - this.raise) * Math.min(1, dt * 14);
     const r = this.raise;
-    this.shield.position.set(-0.55 + r * 0.38 + this.root.position.x * 0.5, -0.48 + r * 0.22 + this.root.position.y, -0.75 + r * 0.15);
+    // Bajo: asoma en la esquina; levantado: al frente, tapando la mitad izquierda.
+    this.shield.position.set(-0.68 + r * 0.46 + this.root.position.x * 0.5, -0.66 + r * 0.36 + this.root.position.y, -0.8 + r * 0.1);
+    this.shield.scale.setScalar(1 + r * 0.35);
     this.shield.rotation.set(0.05, 0.45 - r * 0.4, 0);
     this.shield.material.color.setScalar(0.25 + 0.75 * light);
   }

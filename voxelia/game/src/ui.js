@@ -76,21 +76,26 @@ export class UI {
 
   renderInventory(onPick, inventory, eq = null) {
     // Equipo (solo supervivencia): casillas de armadura y escudo, con su desgaste.
-    const panel = this.$('#equip-panel');
-    panel.style.display = eq ? 'flex' : 'none';
+    // Personaje con su equipo: casillas a los costados del modelo 3D (en creativo, solo el modelo).
+    const slotsL = this.$('#equip-left'); const slotsR = this.$('#equip-right'); const infoEl = this.$('#equip-info');
+    slotsL.style.display = slotsR.style.display = eq ? 'flex' : 'none';
+    infoEl.innerHTML = eq ? '' : '<small>Modo creativo: todo infinito.</small>';
     if (eq) {
-      panel.innerHTML = `<b>Equipo</b>` + ['head', 'chest', 'legs', 'feet', 'offhand'].map((slot) => {
+      const slotHtml = (slot) => {
         const id = eq.equip[slot]; const wear = eq.wear(slot);
         return `<button class="eq-slot ${id ? 'on' : ''}" data-slot="${slot}" title="${id ? `${this.name(id)} · clic para sacar` : SLOT_NAMES[slot]}">
           ${id ? `<img src="${this.icon(id)}" alt="">` : `<span class="eq-empty">${SLOT_NAMES[slot]}</span>`}
           ${id && wear > 0 ? `<span class="dura"><i style="width:${Math.round((1 - wear) * 100)}%;background:hsl(${Math.round((1 - wear) * 120)},85%,50%)"></i></span>` : ''}</button>`;
-      }).join('') + `<small>Armadura: <b>${eq.points}</b> (frena ${Math.round(armorReduction(eq.points) * 100)}% del daño)</small><small class="muted">Hacé clic en una armadura o un escudo de la lista para ponértelo. Con el escudo: clic derecho sostenido o V.</small>`;
-      panel.querySelectorAll('[data-slot]').forEach((b) => b.addEventListener('click', () => eq.unequip(b.dataset.slot)));
+      };
+      slotsL.innerHTML = ['head', 'chest', 'legs', 'feet'].map(slotHtml).join('');
+      slotsR.innerHTML = slotHtml('offhand');
+      infoEl.innerHTML = `<small>Armadura: <b>${eq.points}</b> · frena ${Math.round(armorReduction(eq.points) * 100)}% del daño</small><small>Clic en una armadura o escudo de la lista para ponértelo; clic en la casilla para sacarlo. Escudo: clic derecho sostenido o V.</small>`;
+      for (const el of [slotsL, slotsR]) el.querySelectorAll('[data-slot]').forEach((b) => b.addEventListener('click', () => eq.unequip(b.dataset.slot)));
     }
     const grid = this.$('#inv-grid');
     const items = this.mode === 'survival'
       ? Object.entries(inventory).filter(([, n]) => n > 0).map(([id, n]) => ({ id: Number(id), n }))
-      : PLACEABLE.map((id) => ({ id }));
+      : [...PLACEABLE, ...Object.keys(ITEMS).map(Number)].map((id) => ({ id }));   // creativo: todos los bloques y todos los ítems
     grid.innerHTML = items.length ? items.map((it) => `
       <button class="inv-item" data-id="${it.id}" title="${this.name(it.id)}">
         <img src="${this.icon(it.id)}" alt=""><span>${this.name(it.id)}${it.n ? ` × ${it.n}` : ''}</span>

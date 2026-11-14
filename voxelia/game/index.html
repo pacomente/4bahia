@@ -107,7 +107,13 @@
     <div id="inventory" class="screen">
       <div class="panel" style="max-width:720px">
         <div class="row between"><h2 id="inv-title">Inventario</h2><span class="muted">Elegí un ítem para la casilla seleccionada · E para cerrar</span></div>
-        <div class="inv-body"><div id="equip-panel"></div><div id="inv-grid"></div></div>
+        <div class="inv-body">
+          <div id="char-panel">
+            <div class="char-row"><div id="equip-left" class="eq-col"></div><canvas id="player-preview"></canvas><div id="equip-right" class="eq-col"></div></div>
+            <div id="equip-info"></div>
+          </div>
+          <div id="inv-grid"></div>
+        </div>
       </div>
     </div>
 
