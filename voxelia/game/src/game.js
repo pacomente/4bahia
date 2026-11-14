@@ -816,6 +816,38 @@ export class Game {
     };
   }
 
+  // Ambiente: bioma para el clima, capas de sonido según lo que hay alrededor y zona para la música.
+  updateEnvironment(dt, underground) {
+    this.envT = (this.envT ?? 0) - dt;
+    if (this.envT <= 0) {
+      this.envT = 0.6;
+      const p = this.player.pos; const x = Math.floor(p.x); const z = Math.floor(p.z);
+      const biome = this.world.biome(x, z);
+      this.sky.setEnv({ biome, altitude: p.y });
+      // Agua y árboles alrededor (muestras en un anillo).
+      let water = 0; let leaves = 0; let n = 0;
+      for (let k = 0; k < 16; k++) {
+        const a = (k / 16) * Math.PI * 2; const sx = Math.floor(p.x + Math.cos(a) * 12); const sz = Math.floor(p.z + Math.sin(a) * 12);
+        const top = this.world.topAt(sx, sz); n++;
+        if (top < 31 && BLOCKS[this.world.getBlock(sx, 31, sz)]?.water) water++;
+        const id = this.world.getBlock(sx, top + 1, sz); const id2 = this.world.getBlock(sx, top, sz);
+        if ([B.LEAVES, B.BIRCH_LEAVES, B.PINE_LEAVES, B.PALM_LEAVES].includes(id) || [B.LEAVES, B.BIRCH_LEAVES, B.PINE_LEAVES, B.PALM_LEAVES].includes(id2)) leaves++;
+      }
+      const day = this.sky.daylight > 0.5;
+      const inVillage = !!this.villageNow;
+      const battle = [...this.villages.active.values()].some((a) => a.alarm && Math.hypot(a.plan.x - p.x, a.plan.z - p.z) < 70) || this.bandits.list.some((b) => !b.dead && b.aggro && Math.hypot(b.pos.x - p.x, b.pos.z - p.z) < 20);
+      this.ambEnv = {
+        wind: underground ? 0 : Math.min(1, Math.max(0, (p.y - 40) / 40) + (this.sky.storm ?? 0) * 0.8 + (biome === 'snow' ? 0.3 : 0)),
+        waves: underground ? 0 : water / n, rain: underground ? 0 : Math.max(this.sky.rain, (this.sky.storm ?? 0)), cave: underground ? 1 : 0,
+        birds: !underground && day && this.sky.rain < 0.3 ? Math.min(1, leaves / n * 3 + 0.1) : 0,
+        crickets: !underground && !day && this.sky.rain < 0.3 && biome !== 'snow' ? 0.6 : 0,
+        market: inVillage && day && this.sky.time < 0.42 ? 0.5 : 0,
+      };
+      this.zone = battle ? 'battle' : inVillage ? 'village' : (this.sea.riding || water / n > 0.6) ? 'sea' : biome === 'desert' ? 'desert' : biome === 'snow' ? 'snow' : null;
+    }
+    if (!this.paused && this.ambEnv) this.sound.updateAmbience(dt, this.ambEnv);
+  }
+
   // Carretas: al llegar a destino se hace el trato entre las dos aldeas.
   caravanCtx() {
     const pp = this.player.pos;
@@ -1300,7 +1332,9 @@ export class Game {
     this.minimap.update(dt, this.mapCtx(), this.mapOpen);
     // Música: más grave bajo tierra (techo opaco muy por encima y lejos del cielo).
     const ppx = Math.floor(this.player.pos.x); const ppz = Math.floor(this.player.pos.z);
-    this.sound.updateMusic(this.paused ? 0 : dt, { night: this.sky.daylight < 0.4, underground: this.player.pos.y < this.world.topAt(ppx, ppz) - 4 && this.player.pos.y < 30 });
+    const underground = this.player.pos.y < this.world.topAt(ppx, ppz) - 4 && this.player.pos.y < 30;
+    this.updateEnvironment(dt, underground);
+    this.sound.updateMusic(this.paused ? 0 : dt, { night: this.sky.daylight < 0.4, underground, zone: underground ? null : this.zone });
 
     // Cámara: balanceo al caminar, hundida al aterrizar, temblor al recibir daño y FOV más abierto al correr o planear.
     const eye = this.player.eye();
@@ -1319,13 +1353,19 @@ export class Game {
       eye.y + sy - 0.03 * this.bobAmt - this.landDip + (Math.random() - 0.5) * sh,
       eye.z - Math.sin(pl.yaw) * sx + (Math.random() - 0.5) * sh,
     );
-    this.camera.rotation.set(pl.pitch - this.landDip * 0.25, pl.yaw, Math.sin(this.bob) * 0.012 * this.bobAmt + (Math.random() - 0.5) * sh * 0.2, 'YXZ');
+    // A caballo: trote que sube y baja. En bote: se mece con las olas (más en la tormenta).
+    let ry = 0; let roll = 0; let pitchSway = 0;
+    if (this.horse) { this.trot = (this.trot ?? 0) + dt * hSpeed * 1.6; ry = Math.abs(Math.sin(this.trot)) * Math.min(0.12, hSpeed * 0.012); }
+    if (this.sea.riding) { const k = 1 + (this.sky.storm ?? 0) * 3; roll = Math.sin(this.playTime * 1.3) * 0.02 * k; pitchSway = Math.sin(this.playTime * 0.9) * 0.012 * k; ry = Math.sin(this.playTime * 1.1) * 0.05 * k; }
+    this.camera.position.y += ry;
+    this.camera.rotation.set(pl.pitch - this.landDip * 0.25 + pitchSway, pl.yaw, Math.sin(this.bob) * 0.012 * this.bobAmt + (Math.random() - 0.5) * sh * 0.2 + roll, 'YXZ');
     const fovTarget = this.settings.fov + (pl.sprinting && hSpeed > 4 ? 8 : 0) + (pl.gliding ? 12 : 0) + (pl.flying && pl.input.sprint ? 10 : 0);
     this.fovCur += (fovTarget - this.fovCur) * Math.min(1, dt * 8);
     if (Math.abs(this.camera.fov - this.fovCur) > 0.05) { this.camera.fov = this.fovCur; this.camera.updateProjectionMatrix(); }
 
     // Cielo, luz y niebla
     const skyColor = this.sky.update(this.paused ? 0 : dt, this.camera, this.player.headInWater);
+    if (this.sky.thunder && !this.paused) { const t = this.sky.thunder; setTimeout(() => { this.sound.thunder(underground ? 0.3 : 1); this.shake = Math.max(this.shake, 0.15); }, t.delay * 1000); }
     this.renderer.setClearColor(skyColor);
     const far = this.settings.renderDistance * CS;
     for (const m of [this.matOpaque, this.matWater]) {
