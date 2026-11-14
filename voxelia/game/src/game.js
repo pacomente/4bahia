@@ -21,6 +21,7 @@ import { Animals } from './animals.js';
 import { Sea } from './sea.js';
 import { navFrame } from './pathfind.js';
 import { Creatures, lairsNear } from './creatures.js';
+import { dungeonsNear, dungeonBlocks, dungeonLoot } from './dungeons.js';
 import { BOOKS, relation, isFestival } from './society.js';
 import { wrecksNear, treasure } from './wrecks.js';
 import { Caravans, tradeGoods, applyTrade, GOODS_NAME } from './caravans.js';
@@ -28,7 +29,7 @@ import { linksOf, routeOf } from './roads.js';
 import { ruinsNear, ruinLoot, treasureSpot, buriedTreasure, RUIN_REGION, ruinPlan } from './ruins.js';
 import { villagePlan } from './villages.js';
 import { MiniMap } from './minimap.js';
-import { Villages } from './villagers.js';
+import { Villages, newVillager } from './villagers.js';
 import { villagesNear } from './villages.js';
 import { Zombies } from './zombies.js';
 import { Arrows } from './projectiles.js';
@@ -106,6 +107,8 @@ export class Game {
     this.caravans = new Caravans(this.scene, this.world, this.animals);
     this.creatures = new Creatures(this.scene, this.world, this.sound);
     this.killedLairs = save?.killedLairs ?? [];
+    this.lordships = save?.lordships ?? {};
+    this.clearedDungeons = save?.clearedDungeons ?? [];       // aldeas de las que sos señor: id -> { pending }
     this.journal = save?.journal ?? [];          // diario: lo que fue pasando
     this.metNames = save?.metNames ?? [];        // gente que conociste (nombre · aldea)
     this.sea.load(save?.boats);
@@ -116,6 +119,7 @@ export class Game {
     this.villages.onSuccession = (plan, heir) => { if (Math.hypot(plan.x - this.player.pos.x, plan.z - this.player.pos.z) < 100) this.ui.toast(`👑 Murió quien gobernaba ${plan.name}. ${heir.name} toma su lugar.`, 4500); this.logEvent(`${heir.name} asumió en ${plan.name}.`); };
     this.zombies = new Zombies(this.scene, this.world, this.sound);
     this.bandits = new Bandits(this.scene, this.world, this.sound, save?.bandits);
+    this.bandits.threat = save?.stats?.threat ?? 0;
     this.lavaT = 0; this.campNow = null;
     this.arrows = new Arrows(this.scene, this.world, this.sound);
     this.lightCache = new Map(); this.lightClock = 0;
@@ -350,14 +354,19 @@ export class Game {
       if (document.pointerLockElement !== this.canvas) { this.lock(); return; }
       if (e.button === 0) {
         this.hand.swing();
-        if (this.attackMob()) return;
+        // Con espada: mantener apretado carga un golpe fuerte (se suelta para pegar).
+        if (ITEMS[this.held()]?.tool === 'sword' && this.mode === 'survival') this.charge = 0;
+        if (this.attackMob()) { this.mouse.left = true; return; }
         this.mouse.left = true;
         if (this.mode === 'creative') this.breakTarget();
       }
       if (e.button === 2) { this.mouse.right = true; if (!this.interact()) this.placeBlock(); }
       if (e.button === 1) this.pickBlock();
     });
-    document.addEventListener('mouseup', (e) => { if (e.button === 0) { this.mouse.left = false; this.breaking = null; this.ui.setBreakProgress(0); } if (e.button === 2) this.mouse.right = false; });
+    document.addEventListener('mouseup', (e) => {
+      if (e.button === 0) { this.mouse.left = false; this.breaking = null; this.ui.setBreakProgress(0); if (this.charge !== undefined && this.charge !== null) { if (this.charge >= 0.6) this.heavyAttack(); this.charge = null; document.querySelector('#charge')?.classList.remove('on'); } }
+      if (e.button === 2) this.mouse.right = false;
+    });
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     document.addEventListener('wheel', (e) => { if (!this.paused) this.select((this.selected + (e.deltaY > 0 ? 1 : 8)) % 9); }, { passive: true });
     document.addEventListener('pointerlockchange', () => {
@@ -647,6 +656,15 @@ export class Game {
   // Amanecer (natural o después de dormir): aldeas que crecen y una noche más sobrevivida.
   onDawn() {
     this.bandits.dawn();
+    // Amenaza creciente: mientras haya campamentos de saqueadores en pie cerca, se organizan y atacan más fuerte.
+    const p = this.player.pos;
+    const campsUp = campsNear(this.world, p.x, p.z, 600).some((c) => !this.bandits.records.get(c.id)?.defeated);
+    const before = this.stats.threat ?? 0;
+    this.stats.threat = campsUp ? Math.min(10, before + 1) : Math.max(0, before - 1);
+    this.bandits.threat = this.stats.threat;
+    if (this.stats.threat >= 4 && this.stats.threat > before && this.stats.threat % 2 === 0) setTimeout(() => this.ui.toast(`⚠ Los saqueadores se están organizando (amenaza ${this.stats.threat}/10). Vencé a su jefe para frenarlos.`, 4500), 5200);
+    // Señoríos: parte de los impuestos de cada aldea va para vos.
+    for (const [id, L] of Object.entries(this.lordships)) { const rec = this.villages.records.get(id); if (!rec) continue; const share = Math.max(2, Math.round((rec.treasury ?? 0) * 0.12)); rec.treasury = Math.max(0, (rec.treasury ?? 0) - share); L.pending = (L.pending ?? 0) + share; }
     // Lo que trajeron los barcos dura un par de días en los puertos.
     for (const rec of this.villages.records.values()) if (rec.importDays > 0) rec.importDays -= 1;
     // Comercio entre aldeas conocidas unidas por camino (aunque estén lejos).
@@ -757,7 +775,7 @@ export class Game {
   }
 
   mapCtx() {
-    return { player: this.player, spawn: this.spawn, faros: this.faros, radius: (this.settings.renderDistance + 1) * CS, showMini: this.settings.minimap !== false, villages: this.villageMarkers ?? [], camps: this.campMarkers ?? [], treasures: this.treasures.filter((t) => !t.found), ruins: this.ruinMarkers ?? [], lairs: lairsNear(this.world, this.player.pos.x, this.player.pos.z, 400).map((l) => ({ x: l.x, z: l.z, dead: this.killedLairs.includes(l.id) })) };
+    return { player: this.player, spawn: this.spawn, faros: this.faros, radius: (this.settings.renderDistance + 1) * CS, showMini: this.settings.minimap !== false, villages: this.villageMarkers ?? [], camps: this.campMarkers ?? [], treasures: this.treasures.filter((t) => !t.found), ruins: [...(this.ruinMarkers ?? []), ...(this.dungeonMarkers ?? []).map((d) => ({ ...d, name: `💀 ${d.name}` }))], lairs: lairsNear(this.world, this.player.pos.x, this.player.pos.z, 400).map((l) => ({ x: l.x, z: l.z, dead: this.killedLairs.includes(l.id) })) };
   }
 
   renderCraft() {
@@ -833,6 +851,34 @@ export class Game {
     return !!hit;
   }
   attackShadow() { return this.attackMob(); }
+
+  // ───── Golpe cargado ─────
+  // Barrido fuerte: pega a todos los enemigos al frente (hasta 3,5 bloques), los empuja lejos
+  // y rompe la guardia de los escuderos.
+  updateCharge(dt) {
+    if (this.charge === null || this.charge === undefined) return;
+    if (!this.mouse.left || ITEMS[this.held()]?.tool !== 'sword') { this.charge = null; document.querySelector('#charge')?.classList.remove('on'); return; }
+    this.charge = Math.min(1, this.charge + dt / 0.8);
+    const el = document.querySelector('#charge');
+    if (el) { el.classList.toggle('on', this.charge > 0.15); el.firstElementChild.style.width = `${this.charge * 100}%`; el.classList.toggle('full', this.charge >= 0.6); }
+    this.breaking = null; this.ui.setBreakProgress(0);   // cargando no se rompen bloques
+  }
+  heavyAttack() {
+    const eye = this.player.eye(); const look = this.player.look(); const fwd = new THREE.Vector3(look.x, 0, look.z).normalize();
+    const dmg = attackDamage(this.held(), this.upgrades[this.held()] ?? 0) * 2.2;
+    let hits = 0;
+    const inFront = (pos) => { const d = new THREE.Vector3(pos.x - eye.x, 0, pos.z - eye.z); const len = d.length(); return len < 3.6 && len > 0.01 && d.normalize().dot(fwd) > 0.35; };
+    const push = (pos) => { const d = new THREE.Vector3(pos.x - eye.x, 0, pos.z - eye.z).normalize(); return { x: d.x * 2.2, z: d.z * 2.2 }; };
+    for (const z of [...this.zombies.list]) if (!z.dead && inFront(z.pos)) { this.zombies.damage(z, dmg, this.zombieCtx(), true, push(z.pos)); hits++; }
+    for (const b of [...this.bandits.list]) if (!b.dead && inFront(b.pos)) { this.bandits.damage(b, dmg, this.banditCtx(), true, push(b.pos)); hits++; }
+    for (const s of [...this.shadows.list]) if (inFront(s.pos ?? s.mesh?.position ?? eye)) { this.shadows.hit(eye, look, 4, dmg, this.mobCtx()); hits++; break; }
+    if (this.creatures.hit(eye, look, 5, dmg, this.creatureCtx())) hits++;
+    for (const a of [...this.animals.list]) if (!a.tamed && inFront(a.mesh.position) && a.species === 'wolf') { this.animals.hit(eye, new THREE.Vector3(a.mesh.position.x - eye.x, a.mesh.position.y + 0.5 - eye.y, a.mesh.position.z - eye.z).normalize(), 5, dmg, { onKilled: (_p, sp) => { if (this.mode === 'survival') this.animalDrops(sp); } }); hits++; }
+    this.hand.swing(); this.shake = 0.15;
+    this.sound.noise(0.3, { freq: 900, q: 0.7, gain: 0.4 });   // fiuuu
+    if (hits) { this.sound.tone(180, 0.12, 0.2, 'square'); this.useTool(); this.stats.heavy = (this.stats.heavy ?? 0) + 1; }
+    this.attackCooldown = 0.5;
+  }
   // ───────── Caballo ─────────
   mountHorse(h) {
     this.horse = h; h.ridden = true; h.flee = 0;
@@ -1017,7 +1063,7 @@ export class Game {
     return {
       player: this.player, daylight: this.sky.daylight, enabled: this.mode === 'survival' && !this.dead, nights: this.stats.nights,
       villagers: this.villages.entities, villages: villagesNear(this.world, this.player.pos.x, this.player.pos.z, 60), lightAt: (x, y, z) => this.lightAt(x, y, z),
-      onHitPlayer: (dmg, dir) => { if (!this.damage(dmg, 'Un zombi te alcanzó', dir)) { this.player.vel.x += dir.x * 2; this.player.vel.z += dir.z * 2; return; } this.player.vel.x += dir.x * 6; this.player.vel.z += dir.z * 6; this.player.vel.y = 3.5; },
+      onHitPlayer: (dmg, dir, z) => { this.lastAttacker = z; if (!this.damage(dmg, 'Un zombi te alcanzó', dir)) { this.player.vel.x += dir.x * 2; this.player.vel.z += dir.z * 2; return; } this.player.vel.x += dir.x * 6; this.player.vel.z += dir.z * 6; this.player.vel.y = 3.5; },
       onHitVillager: (e, dmg, att) => { const name = e.data.name; const village = e.a.plan.name; if (this.villages.hurt(e, dmg, att)) this.ui.toast(e.data.prof === 'guard' ? `Cayó ${name}, guardia de ${village}, defendiendo la aldea` : `Los zombis atraparon a ${name} en ${village}`, 3500); },
       onKilled: (pos, byPlayer) => {
         if (!byPlayer) return;
@@ -1075,12 +1121,21 @@ export class Game {
     }
     return {
       player: this.player, daylight: this.sky.daylight, inBoat: !!this.sea.riding, deepWater: this.deepWaterNow, onLandFar: this.onLandFarNow, killedLairs: this.killedLairs,
+      setAttacker: (k) => { this.lastAttacker = k; },
+      summon: (pos) => { for (let i = 0; i < 2; i++) { const a = Math.random() * 6.28; this.zombies.spawnAt(pos.x + Math.cos(a) * 3, pos.y + 1, pos.z + Math.sin(a) * 3); } },
+      villagers: this.villages.entities, hurtVillager: (e, dmg, from) => { if (this.villages.hurt(e, dmg, from, true)) this.ui.toast(`Una bomba alcanzó a ${e.data.name}`, 2500); },
       onHit: (dmg, reason, dir) => this.damage(dmg, reason, dir),
       capsize: () => this.capsize('¡La serpiente dio vuelta el bote!'),
       warn: (text) => this.ui.toast(text, 3000),
       puff: (x, y, z, c) => this.spawnPuff(x, y, z, c),
       onKilled: (kind, pos, lair) => {
-        if (kind === 'dragon') {
+        if (kind === 'king') {
+          this.clearedDungeons.push(lair.id);
+          if (this.mode === 'survival') { this.addItem(I.CROWN, 1); this.addItem(I.GOLD, 12); this.addItem(I.CRYSTAL, 6); this.addItem(I.SILVER, 100); }
+          this.ui.toast('👑 ¡Venciste al Rey Sombrío! La mazmorra quedó libre. Ganaste su corona.', 6000);
+          this.villages.addGossip({ type: 'dragon' }); this.logEvent(`Venciste al Rey Sombrío en ${lair.name}.`);
+          this.stats.kings = (this.stats.kings ?? 0) + 1;
+        } else if (kind === 'dragon') {
           this.killedLairs.push(lair.id);
           if (this.mode === 'survival') { this.addItem(I.DRAGON_SCALE, 3); this.addItem(I.GOLD, 10); this.addItem(I.SILVER, 150); }
           this.ui.toast('🐉 ¡Venciste al dragón de las montañas! Escamas de dragón, oro y plata.', 6000);
@@ -1176,7 +1231,8 @@ export class Game {
         const d = Math.hypot(b.x - this.player.pos.x, b.z - this.player.pos.z);
         if (d < 24) { if (b.id) { this.sound.place(BLOCKS[b.id].sound); if (d < 16 && Math.random() < 0.35) this.spawnParticles({ x: b.x, y: b.y, z: b.z, block: BLOCKS[b.id] }); } else this.sound.dig('grass'); }
       },
-      onBuilt: (plan, rec) => { if (Math.hypot(plan.x - this.player.pos.x, plan.z - this.player.pos.z) < 120) { this.ui.toast(`¡${plan.name} tiene una casa nueva! Ya entran ${rec.villagers.length + 1} o más.`, 3500); this.sound.tone(523, 0.1, 0.12, 'sine'); setTimeout(() => this.sound.tone(784, 0.2, 0.12, 'sine'), 120); } },
+      onBuilt: (plan, rec) => {
+        if (rec.playerSlot !== undefined && rec.built[rec.built.length - 1] === rec.playerSlot && !rec.playerHouseAnnounced) { rec.playerHouseAnnounced = true; const h = plan.slots[rec.playerSlot]; this.spawn = { x: h.inside.x, y: h.y + 1, z: h.inside.z }; this.ui.toast(`🏠 ¡Tu casa en ${plan.name} está lista! Ahora reaparecés ahí.`, 5000); this.logEvent(`Terminaron tu casa en ${plan.name}.`); this.stats.house = 1; this.checkMissions(); return; } if (Math.hypot(plan.x - this.player.pos.x, plan.z - this.player.pos.z) < 120) { this.ui.toast(`¡${plan.name} tiene una casa nueva! Ya entran ${rec.villagers.length + 1} o más.`, 3500); this.sound.tone(523, 0.1, 0.12, 'sine'); setTimeout(() => this.sound.tone(784, 0.2, 0.12, 'sine'), 120); } },
       hitZombie: (z, dmg, _e, push) => (z.isBandit ? this.bandits.damage(z, dmg, this.banditCtx(), false, push) : this.zombies.damage(z, dmg, this.zombieCtx(), false, push)),
       onGuardHit: (g, z, heavy) => {
         const d = Math.hypot(g.pos.x - this.player.pos.x, g.pos.z - this.player.pos.z);
@@ -1221,7 +1277,9 @@ export class Game {
   renderVillager() {
     const e = this.talkingTo; if (!e) return;
     if (e.data.prof === 'king') this.villages.ensureQuest(e);
-    this.ui.renderVillager(this.villages.info(e, { honor: this.stats.honor ?? 0, name: this.playerName }), this.inventory, this.mode, {
+    const lord = this.lordships[e.a.plan.id];
+    this.ui.renderVillager(this.villages.info(e, { honor: this.stats.honor ?? 0, name: this.playerName, lord: !!lord, lordPending: lord?.pending ?? 0 }), this.inventory, this.mode, {
+      lord: (act) => this.lordAction(e, act),
       request: () => this.deliverRequest(e),
       trade: (tr) => this.trade(e, tr),
       buy: (it) => this.buy(e, it),
@@ -1259,6 +1317,42 @@ export class Game {
   }
 
   coinSound() { this.sound.tone(1320, 0.06, 0.12, 'square'); setTimeout(() => this.sound.tone(1760, 0.1, 0.1, 'square'), 60); }
+
+  // ───── Señorío y casa propia ─────
+  pay(n) { if (this.mode !== 'survival') return true; if ((this.inventory[I.SILVER] ?? 0) < n) { this.ui.toast(`Te faltan ${n - (this.inventory[I.SILVER] ?? 0)} de plata`, 1800); return false; } this.inventory[I.SILVER] -= n; if (this.inventory[I.SILVER] <= 0) delete this.inventory[I.SILVER]; return true; }
+  lordAction(e, act) {
+    const { plan, rec } = e.a; const L = this.lordships[plan.id];
+    if (act === 'ask') {
+      if (!this.pay(200)) return;
+      this.lordships[plan.id] = { pending: 0, since: this.stats.nights };
+      this.ui.toast(`👑 ¡Ahora sos señor de ${plan.name}! Vas a cobrar parte de los impuestos.`, 4500);
+      this.logEvent(`Te nombraron señor de ${plan.name}.`); this.villages.addGossip({ type: 'king', village: plan.name, name: this.playerName, title: 'señor' });
+      this.stats.lord = 1; for (let k = 0; k < 4; k++) setTimeout(() => this.sound.tone(523 * Math.pow(1.26, k), 0.3, 0.12, 'triangle'), k * 150);
+    } else if (act === 'house') {
+      const slot = plan.slots.findIndex((_, i) => !rec.built.includes(i) && !(rec.build && rec.build.slot === i));
+      if (slot < 0) { this.ui.toast('No queda terreno libre para una casa', 2000); return; }
+      if (!this.pay(120)) return;
+      rec.playerSlot = slot; rec.stock.wood += 10; rec.stock.stone += 10;
+      if (!rec.build) rec.build = { slot, step: 0 };
+      this.ui.toast(`🏗 Compraste un terreno en ${plan.name}. El constructor va a levantar tu casa.`, 4000);
+      this.logEvent(`Compraste una casa en ${plan.name}.`);
+    } else if (L && act === 'collect') {
+      if (!L.pending) { this.ui.toast('Todavía no hay impuestos para cobrar (se juntan cada amanecer)', 2200); return; }
+      this.addItem(I.SILVER, L.pending); this.ui.toast(`+${L.pending} de plata de los impuestos de ${plan.name}`, 2500); this.coinSound(); L.pending = 0;
+    } else if (L && act === 'guard') {
+      if (!this.pay(40)) return;
+      const v = newVillager(plan, rec, Math.random, { prof: 'guard' }); rec.villagers.push(v);
+      const a = this.villages.active.get(plan.id); if (a) this.villages.spawn(a, v);
+      this.ui.toast(`🛡 ${v.name} se suma a la guardia de ${plan.name}.`, 3000);
+    } else if (L && act === 'works') {
+      if (!this.pay(30)) return;
+      rec.boost = 180; rec.stock.wood += 12; rec.stock.stone += 12; this.ui.toast('🏗 Los constructores trabajan al doble de velocidad por un rato.', 3000);
+    } else if (L && act === 'feast') {
+      if (!this.pay(25)) return;
+      rec.forceFestival = (rec.day ?? 0) + 1; this.ui.toast(`🎉 Mañana hay fiesta en ${plan.name}.`, 3000);
+    }
+    this.syncHotbar(); this.renderStatus(); this.checkMissions(); this.renderVillager();
+  }
 
   deliverRequest(e) {
     const reward = this.villages.completeRequest(e, this.inventory);
@@ -1368,6 +1462,10 @@ export class Game {
       this.stats.wrecks = (this.stats.wrecks ?? 0) + 1;
       this.sound.tone(660, 0.12, 0.12, 'sine'); setTimeout(() => this.sound.tone(880, 0.12, 0.12, 'sine'), 120); setTimeout(() => this.sound.tone(1320, 0.3, 0.12, 'sine'), 240);
       this.renderStatus();
+    } else if (t.id === B.LOOT_CHEST && t.y < 26 && dungeonsNear(this.world, t.x, t.z, 0).some((d) => { dungeonBlocks(this.world, d); return d.chest && Math.abs(d.chest.x - t.x) <= 1 && Math.abs(d.chest.z - t.z) <= 1; })) {
+      if (this.mode === 'survival') for (const [id, n] of Object.entries(dungeonLoot())) this.addItem(Number(id), n);
+      this.ui.toast('¡El botín de la mazmorra! Oro, cristales y un mapa viejo.', 3500);
+      this.stats.ruins = (this.stats.ruins ?? 0) + 1; this.renderStatus();
     } else if (t.id === B.LOOT_CHEST && ruinsNear(this.world, t.x, t.z, 30).some((p) => p.chest && Math.abs(p.chest.x - t.x) <= 1 && Math.abs(p.chest.z - t.z) <= 1 && Math.abs(p.chest.y - t.y) <= 1)) {
       const ruin = ruinsNear(this.world, t.x, t.z, 30).find((p) => p.chest && Math.abs(p.chest.x - t.x) <= 1 && Math.abs(p.chest.z - t.z) <= 1);
       const loot = ruinLoot(ruin);
@@ -1523,6 +1621,15 @@ export class Game {
       // Escudo levantado y golpe de frente: lo frena del todo.
       const look = this.player.look(); const lx = look.x; const lz = look.z; const ll = Math.hypot(lx, lz) || 1;
       const front = -(dir.x * lx + dir.z * lz) / ((Math.hypot(dir.x, dir.z) || 1) * ll);
+      if (this.blocking && front > -0.15 && this.playTime - (this.blockStart ?? -9) < 0.35) {
+        // ¡Desvío! Escudo levantado justo a tiempo: sin daño, y el atacante queda aturdido y empujado.
+        const a = this.lastAttacker;
+        if (a?.pos) { a.pos.x -= dir.x * 1.2; a.pos.z -= dir.z * 1.2; a.vy = 4; if (a.cooldown !== undefined) a.cooldown = Math.max(a.cooldown, 1.6); a.flash = 0.2; }
+        this.sound.tone(1600, 0.08, 0.18, 'square'); this.sound.tone(800, 0.2, 0.12, 'triangle');
+        this.ui.toast('¡Desvío!', 700); this.shake = 0.08;
+        this.stats.parries = (this.stats.parries ?? 0) + 1; this.lastAttacker = null;
+        return false;
+      }
       if (this.blocking && front > -0.15) {
         this.sound.noise(0.18, { freq: 2600, q: 3, gain: 0.55 }); this.sound.tone(520, 0.08, 0.12, 'square');
         this.wearEquip('offhand', n); this.shake = 0.12;
@@ -1570,7 +1677,7 @@ export class Game {
       player: { x: this.player.pos.x, y: this.player.pos.y, z: this.player.pos.z, yaw: this.player.yaw, pitch: this.player.pitch, flying: this.player.flying },
       spawn: this.spawn, time: this.sky.time, health: this.health, inventory: this.inventory, hotbar: this.hotbar, selected: this.selected,
       playTime: this.playTime, mods: this.world.serializeMods(), savedAt: new Date().toISOString(),
-      stats: this.stats, maxHealth: this.maxHealth, pets: this.animals.list.filter((a) => a.tamed).map((a) => ({ species: a.species, name: a.petName, color: a.mesh.userData.base?.[0]?.getHex?.() })), food: this.food, upgrades: this.upgrades, hives: this.hives, treasures: this.treasures, lootedRuins: this.lootedRuins, killedLairs: this.killedLairs, journal: this.journal, metNames: this.metNames, faros: this.faros, toolWear: this.toolWear, villages: this.villages.serialize(), bandits: this.bandits.serialize(), equip: this.equip, armorWear: this.armorWear, crops: this.crops, boats: this.sea.serialize(),
+      stats: this.stats, maxHealth: this.maxHealth, pets: this.animals.list.filter((a) => a.tamed).map((a) => ({ species: a.species, name: a.petName, color: a.mesh.userData.base?.[0]?.getHex?.() })), food: this.food, upgrades: this.upgrades, hives: this.hives, treasures: this.treasures, lootedRuins: this.lootedRuins, killedLairs: this.killedLairs, journal: this.journal, metNames: this.metNames, lordships: this.lordships, clearedDungeons: this.clearedDungeons, faros: this.faros, toolWear: this.toolWear, villages: this.villages.serialize(), bandits: this.bandits.serialize(), equip: this.equip, armorWear: this.armorWear, crops: this.crops, boats: this.sea.serialize(),
     };
   }
   async save() {
@@ -1675,7 +1782,10 @@ export class Game {
       this.eatCooldown = Math.max(0, this.eatCooldown - dt);
       // Escudo: clic derecho sostenido (sin un bloque en la mano) o la tecla V.
       const heldNow = this.held();
-      this.blocking = this.mode === 'survival' && this.equip.offhand === I.SHIELD && (this.keyV || (this.mouse.right && (!heldNow || (isItem(heldNow) && !isFood(heldNow) && heldNow !== I.BOW && heldNow !== I.SEEDS))));
+      const wasBlocking = this.blocking;
+      this.blocking = this.mode === 'survival' && this.equip.offhand === I.SHIELD && (this.keyV || (this.mouse.right && (!heldNow || (isItem(heldNow) && !isFood(heldNow) && heldNow !== I.BOW && heldNow !== I.SEEDS && heldNow !== I.ROD))));
+      if (this.blocking && !wasBlocking) this.blockStart = this.playTime;
+      this.updateCharge(dt);
       this.player.slow = this.blocking ? 0.45 : this.horse ? 2.1 : 1;
       this.prevTime = this.sky.time;
       this.ui.renderStamina(this.player.stamina, this.mode === 'survival');
@@ -1752,7 +1862,7 @@ export class Game {
     const v = this.villages.villageAt(p.x, p.z);
     if (v && v.id !== this.villageNow) {
       const rec = this.villages.records.get(v.id);
-      const fest = rec && isFestival(v, rec.day ?? 0);
+      const fest = rec && isFestival(v, rec.day ?? 0, rec);
       this.ui.toast(`${v.port ? '⚓ ' : 'Aldea '}${v.name}${rec ? ` · ${rec.villagers.length} habitantes` : ''}${fest ? ' · 🎉 ¡hoy es día de fiesta!' : ''}`, 3500);
       if (!this.journal.some((j) => j.text === `Llegaste a ${v.name}.`)) this.logEvent(`Llegaste a ${v.name}.`);
       this.stats.visited = (this.stats.visited ?? 0) + 1;
@@ -1770,6 +1880,15 @@ export class Game {
       this.stats.campsFound = (this.stats.campsFound ?? 0) + 1;
     }
     this.campNow = camp?.id ?? null;
+    // Mazmorras: aviso al entrar y el jefe al llegar a la sala del trono.
+    for (const d of dungeonsNear(this.world, p.x, p.z, 120)) {
+      dungeonBlocks(this.world, d);
+      const cleared = this.clearedDungeons.includes(d.id);
+      if (Math.hypot(d.x - p.x, d.z - p.z) < 8 && this.dungeonNow !== d.id) { this.dungeonNow = d.id; this.ui.toast(`💀 ${d.name}${cleared ? ' (ya vencida)' : ': dicen que abajo espera el Rey Sombrío…'}`, 4000); }
+      if (!cleared && d.hall && p.y < 26 && Math.hypot(d.hall.x - p.x, d.hall.z - p.z) < 10 && !this.dungeonMobs?.[d.id]) { (this.dungeonMobs ??= {})[d.id] = true; for (let i = 0; i < 3; i++) this.zombies.spawnAt(d.hall.x + (i - 1) * 2, d.hall.y, d.hall.z + 1); }
+      if (!cleared && !this.creatures.king && d.boss && Math.hypot(d.boss.x - p.x, d.boss.z - p.z) < d.boss.r && Math.abs(p.y - d.boss.y) < 4) { this.creatures.spawnShadowKing({ x: d.boss.x, y: d.boss.y, z: d.boss.z }, d); this.ui.toast('👑 ¡El Rey Sombrío se levanta de su trono!', 3500); }
+    }
+    this.dungeonMarkers = dungeonsNear(this.world, p.x, p.z, this.revealedMap ? 500 : 150).map((d) => ({ x: d.x, z: d.z, name: d.name, done: this.clearedDungeons.includes(d.id) }));
     // Ruinas: cartel al llegar y marcadores en el mapa.
     const ruin = ruinsNear(this.world, p.x, p.z, 0)[0] ?? null;
     if (ruin && ruin.id !== this.ruinNow) { this.ui.toast(`🏚 ${ruin.name}${this.lootedRuins.includes(ruin.id) ? ' (ya explorada)' : ': quizás quede algo de valor'}`, 3500); this.stats.ruinsSeen = (this.stats.ruinsSeen ?? 0) + 1; }
@@ -1806,8 +1925,11 @@ export class Game {
       player: this.player, daylight: this.sky.daylight, enabled: this.mode === 'survival' && !this.dead,
       villagers: this.villages.entities, villages: [...this.villages.active.values()].filter((a) => Math.hypot(a.plan.x - pp.x, a.plan.z - pp.z) < 90),
       lightAt: (x, y, z) => this.lightAt(x, y, z),
-      onHitPlayer: (dmg, dir, b) => { if (!this.damage(dmg, b.kind === 'leader' ? `${b.name} te derrotó` : 'Un saqueador te derrotó', dir)) { this.player.vel.x += dir.x * 2; this.player.vel.z += dir.z * 2; return; } this.player.vel.x += dir.x * 6; this.player.vel.z += dir.z * 6; this.player.vel.y = 3.5; },
+      onHitPlayer: (dmg, dir, b) => { this.lastAttacker = b; if (!this.damage(dmg, b.kind === 'leader' ? `${b.name} te derrotó` : 'Un saqueador te derrotó', dir)) { this.player.vel.x += dir.x * 2; this.player.vel.z += dir.z * 2; return; } this.player.vel.x += dir.x * 6; this.player.vel.z += dir.z * 6; this.player.vel.y = 3.5; },
       onHitVillager: (e, dmg, att) => { const name = e.data.name; const village = e.a.plan.name; if (this.villages.hurt(e, dmg, att)) this.ui.toast(e.data.prof === 'guard' ? `Cayó ${name}, guardia de ${village}, defendiendo la aldea` : `Los saqueadores atacaron a ${name} en ${village}`, 3500); },
+      onThrow: (from, foe) => this.creatures.throwBomb(from, foe.pos),
+      onLeaderDown: () => { this.stats.threat = Math.max(0, (this.stats.threat ?? 0) - 3); this.bandits.threat = this.stats.threat; },
+      attackerPos: this.player.pos,
       onShoot: (from, dir, b) => this.arrows.shoot(from, dir, 26, { enemy: true, shooter: b }),
       onRaid: (plan, campName) => {
         this.ui.toast(`⚔ ¡Saqueadores de ${campName} atacan ${plan.name}!`, 4500);

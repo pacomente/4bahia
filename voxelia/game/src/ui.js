@@ -200,6 +200,18 @@ export class UI {
       $('#v-quest').innerHTML = q ? `<h3 class="v-title">Encargo real</h3><div class="quest"><div>${q.text}<small>${q.kind === 'deliver' ? `Tenés ${inventory[q.id] ?? 0}/${q.n}` : `Zombis: ${q.progress}/${q.n} (de noche, cerca de la aldea)`} · Recompensa: ${q.reward} ${coin}</small></div>
         <button class="mc-btn small ${ready ? 'primary' : ''}" id="q-done" ${ready ? '' : 'disabled'}>Entregar</button></div><small class="muted">Tu rango en el reino: <b>${info.rank}</b></small>` : `<p class="muted">No hay encargos por ahora. Tu rango: <b>${info.rank}</b></p>`;
       $('#q-done')?.addEventListener('click', on.quest);
+      // Señorío y casa propia.
+      const L = info.lord;
+      if (L) {
+        const btn = (id, text, cost) => `<button class="mc-btn small primary" data-lord="${id}">${text}${cost ? ` · ${cost} <img class="coin" src="${this.icon(131)}" alt="">` : ''}</button>`;
+        let html = '<h3 class="v-title">Señorío</h3><div class="lord">';
+        if (L.isLord) html += `<p>Sos señor de esta aldea. Te corresponde una parte de los impuestos.</p>${btn('collect', `Cobrar tu parte (${L.pending})`)}${btn('guard', 'Contratar un guardia', 40)}${btn('works', 'Acelerar las obras', 30)}${btn('feast', 'Fiesta mañana', 25)}`;
+        else html += L.canAsk ? `<p>El pueblo te aprecia. Podés pedir el señorío de la aldea.</p>${btn('ask', 'Pedir el señorío', 200)}` : '<p class="muted">Para pedir el señorío, el pueblo tiene que apreciarte y tenés que haber cumplido encargos reales.</p>';
+        html += L.hasHouse ? `<p>${L.houseReady ? '🏠 Tu casa está lista: dormí en tu cama para aparecer ahí.' : '🏗 El constructor está levantando tu casa.'}</p>` : L.freeSlot ? btn('house', 'Comprar una casa en el pueblo', 120) : '';
+        html += '</div>';
+        $('#v-quest').insertAdjacentHTML('beforeend', html);
+        $('#v-quest').querySelectorAll('[data-lord]').forEach((b) => b.addEventListener('click', () => on.lord(b.dataset.lord)));
+      }
     }
     // Tienda: compra con plata y venta.
     const shop = info.shop;

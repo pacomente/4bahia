@@ -38,7 +38,7 @@ export function relation(world, a, b) {
 }
 
 // Día de fiesta: cada aldea tiene su fiesta cada 6 días (en un día propio).
-export const isFestival = (plan, day) => ((day + Math.floor(hash3(0, plan.rx, 4444, plan.rz) * 6)) % 6) === 0;
+export const isFestival = (plan, day, rec = null) => rec?.forceFestival === day || ((day + Math.floor(hash3(0, plan.rx, 4444, plan.rz) * 6)) % 6) === 0;
 
 // Sucesor del rey/jefe: su pareja; si no, el adulto de más edad.
 export function successor(rec) {

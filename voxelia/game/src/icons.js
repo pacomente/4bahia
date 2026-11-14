@@ -274,6 +274,11 @@ export function drawItem(id, it, I) {
       thickLine(set, 21, 8, 26, 13, 1.6, RAMPS.red); thickLine(set, 26, 8, 21, 13, 1.6, RAMPS.red);
       thickLine(set, 5, 6, 5, 28, 1.6, RAMPS.wood); thickLine(set, 27, 4, 27, 27, 1.6, RAMPS.wood);
       break;
+    case I.CROWN:
+      poly(set, [[5, 24], [5, 10], [11, 17], [16, 6], [21, 17], [27, 10], [27, 24]], (x, y) => pickRamp(['#2a1238', '#5a2a7a', '#8a4dff', '#d8b8ff'], 0.95 - y / 40));
+      for (const [x, y] of [[16, 9], [6, 12], [26, 12]]) disk(set, x, y, 1.6, RAMPS.gold);
+      for (let x = 7; x <= 25; x += 6) disk(set, x, 20, 1.4, RAMPS.red);
+      break;
     case I.BOOK:
       poly(set, [[6, 5], [24, 3], [26, 27], [8, 29]], (x, y) => pickRamp(['#2a1a3a', '#5a3a7a', '#7a5aa0', '#a888c8'], 0.9 - (x + y) / 80));
       poly(set, [[24, 3], [27, 4], [28, 27], [26, 27]], () => '#f2efe6');

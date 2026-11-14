@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { BLOCKS } from './blocks.js';
 import { SEA, hash3 } from './world.js';
+import { createHumanoid, animateHumanoid, lightHumanoid, makeProp } from './humanoid.js';
 
 // ───────── Criaturas raras ─────────
 // Serpiente marina: de noche, en mar abierto y lejos de la costa. Da vueltas alrededor del jugador
@@ -36,7 +37,7 @@ const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
 export class Creatures {
   constructor(scene, world, sound) {
     this.scene = scene; this.world = world; this.sound = sound;
-    this.serpent = null; this.dragon = null; this.fireballs = []; this.t = 0; this.serpentT = 20;
+    this.serpent = null; this.dragon = null; this.fireballs = []; this.bombs = []; this.t = 0; this.serpentT = 20;
     this.mat = {
       scale: new THREE.MeshBasicMaterial({ color: 0x1f6a6a }), belly: new THREE.MeshBasicMaterial({ color: 0x8ad8c8 }), fin: new THREE.MeshBasicMaterial({ color: 0x3fa8a0 }),
       eye: new THREE.MeshBasicMaterial({ color: 0xffe066 }), fang: new THREE.MeshBasicMaterial({ color: 0xf4f0e8 }),
@@ -199,6 +200,90 @@ export class Creatures {
     }
   }
 
+  // ───── Rey Sombrío (jefe de la mazmorra), con tres fases ─────
+  // 1) Persigue y golpea fuerte. 2) Además llama a sus esbirros y se teletransporta a tu espalda.
+  // 3) Furioso: más rápido y lanza ondas de choque por el piso (saltá para esquivarlas).
+  spawnShadowKing(pos, dungeon) {
+    const parts = createHumanoid({ skin: '#4a3a5a', shirt: '#2a1a3a', pants: '#1a1020', hair: '#0e0a14', hat: 'crown', cape: '#120a1a', scale: 1.9 });
+    const sword = makeProp('sword'); parts.tool.add(sword);
+    parts.root.position.set(pos.x, pos.y, pos.z); this.scene.add(parts.root);
+    this.king = { parts, pos: parts.root.position, hp: 260, max: 260, dungeon, t: 0, cooldown: 2, heading: 0, flash: 0, summonT: 8, tpT: 7, waveT: 5, ring: null, phase: 1, isBoss: true };
+    this.sound.tone(60, 2, 0.35, 'sawtooth');
+  }
+  updateShadowKing(dt, ctx) {
+    const k = this.king; const P = ctx.player.pos; k.t += dt; k.cooldown -= dt; k.flash = Math.max(0, k.flash - dt);
+    const ratio = k.hp / k.max; const phase = ratio > 0.66 ? 1 : ratio > 0.33 ? 2 : 3;
+    if (phase !== k.phase) { k.phase = phase; ctx.warn?.(phase === 2 ? '👑 El Rey Sombrío llama a sus esbirros…' : '👑 ¡El Rey Sombrío está furioso!'); this.sound.tone(phase === 3 ? 50 : 70, 1.4, 0.35, 'sawtooth'); }
+    const room = k.dungeon.boss;
+    const dx = P.x - k.pos.x; const dz = P.z - k.pos.z; const d = Math.hypot(dx, dz);
+    k.heading = Math.atan2(dx, dz);
+    const speed = phase === 3 ? 3.6 : 2.4;
+    let action = 'walk';
+    if (d > 2.4) {
+      const nx = k.pos.x + (dx / d) * speed * dt; const nz = k.pos.z + (dz / d) * speed * dt;
+      if (Math.hypot(nx - room.x, nz - room.z) < room.r + 1.5) { k.pos.x = nx; k.pos.z = nz; }
+    } else if (k.cooldown <= 0) {
+      k.cooldown = phase === 3 ? 1.1 : 1.6; action = 'attack';
+      ctx.setAttacker?.(k);
+      ctx.onHit?.(5, 'El Rey Sombrío te derrotó', new THREE.Vector3(dx, 0, dz).normalize());
+    } else action = k.cooldown > 1 ? 'attack' : 'idle';
+    if (phase >= 2) {
+      k.summonT -= dt; if (k.summonT <= 0) { k.summonT = 12; ctx.summon?.(k.pos); ctx.warn?.('¡Aparecen esbirros!'); }
+      k.tpT -= dt;
+      if (k.tpT <= 0) {
+        k.tpT = 8 + Math.random() * 4;
+        const look = ctx.player.look(); const bx = P.x - look.x * 2.5; const bz = P.z - look.z * 2.5;
+        if (Math.hypot(bx - room.x, bz - room.z) < room.r + 1) { for (let i = 0; i < 6; i++) ctx.puff?.(k.pos.x, k.pos.y + 1 + i * 0.3, k.pos.z, 0x2a1a3a); k.pos.x = bx; k.pos.z = bz; this.sound.noise(0.4, { freq: 300, q: 2, gain: 0.3 }); }
+      }
+    }
+    if (phase === 3) {
+      k.waveT -= dt;
+      if (k.waveT <= 0 && !k.ring) {
+        k.waveT = 7;
+        const m = new THREE.Mesh(new THREE.RingGeometry(0.1, 0.6, 32), new THREE.MeshBasicMaterial({ color: 0x8a4dff, transparent: true, opacity: 0.85, side: THREE.DoubleSide }));
+        m.rotation.x = -Math.PI / 2; m.position.set(k.pos.x, k.pos.y + 0.15, k.pos.z); this.scene.add(m);
+        k.ring = { mesh: m, r: 0.5, hit: false }; this.sound.noise(0.8, { freq: 120, q: 0.6, gain: 0.45, type: 'lowpass' });
+      }
+    }
+    if (k.ring) {
+      const ring = k.ring; ring.r += dt * 9; ring.mesh.scale.setScalar(ring.r * 1.2); ring.mesh.material.opacity = Math.max(0, 0.85 - ring.r / 12);
+      const dist = Math.hypot(P.x - ring.mesh.position.x, P.z - ring.mesh.position.z);
+      if (!ring.hit && Math.abs(dist - ring.r) < 0.7 && ctx.player.onGround && Math.abs(P.y - ring.mesh.position.y) < 1.5) { ring.hit = true; ctx.onHit?.(4, 'La onda del Rey Sombrío te alcanzó'); }
+      if (ring.r > 12) { this.scene.remove(ring.mesh); ring.mesh.geometry.dispose(); k.ring = null; }
+    }
+    k.parts.root.rotation.y = k.heading;
+    animateHumanoid(k.parts, { t: k.t, phase: k.t * 5, walk: d > 2.4 ? 1 : 0, action, lookYaw: 0 });
+    lightHumanoid(k.parts, Math.max(0.5, ctx.daylight), k.flash);
+    // Si salís de la mazmorra, vuelve a su trono (y se cura un poco).
+    if (d > 40) { this.scene.remove(k.parts.root); this.king = null; }
+  }
+
+  // Bomba de un lanzador saqueador: vuela en arco y explota al tocar algo (daño en un radio).
+  throwBomb(from, to) {
+    const m = new THREE.Group(); m.add(box(0.36, 0.36, 0.36, new THREE.MeshBasicMaterial({ color: 0x26232a })), box(0.08, 0.2, 0.08, this.mat.fire));
+    m.children[1].position.y = 0.25; m.position.copy(from); this.scene.add(m);
+    const dx = to.x - from.x; const dz = to.z - from.z; const d = Math.hypot(dx, dz) || 1; const T = Math.max(0.7, d / 12);
+    const v = new THREE.Vector3(dx / T, ((to.y + 0.5) - from.y + 0.5 * 18 * T * T) / T, dz / T);
+    this.bombs.push({ mesh: m, v, life: 5 });
+    this.sound.noise(0.2, { freq: 900, q: 1, gain: 0.2 });
+  }
+  updateBombs(dt, ctx) {
+    for (const b of [...this.bombs]) {
+      b.life -= dt; b.v.y -= 18 * dt; b.mesh.position.addScaledVector(b.v, dt); b.mesh.rotation.x += dt * 8;
+      const p = b.mesh.position;
+      const solid = BLOCKS[this.world.getBlock(Math.floor(p.x), Math.floor(p.y), Math.floor(p.z))].solid || BLOCKS[this.world.getBlock(Math.floor(p.x), Math.floor(p.y), Math.floor(p.z))].water;
+      const P = ctx.player.pos; const nearPlayer = Math.hypot(P.x - p.x, P.y + 0.9 - p.y, P.z - p.z) < 1;
+      if (!solid && !nearPlayer && b.life > 0) continue;
+      // ¡Bum!
+      for (let k = 0; k < 8; k++) ctx.puff?.(p.x, p.y, p.z, k % 2 ? 0xff8a1e : 0x444444);
+      this.sound.noise(0.6, { freq: 220, q: 0.6, gain: 0.45, type: 'lowpass' });
+      const dP = Math.hypot(P.x - p.x, P.y + 0.9 - p.y, P.z - p.z);
+      if (dP < 2.6) ctx.onHit?.(dP < 1.3 ? 4 : 2, 'Te alcanzó una bomba de los saqueadores', new THREE.Vector3(P.x - p.x, 0, P.z - p.z).normalize());
+      for (const v of ctx.villagers ?? []) if (!v.hidden && Math.hypot(v.pos.x - p.x, v.pos.z - p.z) < 2.4) ctx.hurtVillager?.(v, 3, { pos: p.clone() });
+      this.scene.remove(b.mesh); this.bombs = this.bombs.filter((x) => x !== b);
+    }
+  }
+
   // ctx: { player, daylight, inBoat, deepWater, onLandFar, onHit(dmg, reason, dir), capsize(), warn(text), puff(x,y,z,color), killedLairs, onKilled(kind, pos) }
   update(dt, ctx) {
     this.t += dt;
@@ -223,6 +308,8 @@ export class Creatures {
       if (Math.hypot(P.x - this.dragon.lair.x, P.z - this.dragon.lair.z) > 220) { this.scene.remove(this.dragon.mesh); this.dragon = null; }
     }
     this.updateFireballs(dt, ctx);
+    this.updateBombs(dt, ctx);
+    if (this.king) this.updateShadowKing(dt, ctx);
   }
 
   // Golpe del jugador (espada o flecha). Devuelve true si le pegó a algo.
@@ -230,6 +317,7 @@ export class Creatures {
     const targets = [];
     if (this.serpent) for (const g of this.serpent.segs) targets.push({ c: g.position, r: 1.0, who: 'serpent' });
     if (this.dragon) targets.push({ c: this.dragon.mesh.position, r: 2.6, who: 'dragon' });
+    if (this.king) targets.push({ c: this.king.pos.clone().setY(this.king.pos.y + 1.8), r: 1.5, who: 'king' });
     let best = null; let bestT = range;
     for (const t of targets) {
       const tt = t.c.clone().sub(origin).dot(dir);
@@ -237,6 +325,11 @@ export class Creatures {
       if (origin.clone().addScaledVector(dir, tt).distanceTo(t.c) < t.r) { best = t; bestT = tt; }
     }
     if (!best) return false;
+    if (best.who === 'king') {
+      const k = this.king; k.hp -= damage; k.flash = 0.2; this.sound.tone(90, 0.15, 0.2, 'sawtooth');
+      if (k.hp <= 0) { const pos = k.pos.clone(); if (k.ring) this.scene.remove(k.ring.mesh); this.scene.remove(k.parts.root); ctx.onKilled?.('king', pos, k.dungeon); this.king = null; }
+      return true;
+    }
     const m = best.who === 'serpent' ? this.serpent : this.dragon;
     m.hp -= damage; m.flash = 0.2;
     this.sound.tone(best.who === 'dragon' ? 110 : 160, 0.15, 0.2, 'sawtooth');
@@ -252,6 +345,7 @@ export class Creatures {
 
   // Para la barra de jefe.
   boss(P) {
+    if (this.king) return { name: `Rey Sombrío · fase ${this.king.phase}`, hp: this.king.hp, max: this.king.max };
     if (this.dragon && (this.dragon.aggro || this.dragon.mesh.position.distanceTo(P) < 60)) return { name: 'Dragón de las montañas', hp: this.dragon.hp, max: this.dragon.max };
     if (this.serpent) return { name: 'Serpiente marina', hp: this.serpent.hp, max: this.serpent.max };
     return null;

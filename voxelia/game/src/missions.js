@@ -33,6 +33,11 @@ export const MISSIONS = [
   { id: 'treasure', title: 'Encontrá un tesoro enterrado', hint: 'Algunas ruinas guardan un mapa del tesoro. Leelo (clic derecho), seguí la X roja del mapa y cavá.', goal: 1, progress: (s) => s.treasures ?? 0 },
   { id: 'pet', title: 'Domesticá un lobo', hint: 'De noche salen lobos. Dale carne (clic derecho con carne en la mano) hasta que acepte el collar.', goal: 1, progress: (s) => s.pets ?? 0 },
   { id: 'leader', title: 'Derrotá a un jefe saqueador', hint: 'Llevá armadura y escudo: el jefe pega fuerte y los arqueros disparan desde lejos.', goal: 1, progress: (s) => s.leaders ?? 0 },
+  { id: 'heavy', title: 'Dá un golpe cargado', hint: 'Con una espada en la mano, mantené apretado el clic izquierdo hasta que la barrita se ponga roja y soltá.', goal: 1, progress: (s) => s.heavy ?? 0 },
+  { id: 'parry', title: 'Desviá un golpe con el escudo', hint: 'Levantá el escudo (clic derecho o V) justo antes de que te peguen: el enemigo queda aturdido.', goal: 1, progress: (s) => s.parries ?? 0 },
+  { id: 'house', title: 'Tené tu casa en un pueblo', hint: 'Hablá con el rey o el jefe: te vende un terreno y el constructor te levanta la casa.', goal: 1, progress: (s) => s.house ?? 0 },
+  { id: 'lord', title: 'Convertite en señor de una aldea', hint: 'Con el aprecio del pueblo y encargos reales cumplidos, el rey te puede dar el señorío.', goal: 1, progress: (s) => s.lord ?? 0 },
+  { id: 'dungeon', title: 'Vencé al Rey Sombrío de la mazmorra', hint: 'Las mazmorras tienen una entrada de piedra con barrotes. Bajá la escalera hasta la sala del trono. Tres fases: ¡saltá sus ondas!', goal: 1, progress: (s) => s.kings ?? 0 },
   { id: 'dragon', title: 'Vencé al dragón de las montañas', hint: 'Su guarida aparece en el mapa en lo alto de las montañas. Llevá arco, flechas, armadura y mucha comida.', goal: 1, progress: (s) => s.dragons ?? 0 },
 ];
 

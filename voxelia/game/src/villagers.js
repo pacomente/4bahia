@@ -123,7 +123,8 @@ function rng(seed) {
 const pick = (r, list) => list[Math.floor(r() * list.length)];
 
 // ───────── Lógica pura de la aldea (sin gráficos: se puede probar) ─────────
-export const allHouses = (plan, rec) => [...plan.houses, ...rec.built.map((i) => plan.slots[i])];
+// La casa que compró el jugador no cuenta como vivienda de los aldeanos.
+export const allHouses = (plan, rec) => [...plan.houses, ...rec.built.filter((i) => i !== rec.playerSlot).map((i) => plan.slots[i])];
 // Cada casa tiene dos camas; el castillo, dos más (la familia real).
 export const capacity = (plan, rec) => allHouses(plan, rec).length * 2 + (plan.castle ? 2 : 0);
 export const levelOf = (plan, rec) => villageLevel(allHouses(plan, rec).length + (plan.castle ? 2 : 0), !!plan.castle);
@@ -261,7 +262,7 @@ export function villageDawn(plan, rec, r = Math.random) {
   events.push(...couples);
   for (const c of couples) rec.wedding = { a: c.a, b: c.b, day: rec.day + 1 };
   if (rec.wedding && rec.wedding.day < rec.day) rec.wedding = null;
-  if (isFestival(plan, rec.day)) events.push({ type: 'festival' });
+  if (isFestival(plan, rec.day, rec)) events.push({ type: 'festival' });
   // Nacimiento: una pareja, lugar libre y comida guardada.
   const couple = rec.villagers.find((v) => v.partner && !v.female);
   if (couple && !hungry && rec.stock.food >= 3 && rec.villagers.length < capacity(plan, rec) && r() < 0.75) {
@@ -279,7 +280,9 @@ export function villageDawn(plan, rec, r = Math.random) {
 // Si la aldea está llena (o casi) y queda lugar, empieza una casa nueva.
 export function planBuild(plan, rec) {
   if (rec.build) return rec.build;
-  const free = plan.slots.findIndex((_, i) => !rec.built.includes(i));
+  // Primero la casa que encargó el jugador (si hay).
+  if (rec.playerSlot !== undefined && !rec.built.includes(rec.playerSlot) && rec.villagers.some((v) => v.prof === 'builder')) { rec.build = { slot: rec.playerSlot, step: 0 }; return rec.build; }
+  const free = plan.slots.findIndex((_, i) => !rec.built.includes(i) && i !== rec.playerSlot);
   if (free < 0 || !rec.villagers.some((v) => v.prof === 'builder')) return null;
   if (rec.stock && rec.stock.wood + rec.stock.stone < 6) return null;   // sin materiales no se empieza
   if (rec.villagers.length >= capacity(plan, rec) - 1) rec.build = { slot: free, step: 0 };
@@ -939,7 +942,7 @@ export class Villages {
       }
     }
     // Día de fiesta: baile en la plaza y torneo de guardias.
-    if (isFestival(P, day) && time > 0.05 && time < 0.42 && !e.hidden) {
+    if (isFestival(P, day, a.rec) && time > 0.05 && time < 0.42 && !e.hidden) {
       if (prof === 'guard' && time > 0.22 && time < 0.3 && r < 0.6) {
         const rival = a.list.find((o) => o !== e && o.data.prof === 'guard' && o.state !== 'spar');
         if (rival) { const ang = Math.random() * 6.28; go(P.x + 0.5 + Math.cos(ang) * 1.2, P.z + 0.5 + Math.sin(ang) * 1.2, 'spar', 10); e.sparWith = rival; rival.sparWith = e; rival.state = 'idle'; rival.timer = 0; return; }
@@ -1133,6 +1136,7 @@ export class Villages {
     else if (v.prof === 'builder' && rec.villagers.length >= capacity(plan, rec)) line = 'No queda lugar para nadie más: no hay más terreno para construir.';
     else if (v.prof === 'smith') line = 'Forjo armaduras y armas. Si tu herramienta está gastada, con un lingote de hierro te la dejo como nueva.';
     else if (v.prof === 'guard') line = pick(Math.random, LINES.guard);
+    else if (player.lord && Math.random() < 0.5) line = pick(Math.random, [`¡Buen día, ${player.name}! Es un honor tenerte de señor en ${plan.name}.`, '¡Larga vida a nuestro señor!', `Señor ${player.name}, el pueblo crece gracias a vos.`]);
     else if (v.visitor) line = `Vine de ${v.visitor} a ayudar. Cuando salga el sol vuelvo a casa.`;
     else if (mem.hurt > 0 && Math.random() < 0.6) line = pick(Math.random, ['No me olvido de que me pegaste.', 'Vos sos el que me golpeó… te tengo vigilado.', 'Mmm. Ya te conozco.']);
     else if (v.request && Math.random() < 0.7) line = `${v.request.text} Te pago ${v.request.reward} de plata.`;
@@ -1168,9 +1172,10 @@ export class Villages {
       request: !isChild(v) && v.prof !== 'king' ? v.request ?? null : null,
       family: [v.parents?.length ? `hijo/a de ${v.parents.join(' y ')}` : null, (() => { const kids = rec.villagers.filter((k) => k.parents?.includes(v.name)).map((k) => k.name); return kids.length ? `${kids.length === 1 ? 'hijo/a' : 'hijos'}: ${kids.join(', ')}` : null; })()].filter(Boolean),
       relations: linksOf(this.world, plan).map((o) => ({ name: o.name, rel: relation(this.world, plan, o) })).filter((x) => x.rel !== 'neutral'),
-      festival: isFestival(plan, rec.day ?? 0),
+      festival: isFestival(plan, rec.day ?? 0, rec),
       silver: v.silver ?? 0, treasury: v.prof === 'king' ? rec.treasury ?? 0 : null, edu: isChild(v) ? v.edu ?? 0 : null,
       buildings: [plan.castle && 'castillo', plan.church && 'iglesia', plan.school && 'escuela', plan.pen && 'corral', plan.port && 'puerto'].filter(Boolean),
+      lord: v.prof === 'king' ? { isLord: !!player.lord, pending: player.lordPending ?? 0, canAsk: rec.rep >= 6 && (player.honor ?? 0) >= 2, hasHouse: rec.playerSlot !== undefined, houseReady: rec.playerSlot !== undefined && rec.built.includes(rec.playerSlot), freeSlot: plan.slots.some((_, i) => !rec.built.includes(i)) } : null,
       quest: v.prof === 'king' ? rec.quest : null, rank: rankFor(player.honor ?? 0).name, economy: economySummary(plan, rec), port: !!plan.port,
     };
   }
