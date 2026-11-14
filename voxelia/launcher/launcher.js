@@ -6,6 +6,7 @@ let worlds = [];
 let settings = {};
 
 const NEWS = [
+  { date: '14/11/2026', title: 'Voxelia 0.10 — Vida de pueblo', items: ['Iglesias con campanario, vitrales y bancos: a la tarde suena la campana y los vecinos van a misa', 'Escuelas con pupitres y pizarrón: los chicos van a clase a la mañana con la maestra', 'Corrales con lanudos, gallinas y caballos que los granjeros alimentan', 'Caballos: montalos (clic derecho) y corré el doble de rápido', 'Caminos de grava con faroles y puentes que unen los pueblos', 'Carretas de comercio que llevan comida, madera y piedra de un pueblo a otro y se pagan en plata', 'Los aldeanos tienen su bolsa de plata: cobran jornales, se compran cosas en el mercado y el rey cobra impuestos para el tesoro', 'Arreglo: los aldeanos ahora saben qué hora es (antes vivían siempre al mediodía)'] },
   { date: '14/11/2026', title: 'Voxelia 0.9 — Mares y vida', items: ['Océanos grandes con arrecifes de coral, algas, pastos marinos, peces y medusas que brillan de noche', 'Puertos: aldeas costeras con muelle, faro, pescadores y marineros', 'Barcos mercantes que llegan a los puertos y abaratan gemas, hierro y lana', 'Botes: fabricalos con 5 tablas y navegá (W/S reman, A/D giran, Shift para bajar)', 'Barcos hundidos con cofres llenos de perlas, oro y plata', 'Bosques con pinos, robles grandes, troncos caídos y arbustos de bayas; palmeras en las playas', 'Animales nuevos: ciervos, conejos y cangrejos; dejan carne para comer', 'Cada aldea tiene su propia economía: los precios cambian según el bioma, las reservas y los barcos', 'Nota: el terreno de los mundos viejos cambia (ahora hay mares)'] },
   { date: '14/11/2026', title: 'Voxelia 0.8 — Hogar', items: ['Herramientas, armas, armaduras, materiales y comida rediseñados en pixel-art de 32×32', 'Casas amuebladas: mesas, sillas, hogar a leña con chimenea, bibliotecas, alfombras, barriles, heno y yunque', 'Tres tipos de casa: familiar, taller y granja; flores en la entrada', 'De noche los aldeanos se sientan a cenar antes de ir a dormir', 'Trono en el castillo y mercadería en los puestos del mercado', 'Pestaña Muebles en el Taller para decorar tu propia casa'] },
   { date: '14/11/2026', title: 'Voxelia 0.7 — Profundidades y saqueadores', items: ['Cavernas enormes, grietas que abren la superficie y lagos de lava en el fondo', 'Hongos luminosos y musgo en las cuevas; oro en lo profundo', 'Campamentos de saqueadores con empalizada, carpas, jaulas con prisioneros y cofre del botín', 'Saqueadores con hacha, arqueros que te disparan y un jefe con barra de vida', 'De noche hacen incursiones a las aldeas: los guardias los enfrentan', 'Tu personaje en el inventario sigue el cursor; muchos errores corregidos'] },
@@ -151,7 +152,7 @@ function browserApi() {
       const p = JSON.parse(localStorage.getItem('voxelia_profile') ?? '{"name":"Jugador"}');
       location.href = `../dist/game/index.html?${new URLSearchParams({ world: w.id, name: w.name, seed: w.seed, mode: w.mode, player: p.name, from: 'launcher' })}`;
     },
-    info: async () => ({ version: '0.9.0', dataPath: 'Navegador (localStorage)', platform: 'web' }),
+    info: async () => ({ version: '0.10.0', dataPath: 'Navegador (localStorage)', platform: 'web' }),
     openDataFolder: async () => toast('Disponible en la app de escritorio'),
   };
 }

@@ -30,7 +30,7 @@ import { PlayerPreview } from './preview.js';
 import { Bandits } from './bandits.js';
 import { campsNear, lootTable, CAMP_REGION, campPlan } from './camps.js';
 
-export const VERSION = '0.9.0';
+export const VERSION = '0.10.0';
 
 const DEFAULT_HOTBAR = [B.GRASS, B.DIRT, B.STONE, B.COBBLE, B.PLANKS, B.LOG, B.GLASS, B.BRICK, B.LAMP];
 

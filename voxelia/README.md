@@ -95,6 +95,17 @@ Juego de mundo abierto de bloques para PC, con su propio **launcher**. Todo el c
 - **Economía local**: cada aldea tiene sus propios precios según el bioma, sus reservas y si es puerto (▲ caro / ▼ barato en la tienda).
 - Nota: el generador de terreno cambió; en mundos guardados de versiones anteriores las zonas nuevas pueden quedar con mares.
 
+## Vida de pueblo (0.10)
+
+- **Iglesia** con campanario, campana, vitrales, altar y bancos. La atiende un sacerdote o sacerdotisa; a la tarde suena la campana y los vecinos van a misa.
+- **Escuela** con pupitres y pizarrón: a la mañana los chicos van a clase con el maestro o la maestra. Los que estudian terminan la escuela sabiendo leer y escribir.
+- **Corral** con cerca, comedero y heno: lanudos, gallinas y un caballo. El granjero les da de comer y la aldea suma comida y lana.
+- **Caballos**: en las praderas y en los corrales. Clic derecho para montar (corre el doble), Shift para bajar.
+- **Caminos** de grava con faroles entre aldeas vecinas, con puentes de madera sobre el agua.
+- **Carretas de comercio**: van por los caminos llevando lo que le sobra a un pueblo y le falta a otro; el que recibe le paga en plata al tesoro del que manda.
+- **Plata entre vecinos**: cada aldeano tiene su bolsa, cobra su jornal y compra en el mercado (pagándole al que atiende el puesto). El rey o el jefe cobra impuestos, paga a guardias y docentes y compra materiales para las obras.
+- Bloques nuevos: cerca, campana, banco de iglesia, altar, pizarrón, vitral y comedero.
+
 ## Controles
 
 | Tecla | Acción |

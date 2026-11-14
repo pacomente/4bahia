@@ -395,7 +395,11 @@ export class Villages {
       for (const e of [...a.list]) this.think(e, a, dt, ctx);
       // Campana de la iglesia a la hora de misa.
       const tNow = ctx.time ?? 0.25;
-      if (a.plan.church && a.lastTime !== undefined && a.lastTime < 0.3 && tNow >= 0.3) ctx.onBell?.(a.plan.church.bell, a.plan);
+      if (a.plan.church && a.lastTime !== undefined && a.lastTime < 0.3 && tNow >= 0.3) {
+        ctx.onBell?.(a.plan.church.bell, a.plan);
+        // Al oír la campana, los que no están ocupados se preparan para ir a misa.
+        for (const e of a.list) if (['wander', 'idle', 'talk'].includes(e.state) && !e.hidden) { e.state = 'idle'; e.talkWith = null; e.timer = Math.random() * 4; }
+      }
       a.lastTime = tNow;
       this.updateSmoke(a, dt, ctx);
       // El trigo de los campos crece solo.
