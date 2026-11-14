@@ -201,6 +201,9 @@ export class World {
           if (fr < 0.03) c.set(lx, h + 1, lz, fr < 0.015 ? B.FLOWER_RED : B.FLOWER_YELLOW);
           else if (fr < (biome === 'plains' ? 0.17 : 0.11)) c.set(lx, h + 1, lz, B.TALL_GRASS);
           else if (biome === 'forest' && fr < 0.118) c.set(lx, h + 1, lz, B.BERRY_BUSH);
+          // Huertas silvestres y calabazas: raras, para conseguir las primeras semillas.
+          else if (biome === 'plains' && fr > 0.9985) c.set(lx, h + 1, lz, fr > 0.9993 ? B.CARROT_RIPE : B.POTATO_RIPE);
+          else if (biome !== 'desert' && fr > 0.997 && fr <= 0.9985) c.set(lx, h + 1, lz, B.PUMPKIN);
         } else if (biome === 'desert' && h > SEA + 1 && c.get(lx, h, lz) === B.SAND && fr < 0.012) c.set(lx, h + 1, lz, B.DEAD_BUSH);
         // Fondo del mar: corales en aguas cálidas y poco profundas; pasto marino y algas en el resto.
         if (h < SEA - 1) {
@@ -263,6 +266,9 @@ export class World {
         }
       }
       put(x, top + 2, z, leaves);
+      // Algunos robles son manzanos (hojas con fruta) y algunos tienen una colmena colgando.
+      if (log === B.LOG && hh(x, z, 91) < 0.18) for (let dy = -2; dy <= 1; dy++) for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) if (hh(x + dx, z + dz, top + dy + 5) < 0.45) { const lx = x + dx - x0; const lz = z + dz - z0; if (lx >= 0 && lz >= 0 && lx < CS && lz < CS && c.get(lx, top + dy, lz) === B.LEAVES) c.set(lx, top + dy, lz, B.FRUIT_LEAVES); }
+      if (hh(x + 31, z - 17, 5) < 0.14) { const [bx, bz] = [[1, 0], [-1, 0], [0, 1], [0, -1]][Math.floor(hh(x - 11, z + 7, 3) * 4)]; put(x + bx, top - 3, z + bz, B.BEEHIVE); }
     };
     // Roble grande: tronco alto, ramas y copa ancha.
     const bigOak = (x, h, z) => {

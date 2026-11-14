@@ -59,6 +59,16 @@ export class UI {
     }).join('');
   }
 
+  // Hambre: 10 muslitos (cada uno vale 2).
+  renderFood(food, show) {
+    const el = this.$('#food');
+    if (!el) return;
+    el.style.display = show ? 'flex' : 'none';
+    if (!show) return;
+    el.innerHTML = Array.from({ length: 10 }, (_, i) => { const v = food - i * 2; return `<span class="drum ${v >= 1.5 ? 'full' : v >= 0.5 ? 'half' : 'empty'}"></span>`; }).join('');
+    el.classList.toggle('starving', food < 4);
+  }
+
   renderAir(air, show) {
     const el = this.$('#bubbles');
     el.style.display = show ? 'flex' : 'none';
@@ -201,7 +211,7 @@ export class UI {
     $('#v-trades').innerHTML = info.trades.map((t, i) => `
       <div class="trade ${has(t.give) ? 'ok' : ''}">
         <div class="give">${items(t.give)}</div><span class="arrow">➜</span>
-        <div class="get">${t.repair ? '<span class="ti repair">🔧<small>Reparar la herramienta en la mano</small></span>' : items(t.get)}</div>
+        <div class="get">${t.upgrade ? '<span class="ti repair">⚒<small>Reforzar lo que tenés en la mano (+1, hasta +3): plata y hierro</small></span>' : t.repair ? '<span class="ti repair">🔧<small>Reparar la herramienta en la mano</small></span>' : items(t.get)}</div>
         <button class="mc-btn small ${has(t.give) ? 'primary' : ''}" data-t="${i}" ${has(t.give) ? '' : 'disabled'}>Cambiar</button>
       </div>`).join('');
     $('#v-trades').querySelectorAll('[data-t]').forEach((b) => b.addEventListener('click', () => on.trade(info.trades[Number(b.dataset.t)])));

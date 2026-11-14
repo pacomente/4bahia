@@ -10,7 +10,8 @@ import { Sky } from './sky.js';
 import { Sound } from './audio.js';
 import { UI } from './ui.js';
 import { saveWorld, saveSettings, exitToLauncher } from './storage.js';
-import { I, ITEMS, isItem, mineSpeed, attackDamage, maxUses, armorPoints, armorReduction, isFood, ARMOR_SLOTS } from './items.js';
+import { I, ITEMS, isItem, mineSpeed, attackDamage, maxUses, armorPoints, armorReduction, isFood, ARMOR_SLOTS, COOKS, MAX_UPGRADE, upgradeCost } from './items.js';
+import { GROW, RIPE, PLANT, CROP_BLOCKS, harvest } from './crops.js';
 import { rankFor } from './economy.js';
 import { craft, craftableTimes } from './recipes.js';
 import { Hand } from './hand.js';
@@ -66,6 +67,9 @@ export class Game {
     // Progreso de supervivencia propio de Voxelia.
     this.stats = { ...emptyStats(), ...(save?.stats ?? {}) };
     this.maxHealth = save?.maxHealth ?? 20;
+    this.food = save?.food ?? 20;              // hambre: 20 = panza llena
+    this.upgrades = save?.upgrades ?? {};      // mejoras del herrero por ítem: { id: nivel }
+    this.hives = save?.hives ?? {};            // colmenas cosechadas: 'x,y,z' -> momento
     this.faros = save?.faros ?? [];
     this.beams = new Map();
     this.attackCooldown = 0;
@@ -441,8 +445,122 @@ export class Game {
   // Corazones, armadura y plata en el HUD.
   renderStatus() {
     this.ui.renderHearts(this.health, this.maxHealth);
-    this.ui.renderArmor(armorPoints(this.equip), this.mode === 'survival');
+    this.ui.renderFood?.(this.food, this.mode === 'survival');
+    this.ui.renderArmor(this.armorTotal(), this.mode === 'survival');
     this.ui.renderSilver(this.inventory[I.SILVER] ?? 0, this.mode === 'survival');
+  }
+
+  // Armadura total, con las mejoras del herrero (+1 punto por nivel en cada pieza).
+  armorTotal() { return armorPoints(this.equip) + ARMOR_SLOTS.reduce((n, sl) => n + (this.equip[sl] ? this.upgrades[this.equip[sl]] ?? 0 : 0), 0); }
+
+  // ───── Hambre ─────
+  // La panza se vacía de a poco (más rápido corriendo o peleando). Llena: te curás rápido; con hambre
+  // no te curás y vas más lento; vacía: perdés vida de a poco (hasta medio corazón).
+  updateHunger(dt) {
+    const p = this.player;
+    const busy = (p.sprinting ? 3 : 1) + (this.attackCooldown > 0 ? 1.5 : 0) + (p.inWater ? 0.5 : 0);
+    this.food = Math.max(0, this.food - dt * 0.018 * busy);
+    this.regen = (this.regen ?? 0) + dt;
+    const every = this.food >= 18 ? 3 : this.food >= 6 ? 7 : Infinity;
+    if (this.regen > every && this.health < this.maxHealth && this.health > 0) { this.regen = 0; this.health += 1; this.food = Math.max(0, this.food - 0.4); this.ui.renderHearts(this.health, this.maxHealth); }
+    if (this.food <= 0) {
+      this.starveT = (this.starveT ?? 0) + dt;
+      if (this.starveT > 8) { this.starveT = 0; if (this.health > 1) this.damage(1, 'Te moriste de hambre'); if (!this.hungerWarned) { this.ui.toast('¡Tenés mucha hambre! Comé algo.', 2500); this.hungerWarned = true; } }
+    } else this.hungerWarned = false;
+    if (Math.floor(this.food) !== this.lastFoodShown) { this.lastFoodShown = Math.floor(this.food); this.ui.renderFood?.(this.food, true); }
+  }
+
+  // ───── Cocinar ─────
+  // Con algo crudo en la mano, clic derecho sobre una fogata, un hogar o un horno: se cocina en unos segundos.
+  startCooking(t, held) {
+    if (this.cooking) return;
+    this.cooking = { raw: held, out: COOKS[held], t: 0, x: t.x + 0.5, y: t.y + 1, z: t.z + 0.5, oven: t.id === B.OVEN };
+    this.ui.toast(`Cocinando ${ITEMS[held].name.toLowerCase()}…`, 1500);
+    this.hand.swing();
+  }
+  updateCooking(dt) {
+    const c = this.cooking; if (!c) return;
+    c.t += dt;
+    if (Math.random() < dt * 6) this.sound.noise(0.08, { freq: 3000 + Math.random() * 2000, q: 0.6, gain: 0.08, type: 'highpass' });   // chisporroteo
+    if (Math.random() < dt * 4) this.spawnPuff?.(c.x, c.y + 0.3, c.z);
+    if (c.t < (c.oven ? 1.6 : 2.6)) return;
+    this.cooking = null;
+    if (this.mode === 'survival') { if (!(this.inventory[c.raw] > 0)) return; this.inventory[c.raw] -= 1; if (this.inventory[c.raw] <= 0) delete this.inventory[c.raw]; }
+    this.addItem(c.out); this.syncHotbar();
+    this.sound.tone(660, 0.08, 0.08, 'triangle');
+    this.ui.toast(`¡Listo! ${ITEMS[c.out].name}`, 1500);
+    this.stats.cooked = (this.stats.cooked ?? 0) + 1; this.checkMissions();
+  }
+
+  // ───── Pesca ─────
+  // Clic derecho con la caña: tira el corcho al agua. Cuando pica (se hunde y salpica), clic derecho para sacar.
+  castOrReel() {
+    if (this.bobber) { this.reel(); return true; }
+    const eye = this.player.eye(); const dir = this.player.look();
+    let hit = null;
+    for (let t = 1; t < 14 && !hit; t += 0.25) {
+      const q = eye.clone().addScaledVector(dir, t); const id = this.world.getBlock(Math.floor(q.x), Math.floor(q.y), Math.floor(q.z));
+      if (BLOCKS[id].water) hit = q; else if (BLOCKS[id].solid) break;
+    }
+    if (!hit) { this.ui.toast('Apuntá al agua para tirar la caña', 1400); return true; }
+    let y = Math.floor(hit.y); while (BLOCKS[this.world.getBlock(Math.floor(hit.x), y + 1, Math.floor(hit.z))].water) y++;
+    const mesh = new THREE.Group();
+    const red = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.16), new THREE.MeshBasicMaterial({ color: 0xd8352b }));
+    const white = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.08, 0.16), new THREE.MeshBasicMaterial({ color: 0xf4f4f4 })); white.position.y = 0.09;
+    mesh.add(red, white); mesh.position.set(hit.x, y + 0.92, hit.z); this.scene.add(mesh);
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([eye, mesh.position]), new THREE.LineBasicMaterial({ color: 0xe8e4d8 }));
+    line.frustumCulled = false; this.scene.add(line);
+    // Pica antes de noche, con lluvia y en mar abierto.
+    const open = this.world.topAt(Math.floor(hit.x), Math.floor(hit.z)) < 24;
+    const wait = (6 + Math.random() * 12) * (this.sky.daylight < 0.4 ? 0.7 : 1) * (this.sky.rain > 0.3 ? 0.75 : 1) * (open ? 0.85 : 1);
+    this.bobber = { mesh, line, t: 0, biteAt: wait, biteT: 0, y: y + 0.92, open };
+    this.sound.splash(); this.hand.swing();
+    return true;
+  }
+  reel() {
+    const b = this.bobber; this.bobber = null;
+    this.scene.remove(b.mesh); this.scene.remove(b.line); b.line.geometry.dispose();
+    this.hand.swing();
+    if (b.biteT <= 0) { this.ui.toast('Nada… Esperá a que se hunda el corcho.', 1400); return; }
+    // ¿Qué salió? Más peces raros de noche y en mar abierto.
+    const night = this.sky.daylight < 0.4; const cold = this.world.biome(Math.floor(this.player.pos.x), Math.floor(this.player.pos.z)) === 'snow';
+    const table = [[I.RAW_FISH, 55], [I.SALMON, cold || b.open ? 30 : 12], [I.OLD_BOOT, 8], [I.PEARL, b.open ? 4 : 1], [I.GOLDEN_FISH, (night ? 4 : 1) + (b.open ? 3 : 0)]];
+    let roll = Math.random() * table.reduce((n, [, w]) => n + w, 0); let got = table[0][0];
+    for (const [id, w] of table) { roll -= w; if (roll <= 0) { got = id; break; } }
+    this.addItem(got); this.syncHotbar(); this.useTool();
+    this.sound.splash(); this.coinSound();
+    this.ui.toast(got === I.GOLDEN_FISH ? '¡¡Un pez dorado!! Vale una fortuna en los puertos.' : got === I.OLD_BOOT ? 'Una bota vieja… mala suerte.' : `¡Sacaste: ${ITEMS[got].name}!`, 2200);
+    this.stats.fished = (this.stats.fished ?? 0) + 1; this.checkMissions();
+  }
+  updateFishing(dt) {
+    const b = this.bobber; if (!b) return;
+    if (this.held() !== I.ROD || b.mesh.position.distanceTo(this.player.pos) > 24) { this.scene.remove(b.mesh); this.scene.remove(b.line); this.bobber = null; return; }
+    b.t += dt;
+    const pos = b.line.geometry.attributes.position; const eye = this.player.eye(); const dir = this.player.look();
+    pos.setXYZ(0, eye.x + dir.x * 0.8 + Math.cos(this.player.yaw) * 0.3, eye.y + dir.y * 0.8 - 0.2, eye.z + dir.z * 0.8 - Math.sin(this.player.yaw) * 0.3);
+    pos.setXYZ(1, b.mesh.position.x, b.mesh.position.y + 0.1, b.mesh.position.z); pos.needsUpdate = true;
+    if (b.biteT > 0) {
+      b.biteT -= dt; b.mesh.position.y = b.y - 0.35;
+      if (b.biteT <= 0) { b.biteAt = b.t + 5 + Math.random() * 10; b.mesh.position.y = b.y; }   // se escapó
+    } else {
+      b.mesh.position.y = b.y + Math.sin(b.t * 2.5) * 0.04;
+      if (b.t >= b.biteAt) { b.biteT = 1.1; this.sound.splash(); this.spawnPuff?.(b.mesh.position.x, b.y, b.mesh.position.z, 0xbfe0ff); }
+    }
+  }
+
+  // ───── Colmenas ─────
+  harvestHive(t) {
+    const k = `${t.x},${t.y},${t.z}`;
+    if (this.playTime - (this.hives[k] ?? -9999) < 240) { this.ui.toast('La colmena todavía no tiene miel. Volvé más tarde.', 1800); return; }
+    this.hives[k] = this.playTime;
+    // Con humo cerca (una fogata abajo o al lado) las abejas se calman; si no, pican.
+    let smoke = false;
+    for (let dx = -2; dx <= 2; dx++) for (let dy = -4; dy <= 1; dy++) for (let dz = -2; dz <= 2; dz++) if (this.world.getBlock(t.x + dx, t.y + dy, t.z + dz) === B.CAMPFIRE) smoke = true;
+    this.addItem(I.HONEY, 2); this.syncHotbar();
+    this.sound.noise(0.6, { freq: 240, q: 4, gain: 0.25 });
+    if (!smoke && this.mode === 'survival' && Math.random() < 0.6) { this.damage(2, 'Las abejas te picaron'); this.ui.toast('¡Auch! Las abejas pican. Con una fogata cerca se calman.', 2500); }
+    else this.ui.toast('¡Miel! Las abejas están tranquilas.', 1800);
+    this.hand.swing();
   }
 
   // ───── Comer, dormir, puertas y campo ─────
@@ -452,6 +570,8 @@ export class Game {
     if (this.mode === 'survival') { this.inventory[id] -= 1; if (this.inventory[id] <= 0) delete this.inventory[id]; }
     this.health = Math.min(this.maxHealth, this.health + it.heal);
     this.player.stamina = Math.min(100, this.player.stamina + it.energy);
+    this.food = Math.min(20, this.food + (it.food ?? 2));
+    if (it.raw && Math.random() < 0.3) this.ui.toast('Crudo no sabe muy bien… Cocinalo en una fogata o un horno.', 2200);
     this.eatCooldown = 0.8; this.hand.swing();
     for (let k = 0; k < 3; k++) setTimeout(() => this.sound.noise(0.09, { freq: 900 + Math.random() * 600, q: 1.5, gain: 0.35 }), k * 140);
     this.ui.toast(`${it.name}: +${it.heal / 2} ${it.heal === 2 ? 'corazón' : 'corazones'}`, 1400);
@@ -525,8 +645,21 @@ export class Game {
     this.crops = this.crops.filter((c) => {
       const id = this.world.getBlock(c.x, c.y, c.z);
       if (!this.world.getChunk(Math.floor(c.x / 16), Math.floor(c.z / 16))) return true;
-      if (id !== B.WHEAT_YOUNG) return false;
-      if (this.playTime - c.t > 150) { this.world.setBlock(c.x, c.y, c.z, B.WHEAT_RIPE); return false; }
+      // La lluvia ayuda a que crezca más rápido.
+      const need = this.sky.rain > 0.3 ? 110 : 150;
+      if (id === B.PUMPKIN_STEM) {
+        if (this.playTime - c.t > need) {
+          // La planta de calabaza da una calabaza en un costado libre (y sigue dando).
+          for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]].sort(() => Math.random() - 0.5)) {
+            const below = this.world.getBlock(c.x + dx, c.y - 1, c.z + dz);
+            if (this.world.getBlock(c.x + dx, c.y, c.z + dz) === B.AIR && [B.GRASS, B.DIRT, B.FARMLAND].includes(below)) { this.world.setBlock(c.x + dx, c.y, c.z + dz, B.PUMPKIN); break; }
+          }
+          c.t = this.playTime;
+        }
+        return true;
+      }
+      if (!GROW[id]) return false;
+      if (this.playTime - c.t > need) { this.world.setBlock(c.x, c.y, c.z, GROW[id]); return false; }
       return true;
     });
   }
@@ -624,7 +757,7 @@ export class Game {
   // A los aldeanos no se los puede lastimar: se enojan y salen corriendo.
   attackMob() {
     if (this.attackCooldown > 0) return false;
-    const eye = this.player.eye(); const dir = this.player.look(); const dmg = attackDamage(this.held());
+    const eye = this.player.eye(); const dir = this.player.look(); const dmg = attackDamage(this.held(), this.upgrades[this.held()] ?? 0);
     const v = this.villages.hitTest(eye, dir, 3.6);
     if (v) { this.villages.annoy(v); this.attackCooldown = 0.35; return true; }
     const boat = !this.sea.riding && this.sea.boatHit(eye, dir, 4);
@@ -684,12 +817,12 @@ export class Game {
 
   // Lo que deja cada animal: el Lanudo lana y algo de carne; el ciervo carne; el conejo y el cangrejo un poco.
   animalDrops(species) {
-    if (species === 'deer') this.addItem(I.MEAT, 2 + Math.floor(Math.random() * 2));
-    else if (species === 'rabbit') this.addItem(I.MEAT, 1);
-    else if (species === 'crab') { this.addItem(I.MEAT, 1); if (Math.random() < 0.15) this.addItem(I.PEARL); }
-    else if (species === 'horse') this.addItem(I.MEAT, 2);
-    else if (species === 'chicken') { this.addItem(I.MEAT, 1); if (Math.random() < 0.5) this.addItem(B.WOOL_WHITE, 1); }
-    else { this.addItem(B.WOOL_WHITE, 2); if (Math.random() < 0.5) this.addItem(I.MEAT, 1); }
+    if (species === 'deer') this.addItem(I.RAW_MEAT, 2 + Math.floor(Math.random() * 2));
+    else if (species === 'rabbit') this.addItem(I.RAW_MEAT, 1);
+    else if (species === 'crab') { this.addItem(I.RAW_MEAT, 1); if (Math.random() < 0.15) this.addItem(I.PEARL); }
+    else if (species === 'horse') this.addItem(I.RAW_MEAT, 2);
+    else if (species === 'chicken') { this.addItem(I.RAW_MEAT, 1); if (Math.random() < 0.5) this.addItem(B.WOOL_WHITE, 1); }
+    else { this.addItem(B.WOOL_WHITE, 2); if (Math.random() < 0.5) this.addItem(I.RAW_MEAT, 1); }
   }
 
   // Punto del agua (superficie) que mira el jugador, para poner un bote.
@@ -728,15 +861,19 @@ export class Game {
     }
     if (t && (t.id === B.DOOR || t.id === B.DOOR_OPEN) && !this.player.sneaking) { this.toggleDoor(t); return true; }
     if (t && t.id === B.BED && !this.player.sneaking) { this.trySleep(t); return true; }
-    if (isFood(held)) { if (this.health < this.maxHealth || this.player.stamina < 95 || this.mode === 'creative') this.eat(held); else this.ui.toast('No tenés hambre: estás con la vida llena', 1400); return true; }
-    // Sembrar: semillas sobre tierra arada.
-    if (held === I.SEEDS && t?.id === B.FARMLAND && t.face[1] === 1 && this.world.getBlock(t.x, t.y + 1, t.z) === B.AIR) {
-      this.world.setBlock(t.x, t.y + 1, t.z, B.WHEAT_YOUNG);
+    // Sembrar: semillas, zanahorias, papas o semillas de calabaza sobre tierra arada.
+    if (PLANT[held] && t?.id === B.FARMLAND && t.face[1] === 1 && this.world.getBlock(t.x, t.y + 1, t.z) === B.AIR) {
+      this.world.setBlock(t.x, t.y + 1, t.z, PLANT[held]);
       this.crops.push({ x: t.x, y: t.y + 1, z: t.z, t: this.playTime });
-      if (this.mode === 'survival') { this.inventory[I.SEEDS] -= 1; if (this.inventory[I.SEEDS] <= 0) delete this.inventory[I.SEEDS]; this.syncHotbar(); }
+      if (this.mode === 'survival') { this.inventory[held] -= 1; if (this.inventory[held] <= 0) delete this.inventory[held]; this.syncHotbar(); }
       this.sound.place('grass'); this.hand.swing();
       return true;
     }
+    // Cocinar: algo crudo sobre fuego.
+    if (COOKS[held] && t && (t.id === B.CAMPFIRE || t.id === B.FIREPLACE || t.id === B.OVEN)) { this.startCooking(t, held); return true; }
+    if (held === I.ROD) return this.castOrReel();
+    if (t?.id === B.BEEHIVE && !this.player.sneaking) { this.harvestHive(t); return true; }
+    if (isFood(held)) { if (this.health < this.maxHealth || this.food < 20 || this.player.stamina < 95 || this.mode === 'creative') this.eat(held); else this.ui.toast('No tenés hambre', 1400); return true; }
     // Arar: pala sobre pasto o tierra.
     if (ITEMS[held]?.tool === 'shovel' && t && (t.id === B.GRASS || t.id === B.DIRT) && t.face[1] === 1 && this.world.getBlock(t.x, t.y + 1, t.z) === B.AIR) {
       this.world.setBlock(t.x, t.y, t.z, B.FARMLAND); this.sound.dig('grass'); this.hand.swing(); this.useTool();
@@ -1002,6 +1139,22 @@ export class Game {
   trade(e, tr) {
     const has = Object.entries(tr.give).every(([id, n]) => (this.inventory[id] ?? 0) >= n);
     if (this.mode === 'survival' && !has) { this.ui.toast('Te faltan materiales para el trueque', 1600); return; }
+    if (tr.upgrade) {
+      // Refuerzo del herrero: más daño (armas), más velocidad (herramientas) o más protección (armaduras).
+      const id = this.held(); const kind = ITEMS[id]?.kind;
+      if (!(kind === 'tool' || kind === 'armor' || id === I.SHIELD)) { this.ui.toast('Agarrá en la mano un arma, herramienta o pieza de armadura', 2200); return; }
+      const lvl = this.upgrades[id] ?? 0;
+      if (lvl >= MAX_UPGRADE) { this.ui.toast('Ya está reforzada al máximo (+3)', 1800); return; }
+      const cost = upgradeCost(lvl);
+      if (this.mode === 'survival' && ((this.inventory[I.SILVER] ?? 0) < cost.silver || (this.inventory[I.IRON] ?? 0) < cost.iron)) { this.ui.toast(`Para +${lvl + 1} necesitás ${cost.silver} de plata y ${cost.iron} de hierro`, 2500); return; }
+      if (this.mode === 'survival') { this.inventory[I.SILVER] -= cost.silver; this.inventory[I.IRON] -= cost.iron; for (const k of [I.SILVER, I.IRON]) if (this.inventory[k] <= 0) delete this.inventory[k]; }
+      this.upgrades[id] = lvl + 1;
+      this.ui.toast(`${ITEMS[id].name} +${lvl + 1}: ${kind === 'armor' ? 'protege más' : ITEMS[id].tool === 'sword' ? 'pega más fuerte' : 'trabaja más rápido'}`, 2500);
+      for (let k = 0; k < 4; k++) setTimeout(() => this.sound.tone(900 + k * 120, 0.06, 0.12, 'square'), k * 160);   // martillazos
+      this.stats.upgraded = (this.stats.upgraded ?? 0) + 1;
+      e.a.rec.rep += 1; this.renderStatus(); this.syncHotbar(); this.checkMissions(); this.renderVillager();
+      return;
+    }
     if (tr.repair) {
       const id = this.held();
       if (!maxUses(id) || !(this.toolWear[id] > 0)) { this.ui.toast('Agarrá en la mano una herramienta gastada', 2000); return; }
@@ -1073,12 +1226,16 @@ export class Game {
     if (t.id === B.DOOR || t.id === B.DOOR_OPEN) for (const dy of [-1, 1]) { const id = this.world.getBlock(t.x, t.y + dy, t.z); if (id === B.DOOR || id === B.DOOR_OPEN) this.world.setBlock(t.x, t.y + dy, t.z, B.AIR); }
     // Si se rompe lo de abajo, el trigo de arriba se cae.
     const above = this.world.getBlock(t.x, t.y + 1, t.z);
-    if (above === B.WHEAT_YOUNG || above === B.WHEAT_RIPE || above === B.TORCH) { this.world.setBlock(t.x, t.y + 1, t.z, B.AIR); if (this.mode === 'survival') this.addItem(BLOCKS[above].drop); }
+    if (CROP_BLOCKS.has(above) || above === B.TORCH) { this.world.setBlock(t.x, t.y + 1, t.z, B.AIR); if (this.mode === 'survival') this.addItem(BLOCKS[above].drop); }
     if (this.mode === 'survival') {
       this.addItem(t.block.drop); this.useTool();
       // Extras: semillas del pasto y del trigo, manzanas de las hojas.
       if ((t.id === B.GRASS && Math.random() < 0.12) || (t.id === B.TALL_GRASS && Math.random() < 0.25)) this.addItem(I.SEEDS);
-      if (t.id === B.WHEAT_RIPE) this.addItem(I.SEEDS, 1 + Math.floor(Math.random() * 2));
+      const extra = RIPE.has(t.id) ? harvest(t.id) : null;
+      if (extra) for (const [id, n] of Object.entries(extra)) this.addItem(Number(id), n);
+      if (t.id === B.FRUIT_LEAVES && Math.random() < 0.5) this.addItem(I.APPLE, 1 + (Math.random() < 0.3 ? 1 : 0));
+      if (t.id === B.BEEHIVE) { this.addItem(I.HONEY, 1); if (Math.random() < 0.7) this.damage(2, 'Las abejas te picaron'); }
+      if (t.id === B.PUMPKIN_STEM && Math.random() < 0.5) this.addItem(I.PUMPKIN_SEEDS, 1);
       if ((t.id === B.LEAVES || t.id === B.BIRCH_LEAVES) && Math.random() < 0.08) { this.addItem(I.APPLE); this.ui.toast('¡Una manzana!', 1200); }
       this.checkMissions();
     }
@@ -1138,7 +1295,7 @@ export class Game {
     if (!t || !t.block.breakable) { this.breaking = null; this.ui.setBreakProgress(0); return; }
     const key = `${t.x},${t.y},${t.z}`;
     if (!this.breaking || this.breaking.key !== key) this.breaking = { key, progress: 0, tick: 0 };
-    const time = Math.max(0.12, (t.block.hardness * 0.75) / mineSpeed(this.held(), t.block));
+    const time = Math.max(0.12, (t.block.hardness * 0.75) / mineSpeed(this.held(), t.block, this.upgrades[this.held()] ?? 0));
     this.breaking.progress += dt / time;
     this.breaking.tick += dt;
     if (this.breaking.tick > 0.25) { this.breaking.tick = 0; this.sound.step(t.block.sound); }
@@ -1161,9 +1318,19 @@ export class Game {
     }
   }
 
+  // Humito o salpicadura: cubitos que suben y se desvanecen.
+  spawnPuff(x, y, z, color = 0xbbbbbb) {
+    this.puffGeo ??= new THREE.BoxGeometry(0.14, 0.14, 0.14);
+    const m = new THREE.Mesh(this.puffGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.6, depthWrite: false }));
+    m.position.set(x + (Math.random() - 0.5) * 0.3, y, z + (Math.random() - 0.5) * 0.3);
+    m.userData = { v: new THREE.Vector3((Math.random() - 0.5) * 0.4, 1 + Math.random() * 0.6, (Math.random() - 0.5) * 0.4), life: 1, puff: true };
+    this.scene.add(m); this.particles.push(m);
+  }
+
   updateParticles(dt) {
     this.particles = this.particles.filter((m) => {
       m.userData.life -= dt;
+      if (m.userData.puff) { m.position.addScaledVector(m.userData.v, dt); m.material.opacity = Math.max(0, m.userData.life * 0.6); if (m.userData.life <= 0) { this.scene.remove(m); m.material.dispose(); return false; } return true; }
       m.userData.v.y -= 18 * dt;
       m.position.addScaledVector(m.userData.v, dt);
       if (m.userData.life <= 0) { this.scene.remove(m); m.geometry.dispose(); m.material.dispose(); return false; }
@@ -1185,7 +1352,7 @@ export class Game {
         return false;
       }
       // Armadura: cada punto frena 4% del daño y las piezas se gastan.
-      const red = armorReduction(armorPoints(this.equip));
+      const red = armorReduction(this.armorTotal());
       if (red > 0) {
         const raw = n * (1 - red);
         n = Math.floor(raw) + (Math.random() < raw - Math.floor(raw) ? 1 : 0);
@@ -1226,7 +1393,7 @@ export class Game {
       player: { x: this.player.pos.x, y: this.player.pos.y, z: this.player.pos.z, yaw: this.player.yaw, pitch: this.player.pitch, flying: this.player.flying },
       spawn: this.spawn, time: this.sky.time, health: this.health, inventory: this.inventory, hotbar: this.hotbar, selected: this.selected,
       playTime: this.playTime, mods: this.world.serializeMods(), savedAt: new Date().toISOString(),
-      stats: this.stats, maxHealth: this.maxHealth, faros: this.faros, toolWear: this.toolWear, villages: this.villages.serialize(), bandits: this.bandits.serialize(), equip: this.equip, armorWear: this.armorWear, crops: this.crops, boats: this.sea.serialize(),
+      stats: this.stats, maxHealth: this.maxHealth, food: this.food, upgrades: this.upgrades, hives: this.hives, faros: this.faros, toolWear: this.toolWear, villages: this.villages.serialize(), bandits: this.bandits.serialize(), equip: this.equip, armorWear: this.armorWear, crops: this.crops, boats: this.sea.serialize(),
     };
   }
   async save() {
@@ -1293,8 +1460,7 @@ export class Game {
         else this.air = Math.min(10, this.air + dt * 4);
         this.ui.renderAir(this.air, this.player.headInWater || this.air < 10);
         // Regeneración lenta.
-        this.regen = (this.regen ?? 0) + dt;
-        if (this.regen > 6 && this.health < this.maxHealth && this.health > 0) { this.regen = 0; this.health += 1; this.ui.renderHearts(this.health, this.maxHealth); }
+        this.updateHunger(dt);
       }
       this.updateBreaking(dt);
       this.attackCooldown = Math.max(0, this.attackCooldown - dt);
@@ -1319,6 +1485,8 @@ export class Game {
       // Amanecer: aldeas (nacimientos, parejas, obras) y una noche más sobrevivida.
       if (this.prevTime !== undefined && this.prevTime > 0.9 && this.sky.time < 0.1) this.onDawn();
       this.updateCrops(dt);
+      this.updateCooking(dt);
+      this.updateFishing(dt);
       this.eatCooldown = Math.max(0, this.eatCooldown - dt);
       // Escudo: clic derecho sostenido (sin un bloque en la mano) o la tecla V.
       const heldNow = this.held();

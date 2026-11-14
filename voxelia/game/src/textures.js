@@ -6,7 +6,7 @@ import { drawFurniture, N as ICON_N } from './icons.js';
 const S = 16;
 const NAMES = ['grass_top', 'grass_side', 'dirt', 'stone', 'sand', 'water', 'log_top', 'log_side', 'leaves', 'planks',
   'cobble', 'glass', 'snow', 'snow_side', 'brick', 'coal', 'cactus_top', 'cactus_side', 'bedrock', 'gravel', 'iron',
-  'birch_top', 'birch_side', 'birch_leaves', 'clay', 'lamp', 'wool_red', 'wool_blue', 'wool_white', 'crystal', 'faro_top', 'faro_side', 'torch', 'bench_top', 'bench_side', 'roof', 'thatch', 'adobe', 'farmland', 'wheat_young', 'wheat_ripe', 'bed_top', 'bed_side', 'door', 'window', 'lava', 'glow_mushroom', 'moss', 'gold_ore', 'wool_black', 'bars', 'campfire', 'chest_top', 'chest_side', 'table_top', 'bookshelf', 'fireplace', 'carpet', 'barrel_top', 'barrel_side', 'hay_top', 'hay_side', 'anvil', 'throne', 'flower_red', 'flower_yellow', 'pine_leaves', 'palm_top', 'palm_side', 'palm_leaves', 'tall_grass', 'berry_bush', 'dead_bush', 'kelp', 'seagrass', 'coral_red', 'coral_yellow', 'coral_purple', 'coral_fan', 'bell', 'altar_top', 'altar_side', 'blackboard', 'stained_glass', 'trough_top'];
+  'birch_top', 'birch_side', 'birch_leaves', 'clay', 'lamp', 'wool_red', 'wool_blue', 'wool_white', 'crystal', 'faro_top', 'faro_side', 'torch', 'bench_top', 'bench_side', 'roof', 'thatch', 'adobe', 'farmland', 'wheat_young', 'wheat_ripe', 'bed_top', 'bed_side', 'door', 'window', 'lava', 'glow_mushroom', 'moss', 'gold_ore', 'wool_black', 'bars', 'campfire', 'chest_top', 'chest_side', 'table_top', 'bookshelf', 'fireplace', 'carpet', 'barrel_top', 'barrel_side', 'hay_top', 'hay_side', 'anvil', 'throne', 'flower_red', 'flower_yellow', 'pine_leaves', 'palm_top', 'palm_side', 'palm_leaves', 'tall_grass', 'berry_bush', 'dead_bush', 'kelp', 'seagrass', 'coral_red', 'coral_yellow', 'coral_purple', 'coral_fan', 'bell', 'altar_top', 'altar_side', 'blackboard', 'stained_glass', 'trough_top', 'carrot_young', 'carrot_ripe', 'potato_young', 'potato_ripe', 'pumpkin_top', 'pumpkin_side', 'pumpkin_stem', 'hive_top', 'hive_side', 'oven', 'fruit_leaves'];
 const COLS = 8;
 export const ATLAS_COLS = COLS;
 export const ATLAS_ROWS = Math.ceil(NAMES.length / COLS);
@@ -188,6 +188,46 @@ function paint(name, px) {
         set(x, y, frame ? shade(hex('#7a5230'), 0.9 + r() * 0.15) : hex('#dff1f8'), frame ? 255 : (x + y) % 9 === 0 ? 150 : 60);
       }
       break;
+    case 'carrot_young': case 'carrot_ripe': case 'potato_young': case 'potato_ripe': {
+      // Matas de hojas; las maduras asoman la zanahoria o tienen florcitas (papa).
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, [0, 0, 0], 0);
+      const ripe = name.endsWith('ripe'); const carrot = name.startsWith('carrot');
+      for (let k = 0; k < 5; k++) {
+        const x = 1 + k * 3; const top = ripe ? 4 + Math.floor(r() * 3) : 9 + Math.floor(r() * 3);
+        for (let y = top; y < 15; y++) { set(x, y, shade(hex(carrot ? '#4f9a2c' : '#3f7a2c'), 0.8 + r() * 0.35)); if (y % 3 === 0 && x + 1 < S) set(x + 1, y - 1, hex(carrot ? '#7cc24a' : '#5f9a3c')); }
+        if (ripe && carrot) { set(x, 15, hex('#f08a2a')); set(x, 14, hex('#f08a2a')); if (x + 1 < S) set(x + 1, 15, hex('#d86a1a')); }
+        if (ripe && !carrot) { set(x, top, hex('#f4f0e8')); if (x + 1 < S) set(x + 1, top, hex('#e8d0f0')); }
+      }
+      break;
+    }
+    case 'pumpkin_side':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, shade(hex('#e8902a'), (x % 4 === 0 ? 0.72 : 1) * (0.9 + r() * 0.12)));
+      break;
+    case 'pumpkin_top':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) { const d = Math.hypot(x - 7.5, y - 7.5); set(x, y, shade(hex('#e8902a'), (d < 2 ? 0.6 : 1) * (0.88 + r() * 0.12))); }
+      set(7, 7, hex('#5a3a1a')); set(8, 7, hex('#5a3a1a')); set(7, 8, hex('#3f7a2c'));
+      break;
+    case 'pumpkin_stem':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, [0, 0, 0], 0);
+      for (let k = 0; k < 3; k++) { let x = 4 + k * 4; for (let y = 15; y > 6; y--) { set(Math.round(x), y, shade(hex('#5f9a3c'), 0.8 + r() * 0.3)); x += (r() - 0.5) * 0.8; } set(Math.round(x) - 1, 6, hex('#7cc24a')); set(Math.round(x) + 1, 7, hex('#7cc24a')); }
+      set(12, 12, hex('#f2d84a')); set(4, 10, hex('#f2d84a'));
+      break;
+    case 'hive_side':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, (y % 4 === 3) ? hex('#a87a2a') : shade(hex('#e8c060'), 0.9 + r() * 0.15));
+      for (let x = 6; x <= 9; x++) for (let y = 9; y <= 11; y++) set(x, y, hex('#3a2414'));   // entrada
+      break;
+    case 'hive_top':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, ((x + y) % 4 === 0 || (x - y + 16) % 4 === 0) ? hex('#c89a3a') : shade(hex('#f2c94c'), 0.9 + r() * 0.12));
+      break;
+    case 'oven':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, shade(hex('#8b8b8b'), (y % 4 === 0 || (x + (Math.floor(y / 4) % 2) * 3) % 6 === 0 ? 0.65 : 1) * (0.9 + r() * 0.12)));
+      for (let y = 6; y < 13; y++) for (let x = 4; x < 12; x++) { const arch = y === 6 && (x === 4 || x === 11); if (!arch) set(x, y, y > 9 ? (r() < 0.5 ? hex('#ff8a1e') : hex('#ffd34d')) : hex('#2a1810')); }
+      break;
+    case 'fruit_leaves': {
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) { const v = r(); set(x, y, shade(hex('#3f8f2c'), 0.7 + v * 0.5), v < 0.16 ? 0 : 255); }
+      for (const [x, y] of [[3, 4], [11, 3], [7, 9], [13, 11], [2, 12]]) { set(x, y, hex('#d8352b')); set(x + 1, y, hex('#a01e16')); set(x, y + 1, hex('#a01e16')); }
+      break;
+    }
     case 'bell':
       for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, shade(hex('#d8a83a'), (x < 3 ? 0.75 : x > 12 ? 0.85 : 1.05) * (0.92 + r() * 0.12)));
       for (let x = 0; x < S; x++) set(x, 13, hex('#a87a20'));

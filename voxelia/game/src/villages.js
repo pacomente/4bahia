@@ -1,3 +1,4 @@
+import { GROW, FIELD_CROPS } from './crops.js';
 import { B } from './blocks.js';
 import { CS, SEA, hash3 } from './world.js';
 
@@ -456,7 +457,8 @@ function fieldBlueprint(world, plan, f) {
     if (border) { put(x, f.y, z, B.LOG); continue; }
     if (dz === 0) { put(x, f.y, z, B.WATER); continue; }
     put(x, f.y, z, B.FARMLAND);
-    put(x, f.y + 1, z, ((x * 7 + z * 13) & 3) ? B.WHEAT_RIPE : B.WHEAT_YOUNG);
+    const young = FIELD_CROPS[((f.x * 31 + f.z * 17) % 3 + 3) % 3];
+    put(x, f.y + 1, z, ((x * 7 + z * 13) & 3) ? GROW[young] : young);
   }
   return out;
 }

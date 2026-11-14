@@ -217,6 +217,60 @@ export function drawItem(id, it, I) {
       for (let x = 9; x < 21; x += 3) set(x, 18, '#2e5a7a');
       disk(set, 8, 14, 1.4, RAMPS.coal); set(8, 13, '#ffffff');
       break;
+    case I.RAW_MEAT:
+      disk(set, 14, 16, 10, ['#8a2a2a', '#c84a4a', '#e87a7a', '#ffc0b8'], { ry: 8 });
+      thickLine(set, 21, 21, 28, 27, 3, RAMPS.cloth); disk(set, 28, 27, 2.2, RAMPS.cloth);
+      for (let k = 0; k < 3; k++) thickLine(set, 8 + k * 4, 13, 10 + k * 4, 19, 1, ['#f4f0e8', '#f4f0e8', '#f4f0e8', '#f4f0e8']);
+      break;
+    case I.RAW_FISH: case I.SALMON: case I.GOLDEN_FISH: {
+      const ramp = id === I.SALMON ? ['#8a3a2a', '#c8664a', '#e8866a', '#ffd0c0'] : id === I.GOLDEN_FISH ? RAMPS.gold : ['#3e6a8a', '#6a98b8', '#a8d0e8', '#ffffff'];
+      disk(set, 15, 16, 10, ramp, { ry: 6 });
+      poly(set, [[24, 16], [30, 10], [30, 22]], () => ramp[1]);
+      for (let x = 9; x < 21; x += 3) set(x, 18, ramp[0]);
+      disk(set, 8, 14, 1.4, RAMPS.coal); set(8, 13, '#ffffff');
+      if (id === I.GOLDEN_FISH) { set(13, 11, '#ffffff'); set(19, 13, '#ffffff'); }
+      break;
+    }
+    case I.CARROT:
+      poly(set, [[6, 24], [20, 10], [24, 14], [9, 27]], (x, y) => pickRamp(['#a84a10', '#d8661a', '#f08a2a', '#ffc070'], 0.9 - (x + y) / 70));
+      for (let k = 0; k < 3; k++) thickLine(set, 22, 12, 26 + k * 2, 3 + k * 2, 1.6, RAMPS.green);
+      for (const [x, y] of [[11, 21], [15, 17], [18, 14]]) set(x, y, '#a84a10');
+      break;
+    case I.POTATO: case I.BAKED_POTATO: {
+      const ramp = id === I.POTATO ? ['#7a5a2a', '#a8844a', '#c8a060', '#e8d0a0'] : ['#6a3a12', '#a8642a', '#d8a050', '#ffe0a0'];
+      disk(set, 16, 17, 11, ramp, { ry: 8 });
+      for (const [x, y] of [[11, 14], [19, 19], [15, 21], [21, 13]]) set(x, y, ramp[0]);
+      if (id === I.BAKED_POTATO) { thickLine(set, 12, 12, 20, 12, 1.4, ['#fff2c0', '#fff2c0', '#fff2c0', '#fff2c0']); disk(set, 16, 12, 2, ['#f2d84a', '#f2d84a', '#fff2a8', '#fff2a8']); }
+      break;
+    }
+    case I.PUMPKIN_PIE:
+      poly(set, [[3, 18], [16, 10], [29, 18], [16, 26]], (x, y) => (Math.abs(x - 16) / 2 + Math.abs(y - 18) > 6.4 ? RAMPS.bread[2] : pickRamp(['#a8501a', '#d8762a', '#e8902a', '#ffc070'], 0.9 - y / 50)));
+      poly(set, [[3, 18], [16, 26], [16, 29], [3, 21]], () => RAMPS.bread[1]); poly(set, [[16, 26], [29, 18], [29, 21], [16, 29]], () => RAMPS.bread[0]);
+      break;
+    case I.STEW:
+      poly(set, [[4, 15], [28, 15], [24, 26], [8, 26]], (x) => pickRamp(RAMPS.wood, 0.8 - x / 60));
+      disk(set, 16, 15, 12, ['#6a3a12', '#8a4a1a', '#a8642a', '#c88a4a'], { ry: 4 });
+      for (const [x, y, c] of [[11, 14, '#f08a2a'], [17, 13, '#c8a060'], [21, 15, '#8a4a2a'], [14, 16, '#4f9a2c']]) { set(x, y, c); set(x + 1, y, c); }
+      for (let k = 0; k < 3; k++) thickLine(set, 11 + k * 5, 10, 13 + k * 5, 4, 1, ['#d8d8d8', '#e8e8e8', '#f4f4f4', '#ffffff']);
+      break;
+    case I.HONEY:
+      poly(set, [[9, 6], [23, 6], [25, 28], [7, 28]], (x) => pickRamp(['#a86a10', '#d8962a', '#f2b52a', '#ffe08a'], 0.95 - x / 40));
+      poly(set, [[10, 3], [22, 3], [22, 7], [10, 7]], () => RAMPS.wood[2]);
+      set(11, 12, '#fff2c0'); set(11, 13, '#fff2c0'); set(12, 12, '#fff2c0');
+      break;
+    case I.ROD:
+      thickLine(set, 5, 28, 24, 4, 1.6, RAMPS.wood);
+      thickLine(set, 24, 4, 27, 20, 0.6, ['#e8e4d8', '#e8e4d8', '#e8e4d8', '#e8e4d8']);
+      disk(set, 27, 22, 2.2, RAMPS.red);
+      thickLine(set, 6, 25, 9, 22, 2.6, RAMPS.darkwood);
+      break;
+    case I.OLD_BOOT:
+      poly(set, [[9, 5], [18, 5], [18, 20], [27, 22], [27, 28], [7, 28]], (x, y) => pickRamp(RAMPS.leather, 0.85 - y / 60));
+      for (let y = 8; y < 20; y += 3) { set(10, y, RAMPS.leather[0]); set(16, y, RAMPS.leather[0]); }
+      break;
+    case I.PUMPKIN_SEEDS:
+      for (const [x, y] of [[9, 12], [15, 9], [21, 13], [12, 19], [18, 18], [24, 21], [8, 24], [15, 25], [22, 27]]) disk(set, x, y, 2.2, ['#a89a6a', '#d8c890', '#f4ecc8', '#ffffff'], { ry: 1.4 });
+      break;
     case I.MEAT:
       disk(set, 14, 16, 10, ['#5a2410', '#8a4a2a', '#b06a40', '#e0a070'], { ry: 8 });
       thickLine(set, 21, 21, 28, 27, 3, RAMPS.cloth); disk(set, 28, 27, 2.2, RAMPS.cloth);

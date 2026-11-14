@@ -204,3 +204,12 @@ img.coin { width: 18px; height: 18px; image-rendering: pixelated; vertical-align
 /* Economía local */
 .v-stock .cheap { color: #2e7a1e; font-weight: 700; } .v-stock .dear { color: #a01e16; font-weight: 700; }
 .tr { font-style: normal; font-size: 11px; margin-right: 2px; } .tr.up { color: #ffb4a8; } .tr.down { color: #b9ffad; }
+
+/* Hambre: muslitos de pollo */
+#food { display: flex; gap: 1px; margin-left: 10px; }
+.drum { width: 16px; height: 16px; background: #000; clip-path: polygon(10% 55%, 25% 25%, 50% 12%, 75% 20%, 85% 45%, 70% 70%, 55% 72%, 45% 85%, 50% 100%, 30% 100%, 32% 82%, 15% 75%); }
+.drum.full { background: linear-gradient(135deg, #e8a060 0 55%, #f2efe6 55%); }
+.drum.half { background: linear-gradient(90deg, #e8a060 50%, #3a2410 50%); }
+.drum.empty { background: #3a2410; }
+#food.starving .drum { animation: hungry 0.6s infinite alternate; }
+@keyframes hungry { to { transform: translateY(-2px); } }

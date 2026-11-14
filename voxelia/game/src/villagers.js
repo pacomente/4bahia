@@ -5,6 +5,7 @@ import { villagesNear, villagePlan, houseBlueprint, chimneyTop, furnish, STYLES,
 import { createHumanoid, animateHumanoid, lightHumanoid, makeProp } from './humanoid.js';
 import { standY, stepToward, settle, turnTo } from './walk.js';
 import { navigate } from './pathfind.js';
+import { GROW, RIPE, REPLANT } from './crops.js';
 import { GUARD_HP, threats, assign, fight, blocks } from './guards.js';
 import { hash3 } from './world.js';
 import { SHOPS, PRICE, sellPrice, villageLevel, LEVELS, makeQuest, rankFor, localPrice, trend, economySummary } from './economy.js';
@@ -101,7 +102,7 @@ export const TRADES = {
   builder: [{ give: { [B.COBBLE]: 10 }, get: { [B.ROOF]: 8 } }, { give: { [B.PLANKS]: 6 }, get: { [B.THATCH]: 8 } }, { give: { [B.SAND]: 8 }, get: { [B.ADOBE]: 8 } }],
   guard: [{ give: { [I.IRON]: 2 }, get: { [I.ARROW]: 16 } }, { give: { [I.ESSENCE]: 3 }, get: { [I.SHIELD]: 1 } }, { give: { [I.ESSENCE]: 2, [B.PLANKS]: 3 }, get: { [I.BOW]: 1 } }],
   farmer: [{ give: { [B.WOOL_WHITE]: 4 }, get: { [B.WOOL_RED]: 2, [B.WOOL_BLUE]: 2 } }, { give: { [B.DIRT]: 16 }, get: { [I.COAL]: 2 } }, { give: { [B.LOG]: 4 }, get: { [B.TORCH]: 8 } }],
-  smith: [{ give: { [I.IRON]: 1 }, get: {}, repair: true }, { give: { [I.COAL]: 4, [I.IRON]: 2 }, get: { [I.SHIELD]: 1 } }, { give: { [B.COBBLE]: 20 }, get: { [I.IRON]: 2 } }],
+  smith: [{ give: {}, get: {}, upgrade: true }, { give: { [I.IRON]: 1 }, get: {}, repair: true }, { give: { [I.COAL]: 4, [I.IRON]: 2 }, get: { [I.SHIELD]: 1 } }, { give: { [B.COBBLE]: 20 }, get: { [I.IRON]: 2 } }],
   merchant: [{ give: { [I.ESSENCE]: 3 }, get: { [I.CRYSTAL]: 4 } }, { give: { [B.SAND]: 8 }, get: { [B.GLASS]: 6 } }, { give: { [I.CRYSTAL]: 2 }, get: { [B.LAMP]: 4 } }],
 };
 
@@ -421,7 +422,7 @@ export class Villages {
         const cells = (a.plan.fields ?? []).flatMap((f) => f.cells);
         for (let k = 0; k < 3 && cells.length; k++) {
           const c = cells[Math.floor(Math.random() * cells.length)];
-          if (this.world.getChunk(Math.floor(c.x / 16), Math.floor(c.z / 16)) && this.world.getBlock(c.x, c.y + 1, c.z) === B.WHEAT_YOUNG) this.world.setBlock(c.x, c.y + 1, c.z, B.WHEAT_RIPE);
+          const id = this.world.getChunk(Math.floor(c.x / 16), Math.floor(c.z / 16)) ? this.world.getBlock(c.x, c.y + 1, c.z) : 0; if (GROW[id]) this.world.setBlock(c.x, c.y + 1, c.z, GROW[id]);
         }
       }
     }
@@ -763,10 +764,11 @@ export class Villages {
     const job = e.job; e.job = null; e.state = 'idle'; e.timer = 1 + Math.random() * 2;
     if (!job) return;
     a.rec.stock ??= { food: 10, wood: 10, stone: 10 };
-    if (job.kind === 'crop' && w.getBlock(job.x, job.y, job.z) === B.WHEAT_RIPE) {
-      w.setBlock(job.x, job.y, job.z, B.WHEAT_YOUNG);   // cosecha y vuelve a sembrar
-      a.rec.stock.food += 1;
-      ctx.onPlace?.({ x: job.x, y: job.y, z: job.z, id: B.WHEAT_RIPE });
+    const cropId = job.kind === 'crop' ? w.getBlock(job.x, job.y, job.z) : 0;
+    if (RIPE.has(cropId)) {
+      w.setBlock(job.x, job.y, job.z, REPLANT[cropId]);   // cosecha y vuelve a sembrar
+      a.rec.stock.food += cropId === B.WHEAT_RIPE ? 1 : 2;
+      ctx.onPlace?.({ x: job.x, y: job.y, z: job.z, id: cropId });
       if (Math.random() < 0.15) this.say(e, pick(Math.random, LINES.harvest), 2);
     }
     if (job.kind === 'tree') { a.rec.stock.wood += 1; if (Math.random() < 0.2) this.say(e, pick(Math.random, LINES.chop), 2); }
@@ -900,7 +902,7 @@ export class Villages {
     if (work && stall && time < 0.3 && Math.random() < 0.6) { e.stall = stall; go(stall.spot.x, stall.spot.z, 'market', 20 + Math.random() * 20, 0.5); return; }
     if (work && prof === 'farmer') {
       const cells = (a.plan.fields ?? []).flatMap((f) => f.cells);
-      const ripe = cells.filter((c) => this.world.getBlock(c.x, c.y + 1, c.z) === B.WHEAT_RIPE);
+      const ripe = cells.filter((c) => RIPE.has(this.world.getBlock(c.x, c.y + 1, c.z)));
       const c = ripe[Math.floor(Math.random() * ripe.length)] ?? cells[Math.floor(Math.random() * cells.length)];
       if (c) { e.job = { kind: 'crop', x: c.x, y: c.y + 1, z: c.z }; e.workAction = 'farm'; go(c.x + 0.5, c.z + 0.5, 'work', 2.5, 1.3); return; }
     }
