@@ -84,6 +84,17 @@ Juego de mundo abierto de bloques para PC, con su propio **launcher**. Todo el c
 - **Muebles nuevos** que se fabrican en la pestaña **Muebles** del Taller: mesa, sillas (el respaldo se acomoda solo mirando a la mesa o contra la pared), biblioteca, hogar a leña (el fuego da hacia el lado libre), alfombras, barril, fardo de heno, yunque y trono. También hay **flores silvestres** en llanuras y bosques.
 - **Aldeanos en casa**: de noche, antes de dormir, se **sientan a cenar** a la mesa.
 
+## Mares y vida (0.9)
+
+- **Océanos** con arrecifes de coral, algas y pastos marinos; cardúmenes de peces, medusas que brillan de noche y bandadas de pájaros.
+- **Biomas con más vida**: pinos (nevados en la montaña), robles grandes, palmeras en las playas, troncos caídos, arbustos de bayas, pasto alto y flores.
+- **Animales**: ciervos (bosque), conejos (praderas y nieve) y cangrejos (playa), además de los Lanudos. Dejan carne.
+- **Puertos**: las aldeas de la costa tienen muelle, faro, pescadores y marineros. Llegan **barcos mercantes** que traen comida y materiales y bajan el precio de gemas, metales y lana por dos días.
+- **Botes**: Taller → 5 tablas. Clic derecho sobre el agua para ponerlo, clic derecho al bote para subir; W/S reman, A/D giran, Shift para bajar; golpealo para guardarlo.
+- **Barcos hundidos** en el fondo del mar, con un cofre de perlas, oro y plata.
+- **Economía local**: cada aldea tiene sus propios precios según el bioma, sus reservas y si es puerto (▲ caro / ▼ barato en la tienda).
+- Nota: el generador de terreno cambió; en mundos guardados de versiones anteriores las zonas nuevas pueden quedar con mares.
+
 ## Controles
 
 | Tecla | Acción |
