@@ -4,6 +4,7 @@ import { placeVillages, insideVillage } from './villages.js';
 import { placeCamps, insideCamp } from './camps.js';
 import { placeWrecks } from './wrecks.js';
 import { placeRoads } from './roads.js';
+import { placeRuins } from './ruins.js';
 
 export const CS = 16;          // tamaño de chunk (x, z)
 export const H = 96;           // altura del mundo
@@ -54,6 +55,7 @@ export class World {
     this.n3.c = createNoise3D(rnd);
     this.n2.rav = createNoise2D(rnd);
     this.n2.ocean = createNoise2D(rnd);
+    this.n2.b2 = createNoise2D(rnd);   // biomas nuevos (cañones) y alturas de mesetas
     this.chunks = new Map();
     // Cambios del jugador sobre el mundo generado: "cx,cz" -> Map(índice -> bloque)
     this.mods = new Map(Object.entries(mods).map(([k, list]) => [k, new Map(list)]));
@@ -112,10 +114,17 @@ export class World {
     return { temp: this.fbm(this.n2.temp, x, z, 2, 700), moist: this.fbm(this.n2.moist, x + 500, z - 300, 2, 600) };
   }
 
+  // Biomas nuevos: cuánto de pantano o de cañón tiene un lugar (0..1), para mezclar suave el terreno.
+  swampness(temp, moist) { const s = (v) => Math.max(0, Math.min(1, v)); return s((moist - 0.34) / 0.1) * s(1 - Math.abs(temp - 0.02) / 0.24); }
+  canyonness(x, z, temp, moist) { const s = (v) => Math.max(0, Math.min(1, v)); return s((temp - 0.28) / 0.1) * s((0.12 - moist) / 0.1) * s((this.fbm(this.n2.b2, x, z, 2, 500) - 0.05) / 0.12); }
+
   biome(x, z) {
     const { temp, moist } = this.climate(x, z);
     const m = this.mountainness(x, z);
-    if (m > 0.35) return 'mountains';
+    if (m > 0.8) return 'mountains';
+    if (this.canyonness(x, z, temp, moist) > 0.5) return 'canyon';
+    if (temp > 0.28 && moist > 0.3) return 'jungle';
+    if (this.swampness(temp, moist) > 0.5) return 'swamp';
     if (temp > 0.35 && moist < 0.05) return 'desert';
     if (temp < -0.4) return 'snow';
     if (moist > 0.15) return 'forest';
@@ -131,9 +140,20 @@ export class World {
     const cont = this.fbm(this.n2.cont, x, z, 3, 520);
     const hill = this.fbm(this.n2.hill, x, z, 4, 140);
     const m = this.mountainness(x, z);
-    const { temp } = this.climate(x, z);
+    const { temp, moist } = this.climate(x, z);
     const flat = temp > 0.35 ? 0.5 : 1;
     let h = SEA + 3 + cont * 12 + hill * 6 * flat + m * m * 42 + this.n2.detail(x / 24, z / 24) * 1.2;
+    // Pantano: llano y casi a nivel del agua (con charcos).
+    const sw = this.swampness(temp, moist) * (1 - Math.max(0, Math.min(1, (m - 0.6) * 4)));
+    if (sw > 0) { const q = Math.min(1, sw * 2); const k = q * q * (3 - 2 * q); h = h * (1 - k) + (SEA + 0.2 + this.n2.detail(x / 9, z / 9) * 1.1) * k; }
+    // Cañones: mesetas escalonadas de roca roja con paredes rectas.
+    const cy = this.canyonness(x, z, temp, moist);
+    if (cy > 0) {
+      const v = (this.fbm(this.n2.b2, x + 900, z - 400, 3, 80) * 0.5 + 0.5);
+      const mesa = SEA + 6 + Math.round((v * 30) / 6) * 6;
+      const k = Math.min(1, cy * 1.6);
+      h = h * (1 - k) + mesa * k;
+    }
     // Océanos: zonas grandes donde el terreno se hunde bajo el mar (con costas y fondo irregular).
     // Alrededor del inicio siempre hay tierra firme.
     const o = this.fbm(this.n2.ocean, x + 3000, z - 1700, 3, 950);
@@ -165,11 +185,14 @@ export class World {
           else if (y > h) id = y <= SEA ? B.WATER : B.AIR;
           else if (y === h) {
             if (h < SEA) id = hash3(this.seed, x, 1, z) < 0.15 ? B.CLAY : hash3(this.seed, x, 2, z) < 0.3 ? B.GRAVEL : B.SAND;
+            else if (biome === 'canyon') id = h > SEA + 4 ? (y % 6 < 3 ? B.RED_ROCK : B.ORANGE_ROCK) : B.RED_SAND;
+            else if (biome === 'swamp') id = hash3(this.seed, x, 3, z) < 0.35 ? B.MUD : B.GRASS;
             else if (beach || biome === 'desert') id = B.SAND;
             else if (biome === 'snow' || (biome === 'mountains' && h > 66)) id = B.SNOW;
             else if (biome === 'mountains' && h > 54) id = B.STONE;
             else id = B.GRASS;
-          } else if (y > h - 4) id = (beach || biome === 'desert') ? B.SAND : (biome === 'mountains' && h > 54 ? B.STONE : B.DIRT);
+          } else if (biome === 'canyon' && y > SEA - 6) id = y % 6 < 3 ? B.RED_ROCK : B.ORANGE_ROCK;   // capas de colores en las paredes
+          else if (y > h - 4) id = (beach || biome === 'desert') ? B.SAND : biome === 'swamp' ? B.MUD : (biome === 'mountains' && h > 54 ? B.STONE : B.DIRT);
           else {
             id = B.STONE;
             const r = hash3(this.seed, x, y, z);
@@ -205,6 +228,13 @@ export class World {
           else if (biome === 'plains' && fr > 0.9985) c.set(lx, h + 1, lz, fr > 0.9993 ? B.CARROT_RIPE : B.POTATO_RIPE);
           else if (biome !== 'desert' && fr > 0.997 && fr <= 0.9985) c.set(lx, h + 1, lz, B.PUMPKIN);
         } else if (biome === 'desert' && h > SEA + 1 && c.get(lx, h, lz) === B.SAND && fr < 0.012) c.set(lx, h + 1, lz, B.DEAD_BUSH);
+        else if (biome === 'canyon' && h > SEA && fr < 0.01) c.set(lx, h + 1, lz, B.DEAD_BUSH);
+        else if (biome === 'jungle' && h > SEA && c.get(lx, h + 1, lz) === B.AIR) { if (fr < 0.22) c.set(lx, h + 1, lz, B.TALL_GRASS); else if (fr < 0.26) c.set(lx, h + 1, lz, B.BERRY_BUSH); }
+        else if (biome === 'swamp') {
+          // Pantano: nenúfares sobre el agua quieta, pasto alto y flores en la orilla.
+          if (h < SEA && h >= SEA - 2 && fr < 0.12) c.set(lx, SEA + 1, lz, B.LILY_PAD);
+          else if (h >= SEA && c.get(lx, h + 1, lz) === B.AIR && fr < 0.2) c.set(lx, h + 1, lz, fr < 0.03 ? B.FLOWER_YELLOW : B.TALL_GRASS);
+        }
         // Fondo del mar: corales en aguas cálidas y poco profundas; pasto marino y algas en el resto.
         if (h < SEA - 1) {
           const depth = SEA - h;
@@ -230,6 +260,7 @@ export class World {
     }
     this.decorate(c);
     placeRoads(this, c);
+    placeRuins(this, c);
     placeVillages(this, c);
     placeCamps(this, c);
     placeWrecks(this, c);
@@ -318,6 +349,32 @@ export class World {
         put(x + dx, h + 1 + dy, z + dz, hh(x + dx, z + dz, 37) < 0.4 ? B.MOSS : B.COBBLE, false);
       }
     };
+    // Árbol de selva: tronco alto, copa ancha y oscura, lianas colgando.
+    const jungleTree = (x, h, z) => {
+      const trunk = 9 + Math.floor(hh(x, z, 13) * 6);
+      for (let y = h + 1; y <= h + trunk; y++) put(x, y, z, B.LOG, false);
+      const top = h + trunk;
+      for (let dy = -2; dy <= 1; dy++) {
+        const rad = dy === 1 ? 2 : 3 + (dy === -1 ? 1 : 0);
+        for (let dx = -rad; dx <= rad; dx++) for (let dz = -rad; dz <= rad; dz++) {
+          if (dx * dx + dz * dz > rad * rad + 1) continue;
+          put(x + dx, top + dy, z + dz, B.JUNGLE_LEAVES);
+          // Lianas en el borde de la copa.
+          if (dy === -2 && dx * dx + dz * dz >= (rad - 1) * (rad - 1) && hh(x + dx, z + dz, 61) < 0.35) { const len = 2 + Math.floor(hh(x + dx, z + dz, 63) * 5); for (let k = 1; k <= len; k++) put(x + dx, top + dy - k, z + dz, B.VINES); }
+        }
+      }
+    };
+    // Árbol de pantano: bajo, ancho, con lianas.
+    const swampTree = (x, h, z) => {
+      const trunk = 4 + Math.floor(hh(x, z, 13) * 2);
+      for (let y = h + 1; y <= h + trunk; y++) put(x, y, z, B.LOG, false);
+      const top = h + trunk;
+      for (let dy = -1; dy <= 0; dy++) for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) {
+        if (dx * dx + dz * dz > 10 - dy * 3) continue;
+        put(x + dx, top + dy, z + dz, B.LEAVES);
+        if (dy === -1 && (Math.abs(dx) === 3 || Math.abs(dz) === 3) && hh(x + dx, z + dz, 67) < 0.5) for (let k = 1; k <= 3; k++) put(x + dx, top - 1 - k, z + dz, B.VINES);
+      }
+    };
     const fallenLog = (x, h, z) => {
       const along = hh(x, z, 41) < 0.5; const len = 3 + Math.floor(hh(x, z, 43) * 3);
       for (let k = 0; k < len; k++) { const px = along ? x + k : x; const pz = along ? z : z + k; if (this.heightAt(px, pz) === h) put(px, h + 1, pz, B.LOG); }
@@ -340,6 +397,9 @@ export class World {
           continue;
         }
         if (biome === 'snow') { if (r < 0.03) pine(x, h, z, true); continue; }
+        if (biome === 'canyon') { if (r < 0.004) { const tall = 2 + Math.floor(hh(x, z, 9) * 3); for (let y = h + 1; y <= h + tall; y++) put(x, y, z, B.CACTUS); } continue; }
+        if (biome === 'jungle') { if (r < 0.06) jungleTree(x, h, z); continue; }
+        if (biome === 'swamp') { if (r < 0.02) swampTree(x, h, z); continue; }
         if (biome === 'mountains') { if (r < 0.012 && h < 64) pine(x, h, z, h > 56); else if (r > 0.055) boulder(x, h, z); continue; }
         if (biome === 'forest') {
           if (r < 0.05) { if (t < 0.45) roundTree(x, h, z, B.LOG, B.LEAVES, 4 + Math.floor(hh(x, z, 13) * 3)); else if (t < 0.75) roundTree(x, h, z, B.BIRCH_LOG, B.BIRCH_LEAVES, 5 + Math.floor(hh(x, z, 13) * 3)); else if (t < 0.9) bigOak(x, h, z); else pine(x, h, z, false); }

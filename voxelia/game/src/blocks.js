@@ -11,6 +11,7 @@ export const B = {
   CORAL_RED: 65, CORAL_YELLOW: 66, CORAL_PURPLE: 67, CORAL_FAN: 68, DEAD_BUSH: 69,
   FENCE: 70, BELL: 71, PEW: 72, ALTAR: 73, BLACKBOARD: 74, STAINED_GLASS: 75, TROUGH: 76,
   CARROT_YOUNG: 77, CARROT_RIPE: 78, POTATO_YOUNG: 79, POTATO_RIPE: 80, PUMPKIN: 81, PUMPKIN_STEM: 82, BEEHIVE: 83, OVEN: 84, FRUIT_LEAVES: 85,
+  MUD: 86, LILY_PAD: 87, VINES: 88, JUNGLE_LEAVES: 89, RED_SAND: 90, RED_ROCK: 91, ORANGE_ROCK: 92, RAIL: 93, MOSSY_COBBLE: 94, SANDSTONE: 95, CHISELED_SANDSTONE: 96,
 };
 
 export const BLOCKS = [];
@@ -105,6 +106,18 @@ def(B.CORAL_RED, 'Coral rojo', 'coral_red', { hardness: 0.8, sound: 'stone', too
 def(B.CORAL_YELLOW, 'Coral amarillo', 'coral_yellow', { hardness: 0.8, sound: 'stone', tool: 'pick' });
 def(B.CORAL_PURPLE, 'Coral violeta', 'coral_purple', { hardness: 0.8, sound: 'stone', tool: 'pick' });
 def(B.CORAL_FAN, 'Abanico de coral', 'coral_fan', { solid: false, transparent: true, hardness: 0.05, shape: 'crop', water: true });
+// Biomas nuevos: pantano, selva y cañones; ruinas (piedra con musgo, arenisca, rieles de mina).
+def(B.MUD, 'Barro', 'mud', { hardness: 0.5, sound: 'grass', tool: 'shovel' });
+def(B.LILY_PAD, 'Nenúfar', 'lily_pad', { solid: false, transparent: true, hardness: 0.02, sound: 'grass', shape: 'carpet' });
+def(B.VINES, 'Lianas', 'vines', { solid: false, transparent: true, hardness: 0.05, sound: 'grass', shape: 'crop', drop: 0 });
+def(B.JUNGLE_LEAVES, 'Hojas de selva', 'jungle_leaves', { transparent: true, alpha: true, hardness: 0.2, sound: 'grass', drop: 0 });
+def(B.RED_SAND, 'Arena roja', 'red_sand', { hardness: 0.5, sound: 'sand', tool: 'shovel' });
+def(B.RED_ROCK, 'Roca roja', 'red_rock', { hardness: 1.3, tool: 'pick' });
+def(B.ORANGE_ROCK, 'Roca naranja', 'orange_rock', { hardness: 1.3, tool: 'pick' });
+def(B.RAIL, 'Riel', 'rail', { solid: false, transparent: true, hardness: 0.6, sound: 'wood', shape: 'carpet' });
+def(B.MOSSY_COBBLE, 'Adoquín con musgo', 'mossy_cobble', { hardness: 2, tool: 'pick' });
+def(B.SANDSTONE, 'Arenisca', ['sandstone_top', 'sandstone', 'sandstone_top'], { hardness: 1, tool: 'pick' });
+def(B.CHISELED_SANDSTONE, 'Arenisca tallada', ['sandstone_top', 'chiseled_sandstone', 'sandstone_top'], { hardness: 1, tool: 'pick' });
 // Cultivos nuevos, calabazas, colmenas, horno y frutales.
 def(B.CARROT_YOUNG, 'Zanahorias (creciendo)', 'carrot_young', { solid: false, transparent: true, hardness: 0.05, sound: 'grass', shape: 'crop', drop: 160 });
 def(B.CARROT_RIPE, 'Zanahorias', 'carrot_ripe', { solid: false, transparent: true, hardness: 0.05, sound: 'grass', shape: 'crop', drop: 160 });
@@ -127,7 +140,7 @@ def(B.TORCH, 'Antorcha', 'torch', { solid: false, transparent: true, hardness: 0
 
 // Bloques disponibles en el inventario creativo (orden de la grilla).
 export const PLACEABLE = [B.GRASS, B.DIRT, B.STONE, B.COBBLE, B.PLANKS, B.LOG, B.BIRCH_LOG, B.LEAVES, B.BIRCH_LEAVES,
-  B.GLASS, B.BRICK, B.SAND, B.GRAVEL, B.CLAY, B.SNOW, B.CACTUS, B.COAL, B.IRON, B.LAMP, B.WOOL_RED, B.WOOL_BLUE, B.WOOL_WHITE, B.CRYSTAL, B.FARO, B.TORCH, B.WORKBENCH, B.ROOF, B.THATCH, B.ADOBE, B.FARMLAND, B.BED, B.DOOR, B.WINDOW, B.MOSS, B.GOLD_ORE, B.WOOL_BLACK, B.BARS, B.GLOW_MUSHROOM, B.CAMPFIRE, B.TABLE, B.CHAIR, B.BOOKSHELF, B.FIREPLACE, B.CARPET, B.BARREL, B.HAY, B.ANVIL, B.THRONE, B.FLOWER_RED, B.FLOWER_YELLOW, B.PINE_LEAVES, B.PALM_LOG, B.PALM_LEAVES, B.TALL_GRASS, B.BERRY_BUSH, B.KELP, B.CORAL_RED, B.CORAL_YELLOW, B.CORAL_PURPLE, B.CORAL_FAN, B.FENCE, B.BELL, B.PEW, B.ALTAR, B.BLACKBOARD, B.STAINED_GLASS, B.TROUGH, B.PUMPKIN, B.BEEHIVE, B.OVEN, B.FRUIT_LEAVES];
+  B.GLASS, B.BRICK, B.SAND, B.GRAVEL, B.CLAY, B.SNOW, B.CACTUS, B.COAL, B.IRON, B.LAMP, B.WOOL_RED, B.WOOL_BLUE, B.WOOL_WHITE, B.CRYSTAL, B.FARO, B.TORCH, B.WORKBENCH, B.ROOF, B.THATCH, B.ADOBE, B.FARMLAND, B.BED, B.DOOR, B.WINDOW, B.MOSS, B.GOLD_ORE, B.WOOL_BLACK, B.BARS, B.GLOW_MUSHROOM, B.CAMPFIRE, B.TABLE, B.CHAIR, B.BOOKSHELF, B.FIREPLACE, B.CARPET, B.BARREL, B.HAY, B.ANVIL, B.THRONE, B.FLOWER_RED, B.FLOWER_YELLOW, B.PINE_LEAVES, B.PALM_LOG, B.PALM_LEAVES, B.TALL_GRASS, B.BERRY_BUSH, B.KELP, B.CORAL_RED, B.CORAL_YELLOW, B.CORAL_PURPLE, B.CORAL_FAN, B.FENCE, B.BELL, B.PEW, B.ALTAR, B.BLACKBOARD, B.STAINED_GLASS, B.TROUGH, B.PUMPKIN, B.BEEHIVE, B.OVEN, B.FRUIT_LEAVES, B.MUD, B.LILY_PAD, B.JUNGLE_LEAVES, B.RED_SAND, B.RED_ROCK, B.ORANGE_ROCK, B.RAIL, B.MOSSY_COBBLE, B.SANDSTONE, B.CHISELED_SANDSTONE];
 
 // Bloques que emiten luz (iluminan alrededor y repelen a las Sombras).
 export const LIGHT_BLOCKS = new Set(BLOCKS.filter((b) => b?.light > 0).map((b) => b.id));

@@ -15,6 +15,7 @@ export const I = {
   HELMET_CRYSTAL: 148, CHEST_CRYSTAL: 149, LEGS_CRYSTAL: 150, BOOTS_CRYSTAL: 151,
   GOLD: 152, BERRIES: 153, FISH: 154, MEAT: 155, BOAT: 156, PEARL: 157,
   RAW_MEAT: 158, RAW_FISH: 159, CARROT: 160, POTATO: 161, BAKED_POTATO: 162, PUMPKIN_PIE: 163, STEW: 164, HONEY: 165, ROD: 166, GOLDEN_FISH: 167, SALMON: 168, OLD_BOOT: 169, PUMPKIN_SEEDS: 170,
+  TREASURE_MAP: 171, DRAGON_SCALE: 172, SERPENT_FANG: 173,
 };
 
 // Niveles de herramienta: velocidad de minado, daño, usos antes de romperse y color.
@@ -69,6 +70,9 @@ ITEMS[I.HONEY] = { name: 'Miel', kind: 'food', heal: 3, food: 4, energy: 60, col
 ITEMS[I.ROD] = { name: 'Caña de pescar', kind: 'gear', uses: 64, color: '#8a5a33', description: 'Clic derecho al agua para tirar. Cuando el corcho se hunde, clic derecho otra vez para sacar el pez.' };
 ITEMS[I.GOLDEN_FISH] = { name: 'Pez dorado', kind: 'material', color: '#f2c94c', description: 'Rarísimo: sale de noche o en mar abierto. Vale mucha plata.' };
 ITEMS[I.OLD_BOOT] = { name: 'Bota vieja', kind: 'material', color: '#5c3a26', description: 'Alguien la perdió en el agua…' };
+ITEMS[I.TREASURE_MAP] = { name: 'Mapa del tesoro', kind: 'gear', color: '#e8d8a0', description: 'Clic derecho para leerlo: marca con una X dónde está enterrado el tesoro. Cavá ahí.' };
+ITEMS[I.DRAGON_SCALE] = { name: 'Escama de dragón', kind: 'material', color: '#8f2b26', description: 'Del dragón de las montañas. Dicen que ningún herrero vio algo igual.' };
+ITEMS[I.SERPENT_FANG] = { name: 'Colmillo de serpiente marina', kind: 'material', color: '#e8e4d8', description: 'Trofeo del monstruo del mar profundo.' };
 ITEMS[I.PUMPKIN_SEEDS] = { name: 'Semillas de calabaza', kind: 'seed', color: '#e8d8a0', description: 'Clic derecho sobre tierra arada: crece una planta que da calabazas al lado.' };
 ITEMS[I.BOAT] = { name: 'Bote', kind: 'gear', color: '#a87442', description: 'Clic derecho sobre el agua para ponerlo; clic derecho al bote para subir. W/S reman, A/D giran, Shift para bajar.' };
 ITEMS[I.PEARL] = { name: 'Perla', kind: 'material', color: '#f4eef8', description: 'Se encuentra en los barcos hundidos. Vale mucho en los puertos.' };

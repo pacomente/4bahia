@@ -6,7 +6,7 @@ import { drawFurniture, N as ICON_N } from './icons.js';
 const S = 16;
 const NAMES = ['grass_top', 'grass_side', 'dirt', 'stone', 'sand', 'water', 'log_top', 'log_side', 'leaves', 'planks',
   'cobble', 'glass', 'snow', 'snow_side', 'brick', 'coal', 'cactus_top', 'cactus_side', 'bedrock', 'gravel', 'iron',
-  'birch_top', 'birch_side', 'birch_leaves', 'clay', 'lamp', 'wool_red', 'wool_blue', 'wool_white', 'crystal', 'faro_top', 'faro_side', 'torch', 'bench_top', 'bench_side', 'roof', 'thatch', 'adobe', 'farmland', 'wheat_young', 'wheat_ripe', 'bed_top', 'bed_side', 'door', 'window', 'lava', 'glow_mushroom', 'moss', 'gold_ore', 'wool_black', 'bars', 'campfire', 'chest_top', 'chest_side', 'table_top', 'bookshelf', 'fireplace', 'carpet', 'barrel_top', 'barrel_side', 'hay_top', 'hay_side', 'anvil', 'throne', 'flower_red', 'flower_yellow', 'pine_leaves', 'palm_top', 'palm_side', 'palm_leaves', 'tall_grass', 'berry_bush', 'dead_bush', 'kelp', 'seagrass', 'coral_red', 'coral_yellow', 'coral_purple', 'coral_fan', 'bell', 'altar_top', 'altar_side', 'blackboard', 'stained_glass', 'trough_top', 'carrot_young', 'carrot_ripe', 'potato_young', 'potato_ripe', 'pumpkin_top', 'pumpkin_side', 'pumpkin_stem', 'hive_top', 'hive_side', 'oven', 'fruit_leaves'];
+  'birch_top', 'birch_side', 'birch_leaves', 'clay', 'lamp', 'wool_red', 'wool_blue', 'wool_white', 'crystal', 'faro_top', 'faro_side', 'torch', 'bench_top', 'bench_side', 'roof', 'thatch', 'adobe', 'farmland', 'wheat_young', 'wheat_ripe', 'bed_top', 'bed_side', 'door', 'window', 'lava', 'glow_mushroom', 'moss', 'gold_ore', 'wool_black', 'bars', 'campfire', 'chest_top', 'chest_side', 'table_top', 'bookshelf', 'fireplace', 'carpet', 'barrel_top', 'barrel_side', 'hay_top', 'hay_side', 'anvil', 'throne', 'flower_red', 'flower_yellow', 'pine_leaves', 'palm_top', 'palm_side', 'palm_leaves', 'tall_grass', 'berry_bush', 'dead_bush', 'kelp', 'seagrass', 'coral_red', 'coral_yellow', 'coral_purple', 'coral_fan', 'bell', 'altar_top', 'altar_side', 'blackboard', 'stained_glass', 'trough_top', 'carrot_young', 'carrot_ripe', 'potato_young', 'potato_ripe', 'pumpkin_top', 'pumpkin_side', 'pumpkin_stem', 'hive_top', 'hive_side', 'oven', 'fruit_leaves', 'mud', 'lily_pad', 'vines', 'jungle_leaves', 'red_sand', 'red_rock', 'orange_rock', 'rail', 'mossy_cobble', 'sandstone', 'sandstone_top', 'chiseled_sandstone'];
 const COLS = 8;
 export const ATLAS_COLS = COLS;
 export const ATLAS_ROWS = Math.ceil(NAMES.length / COLS);
@@ -187,6 +187,39 @@ function paint(name, px) {
         const frame = x < 2 || y < 2 || x > 13 || y > 13 || x === 7 || x === 8 || y === 7 || y === 8;
         set(x, y, frame ? shade(hex('#7a5230'), 0.9 + r() * 0.15) : hex('#dff1f8'), frame ? 255 : (x + y) % 9 === 0 ? 150 : 60);
       }
+      break;
+    case 'mud': noise(hex('#4a3a2a'), 0.3); speckle(hex('#2e241a'), 18); speckle(hex('#5f4a34'), 10); break;
+    case 'lily_pad':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) { const d = Math.hypot(x - 7.5, y - 7.5); const notch = x > 7 && Math.abs(y - 7.5) < 1.2; set(x, y, shade(hex('#3f8a2c'), 0.85 + r() * 0.25), d < 7 && !notch ? 255 : 0); }
+      set(5, 6, hex('#f2a8d8')); set(6, 6, hex('#ffffff')); set(5, 5, hex('#f2a8d8'));
+      break;
+    case 'vines':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, [0, 0, 0], 0);
+      for (const x0 of [2, 6, 10, 13]) { let x = x0; for (let y = 0; y < S; y++) { set(Math.round(x), y, shade(hex('#3f7a2c'), 0.8 + r() * 0.4)); if (y % 3 === 1) set(Math.round(x) + 1, y, hex('#5f9a3c')); x += (r() - 0.5) * 0.6; } }
+      break;
+    case 'jungle_leaves': { for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) { const v = r(); set(x, y, shade(hex('#2f7a1c'), 0.65 + v * 0.55), v < 0.12 ? 0 : 255); } break; }
+    case 'red_sand': noise(hex('#c8642a'), 0.25); speckle(hex('#a84a1a'), 16); break;
+    case 'red_rock': case 'orange_rock': {
+      const c = name === 'red_rock' ? hex('#a8482a') : hex('#d8803a');
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, shade(c, (y % 5 === 0 ? 0.82 : 1) * (0.9 + r() * 0.12)));
+      break;
+    }
+    case 'rail':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, [0, 0, 0], 0);
+      for (let y = 1; y < S; y += 4) for (let x = 1; x < 15; x++) set(x, y, shade(hex('#7a5230'), 0.85 + r() * 0.2)), set(x, y + 1, shade(hex('#5b3d22'), 0.9));
+      for (let y = 0; y < S; y++) { set(3, y, hex('#9aa0a8')); set(4, y, hex('#6a6e76')); set(11, y, hex('#9aa0a8')); set(12, y, hex('#6a6e76')); }
+      break;
+    case 'mossy_cobble':
+      noise(stone, 0.2);
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) if ((x + Math.floor(y / 4) * 3) % 5 === 0 || y % 4 === 0) set(x, y, shade(stone, 0.6));
+      blob(hex('#4f8a2c'), 8, 3); speckle(hex('#6fb043'), 14);
+      break;
+    case 'sandstone': for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, shade(hex('#e0cc8a'), (y === 4 || y === 11 ? 0.85 : 1) * (0.93 + r() * 0.1))); break;
+    case 'sandstone_top': noise(hex('#e8d49a'), 0.12); break;
+    case 'chiseled_sandstone':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, shade(hex('#e0cc8a'), 0.93 + r() * 0.1));
+      for (let k = 2; k < 14; k++) { set(k, 2, hex('#a8904a')); set(k, 13, hex('#a8904a')); set(2, k, hex('#a8904a')); set(13, k, hex('#a8904a')); }
+      for (const [x, y] of [[7, 5], [8, 5], [6, 6], [9, 6], [6, 7], [9, 7], [7, 8], [8, 8], [7, 9], [8, 9], [7, 10], [8, 10]]) set(x, y, hex('#8a7234'));   // ojo tallado
       break;
     case 'carrot_young': case 'carrot_ripe': case 'potato_young': case 'potato_ripe': {
       // Matas de hojas; las maduras asoman la zanahoria o tienen florcitas (papa).

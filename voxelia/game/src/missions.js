@@ -28,7 +28,11 @@ export const MISSIONS = [
   { id: 'upgrade', title: 'Reforzá tu equipo con el herrero', hint: 'Hablá con un herrero con el arma o la armadura en la mano. Cuesta plata y hierro.', goal: 1, progress: (s) => s.upgraded ?? 0 },
   { id: 'horse', title: 'Montá a caballo', hint: 'Hay caballos en las praderas y en los corrales de las aldeas. Clic derecho para subir, Shift para bajar.', goal: 1, progress: (s) => s.rode ?? 0 },
   { id: 'caravan', title: 'Mirá llegar una carreta de comercio', hint: 'Los caminos de grava unen las aldeas. Las carretas llevan comida, madera y piedra de un pueblo a otro.', goal: 1, progress: (s) => s.caravans ?? 0 },
+  { id: 'ruin', title: 'Explorá una ruina', hint: 'Torres abandonadas, templos de arenisca y minas viejas: en el mapa aparecen al acercarte. Buscá el cofre.', goal: 1, progress: (s) => s.ruins ?? 0 },
+  { id: 'treasure', title: 'Encontrá un tesoro enterrado', hint: 'Algunas ruinas guardan un mapa del tesoro. Leelo (clic derecho), seguí la X roja del mapa y cavá.', goal: 1, progress: (s) => s.treasures ?? 0 },
+  { id: 'pet', title: 'Domesticá un lobo', hint: 'De noche salen lobos. Dale carne (clic derecho con carne en la mano) hasta que acepte el collar.', goal: 1, progress: (s) => s.pets ?? 0 },
   { id: 'leader', title: 'Derrotá a un jefe saqueador', hint: 'Llevá armadura y escudo: el jefe pega fuerte y los arqueros disparan desde lejos.', goal: 1, progress: (s) => s.leaders ?? 0 },
+  { id: 'dragon', title: 'Vencé al dragón de las montañas', hint: 'Su guarida aparece en el mapa en lo alto de las montañas. Llevá arco, flechas, armadura y mucha comida.', goal: 1, progress: (s) => s.dragons ?? 0 },
 ];
 
 export const emptyStats = () => ({ collected: {}, crafted: {}, placed: {}, nights: 0, kills: 0, visited: 0, trades: 0, met: 0, equipped: 0, honor: 0, freed: 0, leaders: 0 });

@@ -65,6 +65,15 @@ export class MiniMap {
     vs.forEach((v, i) => mark(v.x, v.z, '#ff9f43', v.pop ? `${v.name} (${v.pop})` : v.name, i === 0));
     // Campamentos de saqueadores (rojo; gris si ya fue liberado).
     for (const c of ctx.camps ?? []) mark(c.x, c.z, c.defeated ? '#8b8b8b' : '#e8463a', c.defeated ? `${c.name} (libre)` : `⚠ ${c.name}`, false);
+    for (const l of ctx.lairs ?? []) mark(l.x, l.z, l.dead ? '#8b8b8b' : '#b0201a', l.dead ? 'Guarida vacía' : '🐉 Guarida del dragón', false);
+    for (const r of ctx.ruins ?? []) mark(r.x, r.z, r.done ? '#8b8b8b' : '#c9a66b', r.done ? r.name : `🏚 ${r.name}`, false);
+    // Tesoros de los mapas: una X roja (si está lejos, en el borde como brújula).
+    for (const t of ctx.treasures ?? []) {
+      let mx = (t.x - ctx.player.pos.x) * scale + half; let mz = (t.z - ctx.player.pos.z) * scale + half;
+      if (mx < 8 || mz < 8 || mx > W - 8 || mz > W - 8) { const a = Math.atan2(mz - half, mx - half); mx = half + Math.cos(a) * (half - 9); mz = half + Math.sin(a) * (half - 9); }
+      g.strokeStyle = '#000'; g.lineWidth = 5; g.beginPath(); g.moveTo(mx - 5, mz - 5); g.lineTo(mx + 5, mz + 5); g.moveTo(mx + 5, mz - 5); g.lineTo(mx - 5, mz + 5); g.stroke();
+      g.strokeStyle = '#e8463a'; g.lineWidth = 3; g.stroke();
+    }
     if (ctx.spawn) mark(ctx.spawn.x, ctx.spawn.z, '#ffe066', 'Reaparición');
     for (const f of ctx.faros) mark(f.x + 0.5, f.z + 0.5, '#5ff2e6', 'Faro');
     // Jugador: flecha que apunta hacia donde mira.

@@ -268,6 +268,20 @@ export function drawItem(id, it, I) {
       poly(set, [[9, 5], [18, 5], [18, 20], [27, 22], [27, 28], [7, 28]], (x, y) => pickRamp(RAMPS.leather, 0.85 - y / 60));
       for (let y = 8; y < 20; y += 3) { set(10, y, RAMPS.leather[0]); set(16, y, RAMPS.leather[0]); }
       break;
+    case I.TREASURE_MAP:
+      poly(set, [[4, 6], [28, 4], [27, 27], [5, 28]], (x, y) => pickRamp(['#a8905a', '#d8c08a', '#e8d8a0', '#f8f0d0'], 0.95 - (x + y) / 90));
+      for (let k = 0; k < 8; k++) set(8 + k * 2, 22 - (k % 3) * 2 - k, '#8a6a3a');   // camino punteado
+      thickLine(set, 21, 8, 26, 13, 1.6, RAMPS.red); thickLine(set, 26, 8, 21, 13, 1.6, RAMPS.red);
+      thickLine(set, 5, 6, 5, 28, 1.6, RAMPS.wood); thickLine(set, 27, 4, 27, 27, 1.6, RAMPS.wood);
+      break;
+    case I.DRAGON_SCALE:
+      poly(set, [[16, 3], [28, 14], [16, 29], [4, 14]], (x, y) => pickRamp(['#4a0e0a', '#8f2b26', '#c8352b', '#ffb070'], 0.95 - Math.abs(x - 16) / 20 - y / 80));
+      for (let y = 8; y < 26; y += 4) thickLine(set, 10, y, 16, y + 3, 1, ['#3a0806', '#3a0806', '#3a0806', '#3a0806']);
+      break;
+    case I.SERPENT_FANG:
+      poly(set, [[10, 4], [20, 4], [17, 22], [13, 29]], (x) => pickRamp(RAMPS.cloth, 0.95 - (x - 10) / 25));
+      poly(set, [[8, 2], [22, 2], [22, 6], [8, 6]], () => '#3a6a8a');
+      break;
     case I.PUMPKIN_SEEDS:
       for (const [x, y] of [[9, 12], [15, 9], [21, 13], [12, 19], [18, 18], [24, 21], [8, 24], [15, 25], [22, 27]]) disk(set, x, y, 2.2, ['#a89a6a', '#d8c890', '#f4ecc8', '#ffffff'], { ry: 1.4 });
       break;

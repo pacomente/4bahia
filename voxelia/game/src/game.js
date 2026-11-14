@@ -20,9 +20,11 @@ import { Shadows, nearLight } from './mobs.js';
 import { Animals } from './animals.js';
 import { Sea } from './sea.js';
 import { navFrame } from './pathfind.js';
+import { Creatures, lairsNear } from './creatures.js';
 import { wrecksNear, treasure } from './wrecks.js';
 import { Caravans, tradeGoods, applyTrade, GOODS_NAME } from './caravans.js';
 import { linksOf, routeOf } from './roads.js';
+import { ruinsNear, ruinLoot, treasureSpot, buriedTreasure, RUIN_REGION, ruinPlan } from './ruins.js';
 import { villagePlan } from './villages.js';
 import { MiniMap } from './minimap.js';
 import { Villages } from './villagers.js';
@@ -69,7 +71,9 @@ export class Game {
     this.maxHealth = save?.maxHealth ?? 20;
     this.food = save?.food ?? 20;              // hambre: 20 = panza llena
     this.upgrades = save?.upgrades ?? {};      // mejoras del herrero por ítem: { id: nivel }
-    this.hives = save?.hives ?? {};            // colmenas cosechadas: 'x,y,z' -> momento
+    this.hives = save?.hives ?? {};
+    this.treasures = save?.treasures ?? [];      // mapas del tesoro leídos: { x, z, from, found }
+    this.lootedRuins = save?.lootedRuins ?? [];            // colmenas cosechadas: 'x,y,z' -> momento
     this.faros = save?.faros ?? [];
     this.beams = new Map();
     this.attackCooldown = 0;
@@ -99,6 +103,8 @@ export class Game {
     this.animals = new Animals(this.scene, this.world, this.sound);
     this.sea = new Sea(this.scene, this.world, this.sound);
     this.caravans = new Caravans(this.scene, this.world, this.animals);
+    this.creatures = new Creatures(this.scene, this.world, this.sound);
+    this.killedLairs = save?.killedLairs ?? [];
     this.sea.load(save?.boats);
     this.minimap = new MiniMap(this.atlasCanvas, this.world);
     this.hand = new Hand(this.atlasTex);
@@ -249,6 +255,11 @@ export class Game {
       if (safe) { p.set(safe.x, safe.y, safe.z); if (!this.saveData?.spawn) this.spawn = { ...safe }; }
       if (!this.saveData?.player) this.faceOpenView();
       else while (this.player.collides(p.x, p.y, p.z) && p.y < H) p.y += 1;
+    }
+    // Mascotas guardadas: aparecen al lado del jugador.
+    for (const pet of this.saveData?.pets ?? []) {
+      const a = this.animals.spawnAt(p.x + 1.5, p.z + 1.5, pet.species ?? 'wolf', { tamed: true, petName: pet.name });
+      if (a?.mesh.userData.collar) a.mesh.userData.collar.visible = true;
     }
   }
 
@@ -548,6 +559,28 @@ export class Game {
     }
   }
 
+  // ───── Mapas del tesoro ─────
+  readMap() {
+    const p = this.player.pos;
+    let tr = this.treasures.find((x) => !x.found);
+    if (!tr) {
+      // Un mapa nuevo: el tesoro de la ruina más cercana (o de alguna de la zona).
+      let best = null;
+      for (let rx = Math.floor((p.x - 600) / RUIN_REGION); rx <= Math.floor((p.x + 600) / RUIN_REGION); rx++) for (let rz = Math.floor((p.z - 600) / RUIN_REGION); rz <= Math.floor((p.z + 600) / RUIN_REGION); rz++) {
+        const r = ruinPlan(this.world, rx, rz); if (r && (!best || Math.hypot(r.x - p.x, r.z - p.z) < Math.hypot(best.x - p.x, best.z - p.z))) best = r;
+      }
+      const spot = treasureSpot(this.world, best ?? { x: Math.round(p.x), z: Math.round(p.z), seed: Math.floor(p.x * 31 + p.z), name: 'un viejo explorador' });
+      tr = { ...spot, found: false };
+      this.treasures.push(tr);
+      if (this.mode === 'survival') { this.inventory[I.TREASURE_MAP] -= 1; if (this.inventory[I.TREASURE_MAP] <= 0) delete this.inventory[I.TREASURE_MAP]; this.syncHotbar(); }
+    }
+    const dx = tr.x - p.x; const dz = tr.z - p.z; const d = Math.round(Math.hypot(dx, dz));
+    const dirs = ['este', 'sudeste', 'sur', 'sudoeste', 'oeste', 'noroeste', 'norte', 'noreste'];
+    const dir = dirs[(Math.round(Math.atan2(dz, dx) / (Math.PI / 4)) + 8) % 8];
+    this.ui.toast(d < 3 ? '¡La X está acá mismo! Cavá para abajo.' : `🗺 La X del mapa está a ${d} bloques hacia el ${dir}. Está marcada en el mapa (M).`, 4500);
+    this.sound.noise(0.3, { freq: 2600, q: 0.6, gain: 0.15, type: 'highpass' });
+  }
+
   // ───── Colmenas ─────
   harvestHive(t) {
     const k = `${t.x},${t.y},${t.z}`;
@@ -695,7 +728,7 @@ export class Game {
   }
 
   mapCtx() {
-    return { player: this.player, spawn: this.spawn, faros: this.faros, radius: (this.settings.renderDistance + 1) * CS, showMini: this.settings.minimap !== false, villages: this.villageMarkers ?? [], camps: this.campMarkers ?? [] };
+    return { player: this.player, spawn: this.spawn, faros: this.faros, radius: (this.settings.renderDistance + 1) * CS, showMini: this.settings.minimap !== false, villages: this.villageMarkers ?? [], camps: this.campMarkers ?? [], treasures: this.treasures.filter((t) => !t.found), ruins: this.ruinMarkers ?? [], lairs: lairsNear(this.world, this.player.pos.x, this.player.pos.z, 400).map((l) => ({ x: l.x, z: l.z, dead: this.killedLairs.includes(l.id) })) };
   }
 
   renderCraft() {
@@ -760,6 +793,7 @@ export class Game {
     const eye = this.player.eye(); const dir = this.player.look(); const dmg = attackDamage(this.held(), this.upgrades[this.held()] ?? 0);
     const v = this.villages.hitTest(eye, dir, 3.6);
     if (v) { this.villages.annoy(v); this.attackCooldown = 0.35; return true; }
+    if (this.creatures.hit(eye, dir, 5, dmg, this.creatureCtx())) { this.attackCooldown = 0.35; this.useTool(); return true; }
     const boat = !this.sea.riding && this.sea.boatHit(eye, dir, 4);
     if (boat) { this.sea.removeBoat(boat); if (this.mode === 'survival') this.addItem(I.BOAT); this.sound.dig('wood'); this.attackCooldown = 0.35; return true; }
     const hit = (this.bandits.list.length && this.bandits.hit(eye, dir, 3.6, dmg, this.banditCtx()))
@@ -845,6 +879,17 @@ export class Game {
     const held = this.held();
     if (v && (!t || Math.hypot(t.x + 0.5 - eye.x, t.y + 0.5 - eye.y, t.z + 0.5 - eye.z) > v.pos.distanceTo(eye) - 0.5)) { this.openVillager(v); return true; }
     const horse = !this.horse && !this.sea.riding && this.animals.pick(eye, dir, 4);
+    // Domesticar un lobo dándole carne.
+    if (horse?.species === 'wolf' && (held === I.RAW_MEAT || held === I.MEAT)) {
+      const r = this.animals.feed(horse);
+      if (r) {
+        if (this.mode === 'survival') { this.inventory[held] -= 1; if (this.inventory[held] <= 0) delete this.inventory[held]; this.syncHotbar(); }
+        for (let k = 0; k < 4; k++) this.spawnPuff(horse.mesh.position.x, horse.mesh.position.y + 1, horse.mesh.position.z, r === 'tamed' ? 0xff6a8a : 0xffffff);
+        if (r === 'tamed') { horse.petName = ['Rayo', 'Luna', 'Toby', 'Nieve', 'Canela', 'Lobo', 'Sombra'][Math.floor(Math.random() * 7)]; this.ui.toast(`🐕 ¡${horse.petName} ahora es tu perro! Te sigue y te defiende.`, 3500); this.stats.pets = (this.stats.pets ?? 0) + 1; this.checkMissions(); }
+        else this.ui.toast('El lobo comió… todavía desconfía. Probá con más carne.', 2000);
+        this.hand.swing(); return true;
+      }
+    }
     if (horse?.species === 'horse' && !isFood(held)) { this.mountHorse(horse); return true; }
     const boat = !this.sea.riding && this.sea.boatHit(eye, dir, 4.5);
     if (boat && (!t || Math.hypot(t.x + 0.5 - eye.x, t.y + 0.5 - eye.y, t.z + 0.5 - eye.z) > boat.mesh.position.distanceTo(eye) - 0.8)) {
@@ -872,6 +917,7 @@ export class Game {
     // Cocinar: algo crudo sobre fuego.
     if (COOKS[held] && t && (t.id === B.CAMPFIRE || t.id === B.FIREPLACE || t.id === B.OVEN)) { this.startCooking(t, held); return true; }
     if (held === I.ROD) return this.castOrReel();
+    if (held === I.TREASURE_MAP) { this.readMap(); return true; }
     if (t?.id === B.BEEHIVE && !this.player.sneaking) { this.harvestHive(t); return true; }
     if (isFood(held)) { if (this.health < this.maxHealth || this.food < 20 || this.player.stamina < 95 || this.mode === 'creative') this.eat(held); else this.ui.toast('No tenés hambre', 1400); return true; }
     // Arar: pala sobre pasto o tierra.
@@ -914,6 +960,7 @@ export class Game {
     const d = p1.clone().sub(p0); const len = d.length() + 0.25; d.normalize();
     const v = this.villages.hitTest(p0, d, len);
     if (v) return () => this.villages.annoy(v);
+    if (this.creatures.hit(p0, d, len, 7, this.creatureCtx())) return () => {};
     if (this.bandits.hit(p0, d, len, 6, this.banditCtx())) return () => {};
     if (this.zombies.hit(p0, d, len, 6, this.zombieCtx())) return () => {};
     if (this.shadows.hit(p0, d, len, 6, this.mobCtx())) return () => {};
@@ -983,6 +1030,55 @@ export class Game {
       this.zone = battle ? 'battle' : inVillage ? 'village' : (this.sea.riding || water / n > 0.6) ? 'sea' : biome === 'desert' ? 'desert' : biome === 'snow' ? 'snow' : null;
     }
     if (!this.paused && this.ambEnv) this.sound.updateAmbience(dt, this.ambEnv);
+  }
+
+  // Criaturas raras: serpiente marina y dragón.
+  creatureCtx() {
+    const p = this.player.pos; const x = Math.floor(p.x); const z = Math.floor(p.z);
+    this.deepT = (this.deepT ?? 0) - 1;
+    if (this.deepT <= 0) {
+      this.deepT = 30;
+      // Mar abierto: agua profunda y sin tierra cerca.
+      let land = false; for (let k = 0; k < 12 && !land; k++) { const a = (k / 12) * Math.PI * 2; if (this.world.heightAt(Math.floor(p.x + Math.cos(a) * 18), Math.floor(p.z + Math.sin(a) * 18)) >= 32) land = true; }
+      this.deepWaterNow = !land && this.world.heightAt(x, z) < 22;
+      this.onLandFarNow = this.world.heightAt(x, z) > 33;
+    }
+    return {
+      player: this.player, daylight: this.sky.daylight, inBoat: !!this.sea.riding, deepWater: this.deepWaterNow, onLandFar: this.onLandFarNow, killedLairs: this.killedLairs,
+      onHit: (dmg, reason, dir) => this.damage(dmg, reason, dir),
+      capsize: () => this.capsize('¡La serpiente dio vuelta el bote!'),
+      warn: (text) => this.ui.toast(text, 3000),
+      puff: (x, y, z, c) => this.spawnPuff(x, y, z, c),
+      onKilled: (kind, pos, lair) => {
+        if (kind === 'dragon') {
+          this.killedLairs.push(lair.id);
+          if (this.mode === 'survival') { this.addItem(I.DRAGON_SCALE, 3); this.addItem(I.GOLD, 10); this.addItem(I.SILVER, 150); }
+          this.ui.toast('🐉 ¡Venciste al dragón de las montañas! Escamas de dragón, oro y plata.', 6000);
+          this.stats.dragons = (this.stats.dragons ?? 0) + 1;
+        } else {
+          if (this.mode === 'survival') { this.addItem(I.SERPENT_FANG, 1); this.addItem(I.PEARL, 4); }
+          this.ui.toast('🐍 ¡La serpiente marina se hundió! Te dejó un colmillo y perlas.', 5000);
+          this.stats.serpents = (this.stats.serpents ?? 0) + 1;
+        }
+        for (let k = 0; k < 6; k++) setTimeout(() => this.sound.tone(392 * Math.pow(1.19, k), 0.25, 0.12, 'triangle'), k * 140);
+        this.checkMissions(); this.renderStatus();
+      },
+    };
+  }
+
+  // Tormenta en el mar: las olas pueden dar vuelta el bote lejos de la costa.
+  updateStormSea(dt) {
+    if (!this.sea.riding || (this.sky.storm ?? 0) < 0.7 || !this.deepWaterNow) { this.stormWarned = false; return; }
+    if (!this.stormWarned) { this.stormWarned = true; this.ui.toast('🌊 ¡Tormenta en alta mar! Volvé a la costa antes de que una ola dé vuelta el bote.', 4000); }
+    if (Math.random() < dt * 0.02) this.capsize('¡Una ola gigante dio vuelta el bote!');
+  }
+  capsize(text) {
+    const b = this.sea.riding; if (!b) return;
+    this.sea.riding = null;
+    this.player.pos.set(b.mesh.position.x + 1.2, b.mesh.position.y - 0.6, b.mesh.position.z);
+    b.mesh.position.x -= 2; b.speed = 0;
+    this.sound.splash(); this.shake = 0.4;
+    this.ui.toast(`${text} Nadá hasta el bote y subite de nuevo.`, 3500);
   }
 
   // Carretas: al llegar a destino se hace el trato entre las dos aldeas.
@@ -1214,6 +1310,17 @@ export class Game {
       this.stats.wrecks = (this.stats.wrecks ?? 0) + 1;
       this.sound.tone(660, 0.12, 0.12, 'sine'); setTimeout(() => this.sound.tone(880, 0.12, 0.12, 'sine'), 120); setTimeout(() => this.sound.tone(1320, 0.3, 0.12, 'sine'), 240);
       this.renderStatus();
+    } else if (t.id === B.LOOT_CHEST && ruinsNear(this.world, t.x, t.z, 30).some((p) => p.chest && Math.abs(p.chest.x - t.x) <= 1 && Math.abs(p.chest.z - t.z) <= 1 && Math.abs(p.chest.y - t.y) <= 1)) {
+      const ruin = ruinsNear(this.world, t.x, t.z, 30).find((p) => p.chest && Math.abs(p.chest.x - t.x) <= 1 && Math.abs(p.chest.z - t.z) <= 1);
+      const loot = ruinLoot(ruin);
+      if (this.lootedRuins.includes(ruin.id)) delete loot[I.TREASURE_MAP];   // el mapa sale una sola vez
+      if (this.mode === 'survival') for (const [id, n] of Object.entries(loot)) this.addItem(Number(id), n);
+      else if (loot[I.TREASURE_MAP]) this.addItem(I.TREASURE_MAP, 1);
+      if (!this.lootedRuins.includes(ruin.id)) this.lootedRuins.push(ruin.id);
+      this.ui.toast(`¡El tesoro de ${ruin.name}!${loot[I.TREASURE_MAP] ? ' Hay un mapa viejo adentro…' : ''}`, 3500);
+      this.stats.ruins = (this.stats.ruins ?? 0) + 1;
+      this.sound.tone(523, 0.1, 0.12, 'sine'); setTimeout(() => this.sound.tone(784, 0.25, 0.12, 'sine'), 120);
+      this.renderStatus();
     } else if (t.id === B.LOOT_CHEST) {
       const loot = lootTable();
       if (this.mode === 'survival') for (const [id, n] of Object.entries(loot)) if (n > 0) this.addItem(Number(id), n);
@@ -1221,6 +1328,17 @@ export class Game {
       this.stats.loot = (this.stats.loot ?? 0) + 1;
       for (const b of this.bandits.list) if (b.camp && Math.hypot(b.pos.x - t.x, b.pos.z - t.z) < 30) b.aggro = true;
       this.renderStatus();
+    }
+    // ¿Cavaste donde marca la X de un mapa del tesoro?
+    for (const tr of this.treasures) {
+      if (tr.found || Math.abs(tr.x - t.x) > 1 || Math.abs(tr.z - t.z) > 1) continue;
+      const top = this.world.heightAt(tr.x, tr.z);
+      if (t.y > top || t.y < top - 4) continue;
+      tr.found = true;
+      if (this.mode === 'survival') for (const [id, n] of Object.entries(buriedTreasure())) this.addItem(Number(id), n);
+      this.ui.toast(`💰 ¡Encontraste el tesoro enterrado del mapa de ${tr.from}!`, 4500);
+      for (let k = 0; k < 5; k++) setTimeout(() => this.sound.tone(523 * Math.pow(1.26, k), 0.18, 0.12, 'sine'), k * 110);
+      this.stats.treasures = (this.stats.treasures ?? 0) + 1; this.checkMissions(); this.renderStatus();
     }
     // La puerta son dos bloques: se va entera.
     if (t.id === B.DOOR || t.id === B.DOOR_OPEN) for (const dy of [-1, 1]) { const id = this.world.getBlock(t.x, t.y + dy, t.z); if (id === B.DOOR || id === B.DOOR_OPEN) this.world.setBlock(t.x, t.y + dy, t.z, B.AIR); }
@@ -1393,7 +1511,7 @@ export class Game {
       player: { x: this.player.pos.x, y: this.player.pos.y, z: this.player.pos.z, yaw: this.player.yaw, pitch: this.player.pitch, flying: this.player.flying },
       spawn: this.spawn, time: this.sky.time, health: this.health, inventory: this.inventory, hotbar: this.hotbar, selected: this.selected,
       playTime: this.playTime, mods: this.world.serializeMods(), savedAt: new Date().toISOString(),
-      stats: this.stats, maxHealth: this.maxHealth, food: this.food, upgrades: this.upgrades, hives: this.hives, faros: this.faros, toolWear: this.toolWear, villages: this.villages.serialize(), bandits: this.bandits.serialize(), equip: this.equip, armorWear: this.armorWear, crops: this.crops, boats: this.sea.serialize(),
+      stats: this.stats, maxHealth: this.maxHealth, pets: this.animals.list.filter((a) => a.tamed).map((a) => ({ species: a.species, name: a.petName, color: a.mesh.userData.base?.[0]?.getHex?.() })), food: this.food, upgrades: this.upgrades, hives: this.hives, treasures: this.treasures, lootedRuins: this.lootedRuins, killedLairs: this.killedLairs, faros: this.faros, toolWear: this.toolWear, villages: this.villages.serialize(), bandits: this.bandits.serialize(), equip: this.equip, armorWear: this.armorWear, crops: this.crops, boats: this.sea.serialize(),
     };
   }
   async save() {
@@ -1465,9 +1583,17 @@ export class Game {
       this.updateBreaking(dt);
       this.attackCooldown = Math.max(0, this.attackCooldown - dt);
       this.shadows.update(dt, this.mobCtx());
-      this.animals.update(dt, { player: this.player, daylight: this.sky.daylight });
+      this.animals.update(dt, {
+        player: this.player, daylight: this.sky.daylight, mode: this.mode,
+        enemies: [...this.zombies.list, ...this.bandits.list.filter((b) => !b.camp || b.aggro)],
+        onBite: (dmg, dir) => this.damage(dmg, 'Te mordió un lobo', dir),
+        hitEnemy: (z, dmg, dir) => (z.isBandit ? this.bandits.damage(z, dmg, this.banditCtx(), false, dir) : this.zombies.damage(z, dmg, this.zombieCtx(), false, dir)),
+        onHowl: (x, z) => { const d = Math.hypot(x - this.player.pos.x, z - this.player.pos.z); const g = Math.max(0.04, 0.2 * (1 - d / 60)); const ctxA = this.sound.ensure(); if (!ctxA) return; const o = ctxA.createOscillator(); o.type = 'sine'; const gg = ctxA.createGain(); const t0 = ctxA.currentTime; o.frequency.setValueAtTime(420, t0); o.frequency.linearRampToValueAtTime(620, t0 + 0.6); o.frequency.linearRampToValueAtTime(380, t0 + 2); gg.gain.setValueAtTime(0.0001, t0); gg.gain.exponentialRampToValueAtTime(g * this.sound.volume, t0 + 0.3); gg.gain.exponentialRampToValueAtTime(0.0001, t0 + 2.1); o.connect(gg).connect(ctxA.destination); o.start(t0); o.stop(t0 + 2.2); if (d < 45) this.ui.toast('🐺 Se oyen aullidos cerca…', 2200); },
+      });
       this.sea.update(dt, this.seaCtx());
       this.updateHorse(dt);
+      this.creatures.update(dt, this.creatureCtx());
+      this.updateStormSea(dt);
       this.caravans.update(dt, this.caravanCtx());
       this.lightClock += dt;
       navFrame();
@@ -1583,6 +1709,14 @@ export class Game {
       this.stats.campsFound = (this.stats.campsFound ?? 0) + 1;
     }
     this.campNow = camp?.id ?? null;
+    // Ruinas: cartel al llegar y marcadores en el mapa.
+    const ruin = ruinsNear(this.world, p.x, p.z, 0)[0] ?? null;
+    if (ruin && ruin.id !== this.ruinNow) { this.ui.toast(`🏚 ${ruin.name}${this.lootedRuins.includes(ruin.id) ? ' (ya explorada)' : ': quizás quede algo de valor'}`, 3500); this.stats.ruinsSeen = (this.stats.ruinsSeen ?? 0) + 1; }
+    this.ruinNow = ruin?.id ?? null;
+    this.ruinMarkers = [];
+    for (let rx = Math.floor((p.x - 300) / RUIN_REGION); rx <= Math.floor((p.x + 300) / RUIN_REGION); rx++) for (let rz = Math.floor((p.z - 300) / RUIN_REGION); rz <= Math.floor((p.z + 300) / RUIN_REGION); rz++) {
+      const r = ruinPlan(this.world, rx, rz); if (r && (this.stats.ruinsSeen || Math.hypot(r.x - p.x, r.z - p.z) < 120)) this.ruinMarkers.push({ x: r.x, z: r.z, name: r.name, done: this.lootedRuins.includes(r.id) });
+    }
     this.campMarkers = [];
     for (let rx = Math.floor((p.x - 400) / CAMP_REGION); rx <= Math.floor((p.x + 400) / CAMP_REGION); rx++) for (let rz = Math.floor((p.z - 400) / CAMP_REGION); rz <= Math.floor((p.z + 400) / CAMP_REGION); rz++) {
       const c = campPlan(this.world, rx, rz);
@@ -1599,10 +1733,10 @@ export class Game {
       for (let k = 0; k < 3; k++) this.sound.noise(0.2, { freq: 400 + Math.random() * 300, q: 1, gain: 0.3 });
     }
     document.querySelector('#lava-overlay').style.opacity = this.player.inLava ? 1 : 0;
-    const boss = this.bandits.boss(this.player);
+    const boss = this.bandits.boss(this.player) ?? this.creatures.boss(this.player.pos);
     const bar = document.querySelector('#boss');
     bar.style.display = boss ? 'block' : 'none';
-    if (boss) { bar.querySelector('b').textContent = `${boss.name} · jefe de ${boss.camp?.plan.name ?? 'los saqueadores'}`; bar.querySelector('i').style.width = `${Math.max(0, boss.hp / boss.max) * 100}%`; }
+    if (boss) { bar.querySelector('b').textContent = boss.camp || boss.isBandit ? `${boss.name} · jefe de ${boss.camp?.plan.name ?? 'los saqueadores'}` : boss.name; bar.querySelector('i').style.width = `${Math.max(0, boss.hp / boss.max) * 100}%`; }
   }
 
   banditCtx() {
