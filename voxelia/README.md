@@ -56,6 +56,45 @@ Juego de mundo abierto de bloques para PC, con su propio **launcher**. Todo el c
 - **Zombis** de noche: caminan con los brazos estirados y persiguen al jugador y a los aldeanos que quedaron afuera. Al amanecer **buscan sombra para esconderse** y, si el sol los agarra, se queman.
 - **Arco y flechas** (clic derecho) y **escudo** (en la mano, los golpes sacan 60% menos).
 
+## Reino, comercio y equipo (0.6)
+
+- **Rey o reina** en las aldeas medievales, que viven en un **castillo** con sala del trono, estandartes y torrecitas; en las otras aldeas manda un **jefe o jefa**. Dan **encargos** (llevar pan, adoquines, lana o hierro, o eliminar zombis de noche) que pagan en plata y suben tu rango: Plebeyo, Escudero, Caballero, Noble y Héroe del reino.
+- **Monedas de plata**: cada oficio vende cosas propias y compra lo que necesita (el herrero forja armaduras, el guardia vende arco, flechas y escudo, el granjero comida y semillas, el constructor puertas, ventanas y camas, el leñador madera). Los zombis a veces sueltan plata. Algunas cosas solo se venden cuando la aldea crece (Aldea → Pueblo → Ciudad).
+- **Mercado**: puestos con toldo a rayas en la plaza, atendidos de mañana.
+- **Armadura** acolchada (lana), de hierro y de cristal: casco, pechera, pantalones y botas. Cada punto frena 4% del daño (hasta 80%) y las piezas se gastan. Se equipa desde el inventario (E).
+- **Escudo**: equipalo en la mano izquierda (E) y mantené **clic derecho** (con una herramienta o la mano vacía) o **V** para cubrirte: frena los golpes de frente, pero caminás más lento.
+- **Comida**: manzanas (de las hojas), trigo, pan y pastel. Clic derecho para comer: cura corazones y devuelve energía.
+- **Campo**: la pala ara el pasto (clic derecho) y las semillas se siembran en la tierra arada; el trigo madura con el tiempo. Las aldeas tienen campos con riego que los granjeros cosechan.
+- **Camas, puertas y ventanas**: dormir de noche pasa a la mañana y deja tu punto de reaparición en la cama; las puertas se abren con clic derecho y **los zombis no saben abrirlas**.
+- **Aldeanos más vivos**: tienen hambre, sueño y ganas de charlar (su ánimo se ve al hablarles), siguen un horario (trabajan, almuerzan en el mercado, charlan, vuelven a casa, abren y cierran la puerta y **duermen en su cama**), forman **parejas** y tienen **hijos** si hay camas libres y comida. Los granjeros cosechan, los leñadores talan y el constructor gasta madera y piedra de las **reservas de la aldea** (si faltan, la obra se frena hasta que dones materiales).
+
+## Profundidades y saqueadores (0.7)
+
+- **Generador de cuevas** nuevo: además de los túneles, hay **cavernas** enormes en lo profundo, **grietas** que abren la superficie (entradas naturales) y **lagos de lava** en el fondo, que iluminan y queman (en la lava se nada lento). El suelo de las cuevas tiene **musgo** y **hongos luminosos** que alumbran; más abajo aparece **oro**, que vale mucho en las aldeas.
+- **Campamentos de saqueadores**, las aldeas malas: empalizada de troncos con portones, carpas negras y rojas, fogata, torre de vigilancia, bandera, **jaulas con prisioneros** y el **cofre del botín**. Hay uno a una caminata del inicio y se ven en rojo en el mapa.
+- **Saqueadores** con pañuelo rojo y máscara, **arqueros** que disparan flechas (el escudo las frena) y un **jefe** con barra de vida. Si golpeás a uno, se enoja todo el campamento. Al derrotar al jefe, el campamento queda libre y el resto huye.
+- **Prisioneros**: rompé los barrotes de una jaula y el prisionero se muda a la aldea buena más cercana (más población y reputación).
+- **Incursiones**: algunas noches, un grupo de saqueadores ataca una aldea cercana: van contra los aldeanos que quedaron afuera y se roban la comida de la plaza. Los guardias pelean y al amanecer se retiran.
+- **Inventario con tu personaje**: modelo 3D con la armadura, el escudo y lo que tenés en la mano, que **sigue al cursor** con la mirada.
+
+## Hogar (0.8)
+
+- **Herramientas y materiales rediseñados**: todos los íconos son pixel-art de 32×32 dibujado por código, con contorno, sombra y brillo. Cada nivel tiene su material (madera veteada, piedra, hierro pulido, cristal translúcido con destellos); los lingotes y el carbón tienen volumen, la moneda tiene un sello, y la comida se ve apetitosa. En la mano se ven en 3D, sin el contorno.
+- **Casas amuebladas** en tres tipos: **familiar** (mesa con sillas, alfombra, biblioteca), **taller** (yunque, barriles, mesa de trabajo) y **granja** (fardos de heno, barril, mesa). Todas tienen camas, un **hogar a leña** que ilumina y una **chimenea** justo encima (el humo sale de ahí), y flores en la entrada. El castillo tiene **trono** y bibliotecas; los puestos del mercado muestran mercadería.
+- **Muebles nuevos** que se fabrican en la pestaña **Muebles** del Taller: mesa, sillas (el respaldo se acomoda solo mirando a la mesa o contra la pared), biblioteca, hogar a leña (el fuego da hacia el lado libre), alfombras, barril, fardo de heno, yunque y trono. También hay **flores silvestres** en llanuras y bosques.
+- **Aldeanos en casa**: de noche, antes de dormir, se **sientan a cenar** a la mesa.
+
+## Mares y vida (0.9)
+
+- **Océanos** con arrecifes de coral, algas y pastos marinos; cardúmenes de peces, medusas que brillan de noche y bandadas de pájaros.
+- **Biomas con más vida**: pinos (nevados en la montaña), robles grandes, palmeras en las playas, troncos caídos, arbustos de bayas, pasto alto y flores.
+- **Animales**: ciervos (bosque), conejos (praderas y nieve) y cangrejos (playa), además de los Lanudos. Dejan carne.
+- **Puertos**: las aldeas de la costa tienen muelle, faro, pescadores y marineros. Llegan **barcos mercantes** que traen comida y materiales y bajan el precio de gemas, metales y lana por dos días.
+- **Botes**: Taller → 5 tablas. Clic derecho sobre el agua para ponerlo, clic derecho al bote para subir; W/S reman, A/D giran, Shift para bajar; golpealo para guardarlo.
+- **Barcos hundidos** en el fondo del mar, con un cofre de perlas, oro y plata.
+- **Economía local**: cada aldea tiene sus propios precios según el bioma, sus reservas y si es puerto (▲ caro / ▼ barato en la tienda).
+- Nota: el generador de terreno cambió; en mundos guardados de versiones anteriores las zonas nuevas pueden quedar con mares.
+
 ## Controles
 
 | Tecla | Acción |
@@ -73,6 +112,9 @@ Juego de mundo abierto de bloques para PC, con su propio **launcher**. Todo el c
 | M | Mapa |
 | Clic derecho a un aldeano | Hablar y hacer trueques |
 | Clic derecho con el arco | Disparar |
+| Clic derecho sostenido o V | Cubrirse con el escudo |
+| Clic derecho con comida | Comer |
+| Clic derecho en cama o puerta | Dormir / abrir y cerrar |
 | Espacio en el aire | Planear (con planeador) |
 | F3 | Depuración |
 | Esc | Pausa |

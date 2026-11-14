@@ -63,6 +63,8 @@ export class MiniMap {
     // Aldeas: todas las que entran en el mapa, y solo la más cercana como brújula en el borde.
     const vs = [...(ctx.villages ?? [])].sort((a, b) => Math.hypot(a.x - ctx.player.pos.x, a.z - ctx.player.pos.z) - Math.hypot(b.x - ctx.player.pos.x, b.z - ctx.player.pos.z));
     vs.forEach((v, i) => mark(v.x, v.z, '#ff9f43', v.pop ? `${v.name} (${v.pop})` : v.name, i === 0));
+    // Campamentos de saqueadores (rojo; gris si ya fue liberado).
+    for (const c of ctx.camps ?? []) mark(c.x, c.z, c.defeated ? '#8b8b8b' : '#e8463a', c.defeated ? `${c.name} (libre)` : `⚠ ${c.name}`, false);
     if (ctx.spawn) mark(ctx.spawn.x, ctx.spawn.z, '#ffe066', 'Reaparición');
     for (const f of ctx.faros) mark(f.x + 0.5, f.z + 0.5, '#5ff2e6', 'Faro');
     // Jugador: flecha que apunta hacia donde mira.

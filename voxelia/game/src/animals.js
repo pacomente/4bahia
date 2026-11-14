@@ -4,7 +4,14 @@ import { B, BLOCKS } from './blocks.js';
 // Lanudos: animales pacíficos y redondos que pastan de día en llanuras y bosques.
 // Caminan solos, saltan escalones de un bloque, huyen si les pegás y sueltan lana.
 const HP = 4;
-const GROUND = new Set([B.GRASS, B.DIRT, B.SNOW]);
+const GROUND = new Set([B.GRASS, B.DIRT, B.SNOW, B.SAND]);
+// Especies: vida, velocidad, si huyen al acercarse, si saltan, y caminar de costado (cangrejos).
+export const SPECIES = {
+  lanudo: { name: 'Lanudo', hp: 4, speed: 1.1, flee: 3.6, scared: 0, scale: 1 },
+  deer: { name: 'Ciervo', hp: 6, speed: 1.4, flee: 5.5, scared: 9, scale: 1 },
+  rabbit: { name: 'Conejo', hp: 2, speed: 1.6, flee: 4.6, scared: 6, hop: true, scale: 1 },
+  crab: { name: 'Cangrejo', hp: 2, speed: 0.9, flee: 2.2, scared: 3, sideways: true, scale: 1 },
+};
 // Pelaje en tonos pastel (crema, lila, menta, durazno): no hay dos manadas iguales.
 const COLORS = [0xf6efdc, 0xd9c8f2, 0xc6eedb, 0xf6d3b8, 0xf6efdc];
 
@@ -27,7 +34,10 @@ export class Animals {
     };
   }
 
-  createMesh(color) {
+  createMesh(species, color) {
+    if (species === 'deer') return this.deerMesh();
+    if (species === 'rabbit') return this.rabbitMesh(color);
+    if (species === 'crab') return this.crabMesh();
     const g = new THREE.Group();
     const wool = new THREE.MeshBasicMaterial({ color });
     const skin = new THREE.MeshBasicMaterial({ color: 0x3b2f2a });
@@ -49,25 +59,76 @@ export class Animals {
     return g;
   }
 
+  // Modelos de las especies nuevas. Devuelven las mismas partes que el Lanudo (patas, cabeza, cuerpo, cola…).
+  parts(g, mats, colors, extra) { g.userData = { mats, base: colors.map((c) => new THREE.Color(c)), ...extra }; return g; }
+  deerMesh() {
+    const g = new THREE.Group(); const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+    const fur = new THREE.MeshBasicMaterial({ color: 0x8a5a33 }); const light = new THREE.MeshBasicMaterial({ color: 0xe8dcc0 }); const dark = new THREE.MeshBasicMaterial({ color: 0x3a2a1a }); const eyeMat = new THREE.MeshBasicMaterial({ color: 0x1a1a1a });
+    const body = box(0.55, 0.55, 1.15, fur); body.position.y = 1.05;
+    const neck = box(0.25, 0.5, 0.25, fur); neck.position.set(0, 1.4, 0.5); neck.rotation.x = -0.4;
+    const head = new THREE.Group(); head.position.set(0, 1.62, 0.68);
+    const skull = box(0.3, 0.3, 0.45, fur); skull.position.z = 0.1; const nose = box(0.16, 0.14, 0.12, dark); nose.position.set(0, -0.05, 0.36);
+    const e1 = box(0.05, 0.06, 0.02, eyeMat); e1.position.set(-0.16, 0.05, 0.14); const e2 = e1.clone(); e2.position.x = 0.16;
+    const earL = box(0.06, 0.18, 0.1, fur); earL.position.set(-0.16, 0.2, -0.05); const earR = earL.clone(); earR.position.x = 0.16;
+    head.add(skull, nose, e1, e2, earL, earR);
+    // Astas ramificadas.
+    for (const s of [-1, 1]) { const a = box(0.05, 0.4, 0.05, dark); a.position.set(s * 0.1, 0.38, -0.05); a.rotation.z = s * -0.4; const b = box(0.05, 0.2, 0.05, dark); b.position.set(s * 0.22, 0.5, 0.05); b.rotation.x = 0.6; head.add(a, b); }
+    const tail = box(0.14, 0.18, 0.1, light); tail.position.set(0, 1.18, -0.6);
+    const belly = box(0.5, 0.12, 0.9, light); belly.position.y = 0.8;
+    const legs = [[-0.18, 0.4], [0.18, 0.4], [-0.18, -0.42], [0.18, -0.42]].map(([x, z]) => { const l = new THREE.Group(); l.position.set(x, 0.85, z); const m = box(0.12, 0.85, 0.12, fur); m.position.y = -0.42; l.add(m); return l; });
+    g.add(body, belly, neck, head, tail, ...legs);
+    return this.parts(g, [fur, light, dark, eyeMat], [0x8a5a33, 0xe8dcc0, 0x3a2a1a, 0x1a1a1a], { legs, head, body, tail, ears: [earL, earR], eyes: [e1, e2], headY: 1.62, grazeY: 1.05 });
+  }
+  rabbitMesh(color) {
+    const g = new THREE.Group(); const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+    const fur = new THREE.MeshBasicMaterial({ color }); const white = new THREE.MeshBasicMaterial({ color: 0xffffff }); const pink = new THREE.MeshBasicMaterial({ color: 0xe8a0a8 }); const eyeMat = new THREE.MeshBasicMaterial({ color: 0x1a1a1a });
+    const body = box(0.32, 0.3, 0.45, fur); body.position.y = 0.25;
+    const head = new THREE.Group(); head.position.set(0, 0.42, 0.24);
+    const skull = box(0.24, 0.22, 0.24, fur); const nose = box(0.06, 0.05, 0.02, pink); nose.position.set(0, -0.02, 0.13);
+    const e1 = box(0.04, 0.05, 0.02, eyeMat); e1.position.set(-0.08, 0.04, 0.12); const e2 = e1.clone(); e2.position.x = 0.08;
+    const earL = box(0.06, 0.3, 0.04, fur); earL.position.set(-0.06, 0.25, -0.03); const earR = earL.clone(); earR.position.x = 0.06;
+    head.add(skull, nose, e1, e2, earL, earR);
+    const tail = box(0.12, 0.12, 0.1, white); tail.position.set(0, 0.3, -0.26);
+    const legs = [[-0.1, 0.15], [0.1, 0.15], [-0.11, -0.15], [0.11, -0.15]].map(([x, z]) => { const l = new THREE.Group(); l.position.set(x, 0.12, z); const m = box(0.08, 0.14, 0.12, fur); m.position.y = -0.06; l.add(m); return l; });
+    g.add(body, head, tail, ...legs);
+    return this.parts(g, [fur, white, pink, eyeMat], [color, 0xffffff, 0xe8a0a8, 0x1a1a1a], { legs, head, body, tail, ears: [earL, earR], eyes: [e1, e2], headY: 0.42, grazeY: 0.32, bodyY: 0.25 });
+  }
+  crabMesh() {
+    const g = new THREE.Group(); const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+    const shell = new THREE.MeshBasicMaterial({ color: 0xd8462a }); const dark = new THREE.MeshBasicMaterial({ color: 0x8f2b16 }); const eyeMat = new THREE.MeshBasicMaterial({ color: 0x1a1a1a });
+    const body = box(0.55, 0.2, 0.4, shell); body.position.y = 0.22;
+    const head = new THREE.Group(); head.position.set(0, 0.32, 0.14);
+    const e1 = box(0.05, 0.12, 0.05, eyeMat); e1.position.set(-0.1, 0.06, 0.05); const e2 = e1.clone(); e2.position.x = 0.1;
+    head.add(e1, e2);
+    const clawL = box(0.16, 0.12, 0.16, shell); clawL.position.set(-0.32, 0.24, 0.24); const clawR = clawL.clone(); clawR.position.x = 0.32;
+    const tail = new THREE.Group();
+    const legs = [-0.2, 0, 0.2].flatMap((z) => [-1, 1].map((sx) => { const l = new THREE.Group(); l.position.set(sx * 0.3, 0.18, z); const m = box(0.22, 0.05, 0.05, dark); m.position.x = sx * 0.08; m.rotation.z = sx * -0.5; l.add(m); return l; }));
+    g.add(body, head, clawL, clawR, tail, ...legs);
+    return this.parts(g, [shell, dark, eyeMat], [0xd8462a, 0x8f2b16, 0x1a1a1a], { legs, head, body, tail, ears: [clawL, clawR], eyes: [e1, e2], headY: 0.32, grazeY: 0.32, bodyY: 0.22 });
+  }
+
   // Altura del suelo (bloque sólido más alto) en una columna; -1 si no hay.
   groundAt(x, z) {
     const top = this.world.topAt(Math.floor(x), Math.floor(z));
     return top;
   }
 
-  spawnAt(x, z) {
+  spawnAt(x, z, species = 'lanudo') {
     const top = this.groundAt(x, z);
     if (top < 0) return null;
-    const mesh = this.createMesh(COLORS[Math.floor(Math.random() * COLORS.length)]);
+    const color = species === 'rabbit' ? (this.world.getBlock(Math.floor(x), top, Math.floor(z)) === B.SNOW ? 0xf4f4f4 : [0x8a7a68, 0xa8987a, 0x6b5a4a][Math.floor(Math.random() * 3)]) : COLORS[Math.floor(Math.random() * COLORS.length)];
+    const mesh = this.createMesh(species, color);
     mesh.position.set(x, top + 1, z);
     this.scene.add(mesh);
-    const a = { mesh, hp: HP, heading: Math.random() * Math.PI * 2, walk: 0, timer: 0, flee: 0, flash: 0, vy: 0, phase: Math.random() * 6 };
+    const sp = SPECIES[species];
+    const a = { mesh, species, sp, hp: sp.hp, heading: Math.random() * Math.PI * 2, walk: 0, timer: 0, flee: 0, flash: 0, vy: 0, phase: Math.random() * 6 };
     this.list.push(a);
     return a;
   }
 
   remove(a) {
     this.scene.remove(a.mesh);
+    a.mesh.traverse((o) => o.geometry && !Object.values(this.geo).includes(o.geometry) && o.geometry.dispose());
     for (const m of a.mesh.userData.mats) m.dispose();
     this.list = this.list.filter((x) => x !== a);
   }
@@ -80,14 +141,26 @@ export class Animals {
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0) {
       this.spawnTimer = 3;
-      if (ctx.daylight > 0.5 && this.list.length < 8) {
+      if (ctx.daylight > 0.45 && this.list.length < 12) {
         const ang = Math.random() * Math.PI * 2; const r = 18 + Math.random() * 22;
         const x = Math.floor(player.pos.x + Math.cos(ang) * r) + 0.5; const z = Math.floor(player.pos.z + Math.sin(ang) * r) + 0.5;
         const top = this.groundAt(x, z);
-        if (top > 0 && GROUND.has(this.world.getBlock(Math.floor(x), top, Math.floor(z))) && this.world.getBlock(Math.floor(x), top + 1, Math.floor(z)) === B.AIR) {
-          // En manada: a veces aparecen dos juntos.
-          this.spawnAt(x, z);
-          if (Math.random() < 0.5) this.spawnAt(x + 1, z + 1);
+        const ground = this.world.getBlock(Math.floor(x), top, Math.floor(z));
+        const above = this.world.getBlock(Math.floor(x), top + 1, Math.floor(z));
+        if (top > 0 && GROUND.has(ground) && !BLOCKS[above].solid && !BLOCKS[above].water) {
+          // Cada lugar tiene sus animales: cangrejos en la playa, ciervos en el bosque, conejos en la nieve.
+          const biome = this.world.biome(Math.floor(x), Math.floor(z));
+          let species = null;
+          if (ground === B.SAND) species = top <= 35 ? 'crab' : (biome === 'desert' && Math.random() < 0.3 ? 'rabbit' : null);
+          else if (ground === B.SNOW || biome === 'snow') species = 'rabbit';
+          else if (biome === 'forest') species = Math.random() < 0.5 ? 'deer' : Math.random() < 0.5 ? 'rabbit' : 'lanudo';
+          else species = Math.random() < 0.6 ? 'lanudo' : 'rabbit';
+          if (species) {
+            // En manada: a veces aparecen varios juntos.
+            this.spawnAt(x, z, species);
+            if (Math.random() < 0.6) this.spawnAt(x + 1, z + 1, species);
+            if (species === 'crab' && Math.random() < 0.6) this.spawnAt(x - 1, z + 1, species);
+          }
         }
       }
     }
@@ -97,6 +170,8 @@ export class Animals {
       const p = a.mesh.position;
       // Decide: caminar, quedarse quieto o huir del jugador.
       a.timer -= dt; a.flee = Math.max(0, a.flee - dt);
+      // Los asustadizos (ciervos, conejos, cangrejos) huyen si te acercás.
+      if (a.sp.scared && a.flee <= 0 && Math.hypot(player.pos.x - p.x, player.pos.z - p.z) < a.sp.scared) a.flee = 2.5;
       if (a.flee > 0) {
         a.heading = Math.atan2(p.x - player.pos.x, p.z - player.pos.z) + Math.sin(this.t * 3 + a.phase) * 0.4;
         a.walk = 1;
@@ -105,15 +180,15 @@ export class Animals {
         a.walk = Math.random() < 0.55 ? 1 : 0;
         a.heading += (Math.random() - 0.5) * 2.4;
       }
-      const speed = a.flee > 0 ? 3.6 : 1.1;
+      const speed = a.flee > 0 ? a.sp.flee : a.sp.speed;
       if (a.walk) {
         const nx = p.x + Math.sin(a.heading) * speed * dt; const nz = p.z + Math.cos(a.heading) * speed * dt;
         const ground = this.groundAt(nx, nz);
         const above = this.world.getBlock(Math.floor(nx), ground + 1, Math.floor(nz));
         const feet = Math.floor(p.y) - 1;
         // Solo escalones de un bloque, nada de meterse al agua (el "techo" de columna ignora el agua) ni a pozos profundos.
-        const ok = ground >= 0 && above !== B.WATER && !BLOCKS[above].solid && ground - feet <= 1 && feet - ground <= 3;
-        if (ok) { p.x = nx; p.z = nz; if (ground > feet && a.vy === 0) a.vy = 6; } else { a.heading += Math.PI * (0.5 + Math.random()); a.timer = 1.5; }
+        const ok = ground >= 0 && !BLOCKS[above].water && !BLOCKS[above].solid && ground - feet <= 1 && feet - ground <= 3;
+        if (ok) { p.x = nx; p.z = nz; if ((ground > feet || (a.sp.hop && Math.random() < dt * 4)) && a.vy === 0) a.vy = a.sp.hop ? 4.5 : 6; } else { a.heading += Math.PI * (0.5 + Math.random()); a.timer = 1.5; }
       }
       // Gravedad simple hacia el suelo de la columna.
       const floor = this.groundAt(p.x, p.z) + 1;
@@ -126,13 +201,15 @@ export class Animals {
       const ud0 = a.mesh.userData;
       // Cabeza: alta al caminar; baja a pastar (con mordiditas) cuando está quieto.
       const graze = !a.walk && Math.sin(this.t * 0.7 + a.phase) > 0;
-      ud0.head.position.y += ((a.walk ? 0.92 : graze ? 0.6 : 0.88) - ud0.head.position.y) * Math.min(1, dt * 5);
-      ud0.head.rotation.x = graze ? 0.5 + Math.sin(this.t * 9 + a.phase) * 0.08 : 0;
-      ud0.body.position.y = 0.78 + (a.walk ? Math.abs(Math.sin(this.t * (a.flee ? 16 : 9) + a.phase)) * 0.05 : Math.sin(this.t * 1.6 + a.phase) * 0.012);   // respira
+      const hy = ud0.headY ?? 0.92; const gy = ud0.grazeY ?? 0.6; const by = ud0.bodyY ?? (a.species === 'deer' ? 1.05 : 0.78);
+      ud0.head.position.y += ((a.walk ? hy : graze ? gy : hy - 0.04) - ud0.head.position.y) * Math.min(1, dt * 5);
+      ud0.head.rotation.x = graze && a.species !== 'crab' ? 0.5 + Math.sin(this.t * 9 + a.phase) * 0.08 : 0;
+      ud0.body.position.y = by + (a.walk ? Math.abs(Math.sin(this.t * (a.flee ? 16 : 9) + a.phase)) * 0.05 : Math.sin(this.t * 1.6 + a.phase) * 0.012);   // respira
       ud0.tail.rotation.y = Math.sin(this.t * (a.flee ? 18 : 5) + a.phase) * 0.5;
       ud0.ears.forEach((e, i) => { e.rotation.z = (i ? -1 : 1) * (0.35 + Math.sin(this.t * 2.2 + a.phase + i) * 0.15); });
       for (const e of ud0.eyes) e.scale.y = Math.sin(this.t * 0.8 + a.phase * 3) > 0.96 ? 0.15 : 1;   // parpadeo
-      a.mesh.rotation.y += (((a.heading - a.mesh.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * Math.min(1, dt * 8);
+      const face = a.heading + (a.sp.sideways ? Math.PI / 2 : 0);   // el cangrejo camina de costado
+      a.mesh.rotation.y += (((face - a.mesh.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * Math.min(1, dt * 8);
       // Iluminación: siguen la luz del día; destello blanco al recibir un golpe.
       a.flash = Math.max(0, a.flash - dt);
       const ud = a.mesh.userData;
@@ -158,7 +235,7 @@ export class Animals {
     this.sound.tone(420, 0.1, 0.12, 'triangle');
     if (best.hp <= 0) {
       this.sound.tone(300, 0.15, 0.1, 'sine');
-      ctx.onKilled?.(best.mesh.position.clone());
+      ctx.onKilled?.(best.mesh.position.clone(), best.species);
       this.remove(best);
     }
     return true;

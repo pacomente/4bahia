@@ -67,8 +67,9 @@ export class Player {
     const events = {};
     const feet = this.world.getBlock(Math.floor(this.pos.x), Math.floor(this.pos.y + 0.2), Math.floor(this.pos.z));
     const head = this.world.getBlock(Math.floor(this.pos.x), Math.floor(this.pos.y + EYE), Math.floor(this.pos.z));
-    this.inWater = feet === B.WATER;
-    this.headInWater = head === B.WATER;
+    this.inWater = BLOCKS[feet].water || feet === B.LAVA;   // en la lava también se nada (lento)
+    this.inLava = feet === B.LAVA || this.world.getBlock(Math.floor(this.pos.x), Math.floor(this.pos.y + 1), Math.floor(this.pos.z)) === B.LAVA;
+    this.headInWater = BLOCKS[head].water;
 
     const i = this.input;
     const fwd = i.f - i.b;
@@ -78,6 +79,7 @@ export class Player {
     const canSprint = i.sprint && !this.sneaking && (!this.useStamina || this.stamina > 2);
     let speed = this.flying ? FLY * (i.sprint ? 1.8 : 1) : this.sneaking ? SNEAK : canSprint ? SPRINT : WALK;
     this.eyeHeight += ((this.sneaking ? EYE_SNEAK : EYE) - this.eyeHeight) * Math.min(1, dt * 14);
+    speed *= this.slow ?? 1;   // cubriéndose con el escudo se camina más lento
     if (this.inWater && !this.flying) speed *= 0.55;
     let mx = -sin * fwd + cos * side;
     let mz = -cos * fwd - sin * side;

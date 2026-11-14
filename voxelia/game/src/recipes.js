@@ -1,5 +1,5 @@
 import { B } from './blocks.js';
-import { I } from './items.js';
+import { I, ITEMS } from './items.js';
 
 // Taller: recetas de un clic (sin grilla). `in` se consume y `out` se agrega al inventario.
 // - `cat`: categoría para las pestañas del Taller.
@@ -12,6 +12,9 @@ export const CATEGORIES = [
   { id: 'weapons', name: 'Armas' },
   { id: 'light', name: 'Luz' },
   { id: 'build', name: 'Construcción' },
+  { id: 'armor', name: 'Armadura' },
+  { id: 'food', name: 'Comida' },
+  { id: 'furniture', name: 'Muebles' },
   { id: 'special', name: 'Especial' },
 ];
 
@@ -41,7 +44,31 @@ export const RECIPES = [
 
   { id: 'bow', name: 'Arco', in: { [B.PLANKS]: 3, [B.WOOL_WHITE]: 2 }, out: { [I.BOW]: 1 }, cat: 'weapons', mesa: true, desc: 'Clic derecho dispara flechas. Ideal para zombis que vienen en grupo.' },
   { id: 'arrows', name: 'Flechas', in: { [B.PLANKS]: 1, [B.COBBLE]: 1 }, out: { [I.ARROW]: 6 }, cat: 'weapons', mesa: true, desc: 'Munición para el arco. Las que se clavan en bloques se pueden juntar.' },
+  { id: 'boat', name: 'Bote', in: { [B.PLANKS]: 5 }, out: { [I.BOAT]: 1 }, cat: 'basic', mesa: true, desc: 'Para andar por el mar. Clic derecho sobre el agua para ponerlo.' },
   { id: 'shield', name: 'Escudo', in: { [B.PLANKS]: 4, [I.IRON]: 1 }, out: { [I.SHIELD]: 1 }, cat: 'weapons', mesa: true, desc: 'Con el escudo en la mano los golpes te sacan 60% menos.' },
+  { id: 'bread', name: 'Pan', in: { [I.WHEAT]: 3 }, out: { [I.BREAD]: 1 }, cat: 'food', desc: 'Cura 5 corazones a medias y devuelve energía.' },
+  { id: 'cake', name: 'Pastel', in: { [I.WHEAT]: 3, [I.APPLE]: 2 }, out: { [I.CAKE]: 1 }, cat: 'food', mesa: true, desc: 'Cura mucho y llena la energía. Ideal antes de una pelea.' },
+  { id: 'bed', name: 'Cama', in: { [B.WOOL_WHITE]: 3, [B.PLANKS]: 3 }, out: { [B.BED]: 1 }, cat: 'build', mesa: true, desc: 'Dormí de noche para pasar al día. Reaparecés al lado de tu cama.' },
+  { id: 'door', name: 'Puerta', in: { [B.PLANKS]: 6 }, out: { [B.DOOR]: 1 }, cat: 'build', mesa: true, desc: 'Ocupa dos bloques. Clic derecho la abre. Los zombis no saben abrirlas.' },
+  { id: 'window', name: 'Ventanas', in: { [B.GLASS]: 1, [B.PLANKS]: 2 }, out: { [B.WINDOW]: 2 }, cat: 'build', mesa: true, desc: 'Vidrio con marco de madera.' },
+  ...['cloth', 'iron', 'crystal'].flatMap((tier, t) => {
+    const base = [I.HELMET_CLOTH, I.HELMET_IRON, I.HELMET_CRYSTAL][t];
+    const mat = [B.WOOL_WHITE, I.IRON, I.CRYSTAL][t];
+    return [5, 8, 7, 4].map((n, i) => ({
+      id: `armor_${tier}_${i}`, name: ITEMS[base + i].name,
+      in: tier === 'crystal' ? { [mat]: n, [I.ESSENCE]: 1 } : { [mat]: n }, out: { [base + i]: 1 }, cat: 'armor', mesa: true,
+      desc: ['Protege la cabeza.', 'La pieza que más protege.', 'Protege las piernas.', 'Protege los pies.'][i] + ' Equipala desde el inventario (E).',
+    }));
+  }),
+  { id: 'table', name: 'Mesa', in: { [B.PLANKS]: 4 }, out: { [B.TABLE]: 1 }, cat: 'furniture', mesa: true, desc: 'Para comer en familia. Las sillas al lado miran hacia la mesa solas.' },
+  { id: 'chair', name: 'Sillas', in: { [B.PLANKS]: 3 }, out: { [B.CHAIR]: 2 }, cat: 'furniture', mesa: true, desc: 'El respaldo se acomoda solo: mira a la mesa o da la espalda a la pared.' },
+  { id: 'bookshelf', name: 'Biblioteca', in: { [B.PLANKS]: 4, [B.WOOL_WHITE]: 2 }, out: { [B.BOOKSHELF]: 1 }, cat: 'furniture', mesa: true, desc: 'Estante lleno de libros de colores.' },
+  { id: 'fireplace', name: 'Hogar a leña', in: { [B.COBBLE]: 5, [B.BRICK]: 2, [I.COAL]: 1 }, out: { [B.FIREPLACE]: 1 }, cat: 'furniture', mesa: true, desc: 'Ilumina y abriga. El fuego mira hacia el lado libre de la habitación.' },
+  { id: 'carpet', name: 'Alfombras', in: { [B.WOOL_RED]: 2 }, out: { [B.CARPET]: 4 }, cat: 'furniture', mesa: true, desc: 'Finitas: se camina por encima.' },
+  { id: 'barrel', name: 'Barril', in: { [B.PLANKS]: 5, [I.IRON]: 1 }, out: { [B.BARREL]: 1 }, cat: 'furniture', mesa: true, desc: 'De roble con aros de hierro.' },
+  { id: 'hay', name: 'Fardo de heno', in: { [I.WHEAT]: 6 }, out: { [B.HAY]: 1 }, cat: 'furniture', desc: 'Trigo atado: decora graneros y establos.' },
+  { id: 'anvil', name: 'Yunque', in: { [I.IRON]: 6 }, out: { [B.ANVIL]: 1 }, cat: 'furniture', mesa: true, desc: 'El corazón de cualquier herrería.' },
+  { id: 'throne', name: 'Trono', in: { [I.GOLD]: 4, [B.WOOL_RED]: 3 }, out: { [B.THRONE]: 1 }, cat: 'furniture', mesa: true, desc: 'Para tu propio castillo.' },
   { id: 'glass', name: 'Vidrio', in: { [B.SAND]: 2, [I.COAL]: 1 }, out: { [B.GLASS]: 2 }, cat: 'build', mesa: true, desc: 'Ventanas transparentes.' },
   { id: 'brick', name: 'Ladrillo', in: { [B.CLAY]: 2, [I.COAL]: 1 }, out: { [B.BRICK]: 4 }, cat: 'build', mesa: true, desc: 'Arcilla cocida, firme y prolija.' },
   { id: 'lamp', name: 'Lámpara', in: { [B.GLASS]: 1, [I.COAL]: 2 }, out: { [B.LAMP]: 2 }, cat: 'light', mesa: true, desc: 'Ilumina más que una antorcha y es un bloque sólido.' },

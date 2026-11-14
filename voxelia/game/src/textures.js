@@ -1,11 +1,12 @@
 import * as THREE from 'three';
-import { BLOCKS } from './blocks.js';
+import { B, BLOCKS } from './blocks.js';
+import { drawFurniture, N as ICON_N } from './icons.js';
 
 // Texturas pixel-art de 16×16 generadas por código (sin archivos externos) y empaquetadas en un atlas.
 const S = 16;
 const NAMES = ['grass_top', 'grass_side', 'dirt', 'stone', 'sand', 'water', 'log_top', 'log_side', 'leaves', 'planks',
   'cobble', 'glass', 'snow', 'snow_side', 'brick', 'coal', 'cactus_top', 'cactus_side', 'bedrock', 'gravel', 'iron',
-  'birch_top', 'birch_side', 'birch_leaves', 'clay', 'lamp', 'wool_red', 'wool_blue', 'wool_white', 'crystal', 'faro_top', 'faro_side', 'torch', 'bench_top', 'bench_side', 'roof', 'thatch', 'adobe'];
+  'birch_top', 'birch_side', 'birch_leaves', 'clay', 'lamp', 'wool_red', 'wool_blue', 'wool_white', 'crystal', 'faro_top', 'faro_side', 'torch', 'bench_top', 'bench_side', 'roof', 'thatch', 'adobe', 'farmland', 'wheat_young', 'wheat_ripe', 'bed_top', 'bed_side', 'door', 'window', 'lava', 'glow_mushroom', 'moss', 'gold_ore', 'wool_black', 'bars', 'campfire', 'chest_top', 'chest_side', 'table_top', 'bookshelf', 'fireplace', 'carpet', 'barrel_top', 'barrel_side', 'hay_top', 'hay_side', 'anvil', 'throne', 'flower_red', 'flower_yellow', 'pine_leaves', 'palm_top', 'palm_side', 'palm_leaves', 'tall_grass', 'berry_bush', 'dead_bush', 'kelp', 'seagrass', 'coral_red', 'coral_yellow', 'coral_purple', 'coral_fan'];
 const COLS = 8;
 export const ATLAS_COLS = COLS;
 export const ATLAS_ROWS = Math.ceil(NAMES.length / COLS);
@@ -148,6 +149,185 @@ function paint(name, px) {
       for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) if (y % 8 === 7 || (x + (Math.floor(y / 8) % 2) * 8) % 16 === 0) set(x, y, hex('#b07a48'));
       speckle(hex('#e6b986'), 10);
       break;
+    case 'farmland':
+      // Surcos húmedos.
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, shade(hex('#6b4428'), (y % 4 === 0 ? 0.65 : y % 4 === 1 ? 1.12 : 1) * (0.9 + r() * 0.15)));
+      break;
+    case 'wheat_young': case 'wheat_ripe': {
+      const ripe = name === 'wheat_ripe';
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, [0, 0, 0], 0);
+      for (let k = 0; k < 6; k++) {
+        const x = 1 + k * 2 + Math.floor(r() * 2); const top = ripe ? 2 + Math.floor(r() * 3) : 7 + Math.floor(r() * 4);
+        for (let y = top; y < S; y++) set(x, y, ripe ? shade(hex('#b89a3a'), y > 10 ? 0.75 : 1) : shade(hex('#5fa339'), 0.8 + r() * 0.3));
+        if (ripe) for (let y = top; y < top + 4; y++) { set(x, y, shade(hex('#e8c75a'), 0.9 + r() * 0.2)); if (x + 1 < S) set(x + 1, y, hex('#d8b14a')); }
+        else if (x + 1 < S) set(x + 1, top + 1, hex('#7cc24a'));
+      }
+      break;
+    }
+    case 'bed_top':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const edge = x === 0 || x === S - 1;
+        if (y < 5) set(x, y, edge ? hex('#c9c2b8') : shade(hex('#f2efe6'), 0.95 + r() * 0.05));        // almohada
+        else set(x, y, edge ? shade(hex('#7a2420'), 1) : shade(hex('#b8352f'), (x + y) % 6 === 0 ? 0.85 : 1));   // frazada
+      }
+      break;
+    case 'bed_side':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, y < 7 ? shade(hex('#b8352f'), y === 6 ? 0.7 : 1) : y < 10 ? shade(hex('#8a5a33'), 0.95 + r() * 0.1) : (x < 3 || x > 12) ? hex('#6b4426') : [0, 0, 0], y >= 10 && x >= 3 && x <= 12 ? 0 : 255);
+      break;
+    case 'door':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const frame = x < 2 || x > 13 || y < 1 || y > 14;
+        const win = y >= 2 && y <= 6 && x >= 4 && x <= 11 && !(x === 7 || x === 8 || y === 4);
+        set(x, y, frame ? hex('#5b3d22') : win ? hex('#cfe7f0') : shade(hex('#9a6a3a'), (x % 4 === 1 ? 0.8 : 1) * (0.92 + r() * 0.12)));
+      }
+      set(12, 9, hex('#d8c08a')); set(12, 10, hex('#a8905a'));
+      break;
+    case 'window':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const frame = x < 2 || y < 2 || x > 13 || y > 13 || x === 7 || x === 8 || y === 7 || y === 8;
+        set(x, y, frame ? shade(hex('#7a5230'), 0.9 + r() * 0.15) : hex('#dff1f8'), frame ? 255 : (x + y) % 9 === 0 ? 150 : 60);
+      }
+      break;
+    case 'lava':
+      // Lava: naranja brillante con manchas amarillas y costra oscura.
+      noise(hex('#e8561c'), 0.25);
+      blob(hex('#ffc93c'), 9, 3); blob(hex('#ff8a1e'), 8, 2); speckle(hex('#7a1c0c'), 12);
+      break;
+    case 'glow_mushroom':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, [0, 0, 0], 0);
+      for (const [cx, top, w] of [[4, 6, 3], [10, 3, 4], [13, 9, 2]]) {
+        for (let y = top + 2; y < S; y++) set(cx, y, hex('#d8e8e0'));                       // pie
+        for (let y = top; y < top + 2; y++) for (let x = cx - w; x <= cx + w; x++) if (x >= 0 && x < S) set(x, y, (x + y) % 3 ? hex('#4ff0d0') : hex('#c8fff2'));   // sombrero
+        if (top > 0) for (let x = cx - w + 1; x < cx + w; x++) if (x >= 0 && x < S) set(x, top - 1, hex('#2bb3a8'));
+      }
+      break;
+    case 'moss': noise(stone, 0.25); blob(hex('#5f8a35'), 10, 3); speckle(hex('#7cab4a'), 14); break;
+    case 'gold_ore': noise(stone, 0.25); blob(hex('#f2c94c'), 6); speckle(hex('#fff2a8'), 4); break;
+    case 'wool_black': noise(hex('#26232a'), 0.18); break;
+    case 'bars':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const bar = x % 5 === 1 || x % 5 === 2 || y === 1 || y === 14;
+        set(x, y, bar ? shade(hex('#5c6068'), x % 5 === 1 ? 1.2 : 0.9) : [0, 0, 0], bar ? 255 : 0);
+      }
+      break;
+    case 'campfire':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, [0, 0, 0], 0);
+      for (let x = 1; x < 15; x++) { set(x, 14, hex('#6b4426')); set(x, 15, hex('#4a2f1a')); }   // leños
+      for (let k = 0; k < 7; k++) {
+        const x = 3 + k * 1.6 | 0; const top = 3 + Math.floor(r() * 6);
+        for (let y = top; y < 14; y++) set(x, y, y < top + 2 ? hex('#fff2a8') : y < top + 5 ? hex('#ffb347') : hex('#e8561c'));
+        if (x + 1 < S) for (let y = top + 2; y < 14; y++) set(x + 1, y, hex('#ff8a1e'));
+      }
+      break;
+    case 'chest_top': case 'chest_side':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const band = x < 2 || x > 13 || (name === 'chest_side' ? y === 5 || y === 6 : y < 2 || y > 13);
+        set(x, y, band ? shade(hex('#5c6068'), 0.9 + r() * 0.2) : shade(hex('#8a5a33'), (y % 4 === 0 ? 0.8 : 1) * (0.9 + r() * 0.15)));
+      }
+      if (name === 'chest_side') for (let y = 5; y < 9; y++) for (let x = 7; x < 9; x++) set(x, y, hex('#f2c94c'));   // cerradura de oro
+      break;
+    case 'table_top':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const edge = x === 0 || y === 0 || x === S - 1 || y === S - 1;
+        set(x, y, edge ? hex('#7a5230') : shade(hex('#c99a5e'), (x % 5 === 0 ? 0.88 : 1) * (0.94 + r() * 0.1)));
+      }
+      break;
+    case 'bookshelf': {
+      // Dos estantes con lomos de libros de colores.
+      const cols = ['#8f2b26', '#2f4fb8', '#3f7a2c', '#b8842a', '#5a2b7a', '#2a6b6b', '#c9c2b4'];
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, hex('#6b4426'));
+      for (const y0 of [1, 9]) {
+        let x = 1;
+        while (x < 15) {
+          const w = 1 + Math.floor(r() * 2); const h = 5 + Math.floor(r() * 2); const c = hex(cols[Math.floor(r() * cols.length)]);
+          for (let xx = x; xx < Math.min(15, x + w); xx++) for (let y = y0 + (6 - h); y < y0 + 6; y++) set(xx, y, shade(c, xx === x ? 1.15 : 0.9));
+          x += w;
+        }
+        for (let x2 = 0; x2 < S; x2++) set(x2, y0 + 6, hex('#9a6a3a'));
+      }
+      break;
+    }
+    case 'fireplace':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const mortar = y % 4 === 3 || (x + (Math.floor(y / 4) % 2) * 4) % 8 === 7;
+        set(x, y, mortar ? hex('#c9c2b8') : shade(hex('#9c4a35'), 0.88 + r() * 0.2));
+      }
+      // Boca del hogar con arco, leños y fuego.
+      for (let y = 5; y < 15; y++) for (let x = 3; x < 13; x++) {
+        const arch = y < 7 && (x === 3 || x === 12 || (y === 5 && (x === 4 || x === 11)));
+        if (arch) continue;
+        const fire = y > 7 && y < 13 && Math.abs(x - 7.5) < 4 - (12 - y) * 0.4 + r();
+        set(x, y, y >= 13 ? hex('#4a2f1a') : fire ? (y < 10 ? hex('#ffd34d') : hex('#ff8a1e')) : hex('#1a1210'));
+      }
+      break;
+    case 'carpet':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const border = x < 2 || y < 2 || x > 13 || y > 13;
+        const diamond = Math.abs(x - 7.5) + Math.abs(y - 7.5) < 4.5;
+        set(x, y, border ? hex('#d8b14a') : diamond ? hex('#2f4fb8') : shade(hex('#8f2b26'), 0.92 + r() * 0.12));
+      }
+      break;
+    case 'barrel_side':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const hoop = y === 2 || y === 3 || y === 12 || y === 13;
+        set(x, y, hoop ? shade(hex('#5c6068'), 0.9 + r() * 0.2) : shade(hex('#8a5a33'), (x % 4 === 0 ? 0.72 : 1) * (0.9 + r() * 0.15)));
+      }
+      break;
+    case 'barrel_top':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) { const d = Math.hypot(x - 7.5, y - 7.5); set(x, y, d > 7 ? hex('#5c6068') : shade(hex('#a87442'), (Math.floor(d) % 3 === 0 ? 0.8 : 1) * (0.92 + r() * 0.1))); }
+      break;
+    case 'hay_side':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, (y === 4 || y === 11) ? hex('#8f2b26') : shade(hex('#d8b14a'), (x % 2 ? 0.88 : 1.05) * (0.9 + r() * 0.15)));
+      break;
+    case 'hay_top':
+      noise(hex('#c9a040'), 0.2); for (let k = 0; k < 20; k++) set(Math.floor(r() * S), Math.floor(r() * S), hex('#e8c75a'));
+      for (let x = 0; x < S; x++) { set(x, 4, hex('#8f2b26')); set(x, 11, hex('#8f2b26')); }
+      break;
+    case 'anvil': noise(hex('#3e4248'), 0.2); for (let x = 0; x < S; x++) set(x, 0, hex('#8b9098')); break;
+    case 'throne':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const edge = x < 2 || x > 13 || y < 2;
+        set(x, y, edge ? shade(hex('#e8c040'), 0.9 + r() * 0.2) : shade(hex('#8f1e3a'), (x + y) % 5 === 0 ? 0.85 : 1));
+      }
+      break;
+    case 'flower_red': case 'flower_yellow': {
+      const petal = name === 'flower_red' ? hex('#d8352b') : hex('#f2e04c'); const core = name === 'flower_red' ? hex('#26232a') : hex('#d88a1e');
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, [0, 0, 0], 0);
+      for (const [cx, cy] of [[4, 5], [11, 3], [8, 9]]) {
+        for (let y = cy + 2; y < S; y++) set(cx, y, hex('#4f8a2c'));
+        for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0], [1, -1], [-1, 1]]) set(cx + dx, cy + dy, petal);
+        set(cx, cy, core);
+      }
+      break;
+    }
+    case 'pine_leaves':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) { const v = r(); set(x, y, shade(hex('#2f5a3a'), 0.7 + v * 0.5 + ((x + y) % 4 === 0 ? 0.15 : 0)), v < 0.12 ? 0 : 255); }
+      break;
+    case 'palm_side':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, shade(hex('#a8864e'), (y % 4 === 0 ? 0.7 : y % 4 === 1 ? 1.1 : 1) * (0.92 + r() * 0.12)));
+      break;
+    case 'palm_top': for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) { const d = Math.hypot(x - 7.5, y - 7.5); set(x, y, d > 6.5 ? hex('#7a5a30') : shade(hex('#c9a46a'), Math.floor(d) % 2 ? 0.86 : 1)); } break;
+    case 'palm_leaves':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) { const stripe = (x + y) % 3 === 0; const v = r(); set(x, y, shade(hex('#5fa339'), stripe ? 1.25 : 0.8 + v * 0.3), v < 0.1 ? 0 : 255); }
+      break;
+    case 'tall_grass': case 'dead_bush': case 'berry_bush': case 'kelp': case 'seagrass': case 'coral_fan': {
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, [0, 0, 0], 0);
+      const col = { tall_grass: '#6fb043', dead_bush: '#8a6a3a', berry_bush: '#3f7a2c', kelp: '#3f8a4a', seagrass: '#4fa05a', coral_fan: '#e86aa8' }[name];
+      if (name === 'kelp') { for (let y = 0; y < S; y++) { const x = 7 + Math.round(Math.sin(y * 0.7) * 2); set(x, y, shade(hex(col), 0.9 + r() * 0.2)); set(x + 1, y, shade(hex(col), 0.75)); if (y % 4 === 1) { set(x + 2, y, hex('#6fb043')); set(x + 3, y + 1, hex('#6fb043')); } } break; }
+      if (name === 'coral_fan') { for (let k = 0; k < 5; k++) { let x = 7.5; let y = 15; const a = -1.2 + k * 0.6; for (let i = 0; i < 12; i++) { x += Math.sin(a) * 0.6; y -= 1; set(Math.round(x), Math.round(y), shade(hex(col), 0.8 + r() * 0.4)); } } break; }
+      for (let k = 0; k < (name === 'berry_bush' ? 9 : 7); k++) {
+        let x = 2 + r() * 12; const top = name === 'dead_bush' ? 5 + r() * 6 : 2 + r() * 8; const lean = (r() - 0.5) * 0.4;
+        for (let y = 15; y > top; y--) { set(Math.round(x), y, shade(hex(col), 0.8 + r() * 0.4)); x += lean; }
+      }
+      if (name === 'berry_bush') for (let k = 0; k < 7; k++) { const x = 2 + Math.floor(r() * 12); const y = 3 + Math.floor(r() * 9); set(x, y, hex('#d8352b')); set(x + 1, y, hex('#a01e16')); set(x, y - 1, hex('#ff8a7a')); }
+      break;
+    }
+    case 'coral_red': case 'coral_yellow': case 'coral_purple': {
+      const base = hex({ coral_red: '#d8463a', coral_yellow: '#f2c94c', coral_purple: '#9a4de0' }[name]);
+      noise(base, 0.2);
+      for (let k = 0; k < 14; k++) { const x = Math.floor(r() * S); const y = Math.floor(r() * S); set(x, y, shade(base, 1.35)); set((x + 1) % S, y, shade(base, 0.6)); }
+      break;
+    }
     default: noise(hex('#ff00ff'), 0);
   }
 }
@@ -157,7 +337,7 @@ export function buildAtlasCanvas() {
   const canvas = document.createElement('canvas');
   canvas.width = COLS * S;
   canvas.height = ATLAS_ROWS * S;
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   NAMES.forEach((name, i) => {
     const img = ctx.createImageData(S, S);
     paint(name, img.data);
@@ -191,7 +371,10 @@ export function blockIcon(atlas, id, size = 48) {
   c.width = c.height = size;
   const ctx = c.getContext('2d');
   ctx.imageSmoothingEnabled = false;
-  if (b.shape === 'torch') {
+  // Muebles: dibujo con su forma real.
+  const fg = drawFurniture(id, B);
+  if (fg) { const k = size / ICON_N; for (let y = 0; y < ICON_N; y++) for (let x = 0; x < ICON_N; x++) { const col = fg[y * ICON_N + x]; if (col) { ctx.fillStyle = col; ctx.fillRect(Math.floor(x * k), Math.floor(y * k), Math.ceil(k), Math.ceil(k)); } } return c.toDataURL(); }
+  if (b.shape === 'torch' || b.shape === 'crop' || b.shape === 'door' || b.shape === 'door_open') {
     const i = TEX_INDEX[b.tex[1]];
     ctx.drawImage(atlas, (i % COLS) * S, Math.floor(i / COLS) * S, S, S, 0, 0, size, size);
     return c.toDataURL();

@@ -11,9 +11,9 @@ export function standY(world, x, y, z, up = 1, down = 3) {
     const fy = by + k;
     if (fy < 1) continue;
     const below = world.getBlock(Math.floor(x), fy - 1, Math.floor(z));
-    if (!BLOCKS[below].solid || below === B.WATER) continue;
+    if (!BLOCKS[below].solid || BLOCKS[below].water) continue;
     if (solid(world, x, fy, z) || solid(world, x, fy + 1, z)) continue;
-    if (world.getBlock(Math.floor(x), fy, Math.floor(z)) === B.WATER) continue;
+    if (BLOCKS[world.getBlock(Math.floor(x), fy, Math.floor(z))].water) continue;
     return fy;
   }
   return null;
@@ -66,6 +66,8 @@ function stepRaw(world, e, tx, tz, speed, dt) {
 
 // Gravedad simple hacia el piso de la columna actual.
 export function settle(world, e, dt) {
+  // Si quedó metido adentro de un bloque (por ejemplo, alguien construyó encima), lo saca hacia arriba.
+  if (solid(world, e.pos.x, e.pos.y + 0.1, e.pos.z)) { const up = standY(world, e.pos.x, e.pos.y, e.pos.z, 4, 0); if (up !== null) { e.pos.y = up; e.vy = 0; return; } }
   const floor = standY(world, e.pos.x, e.pos.y + 0.5, e.pos.z, 1, 6) ?? e.groundY ?? e.pos.y;
   // Subir un escalón: rápido pero no instantáneo; caer: con gravedad.
   if (floor > e.pos.y + 0.01) { e.pos.y = Math.min(floor, e.pos.y + dt * 9); e.vy = 0; return; }

@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { B, BLOCKS } from './blocks.js';
 import { I } from './items.js';
-import { villagesNear, villagePlan, houseBlueprint, chimneyTop, STYLES, REGION } from './villages.js';
+import { villagesNear, villagePlan, houseBlueprint, chimneyTop, furnish, STYLES, REGION } from './villages.js';
 import { createHumanoid, animateHumanoid, lightHumanoid, makeProp } from './humanoid.js';
 import { standY, stepToward, settle, turnTo } from './walk.js';
 import { hash3 } from './world.js';
+import { SHOPS, PRICE, sellPrice, villageLevel, LEVELS, makeQuest, rankFor, localPrice, trend, economySummary } from './economy.js';
 
 // ───────── Aldeanos ─────────
 // Cada aldeano tiene nombre, oficio y personalidad. De día pasean, charlan y trabajan;
@@ -18,6 +19,10 @@ export const PROFESSIONS = {
   farmer: { name: 'Granjero', fem: 'Granjera', prop: 'basket', hat: 'cap', hatColor: '#d8b45a' },
   smith: { name: 'Herrero', fem: 'Herrera', prop: 'hammer', apron: '#2f2f33' },
   merchant: { name: 'Mercader', fem: 'Mercadera', prop: null, cape: '#3c2f7a' },
+  woodcutter: { name: 'Leñador', fem: 'Leñadora', prop: 'axe', hat: 'cap', hatColor: '#8f2b26' },
+  fisher: { name: 'Pescador', fem: 'Pescadora', prop: 'rod', hat: 'cap', hatColor: '#2f4fb8' },
+  sailor: { name: 'Marinero', fem: 'Marinera', prop: null, hat: 'cap', hatColor: '#1e2a4a', apron: '#e8e4d8' },
+  king: { name: 'Rey', fem: 'Reina', chief: 'Jefe', chiefFem: 'Jefa', prop: null, hat: 'crown', cape: '#6a1f8a' },
 };
 
 // Personalidades: cambian cuándo se esconden, cuánto hablan, a qué velocidad trabajan y qué dicen.
@@ -45,6 +50,14 @@ const LINES = {
   baby: ['¡Nació alguien en la aldea!', '¡Bienvenida, pequeña!'],
   hurt: ['¡Ey! ¡Eso duele!', '¡¿Qué te pasa?!', '¡Guardias!'],
   guard: ['Yo vigilo. Dormí tranquilo.', 'Ningún zombi pasa por acá.', 'Atento a la noche.'],
+  king: ['Bienvenido a mi reino.', 'Mi pueblo es mi orgullo.', 'Los que ayudan a la aldea son mis amigos.'],
+  market: ['¡Pan fresco!', '¡Pasen y vean!', '¡Precios del día!', '¡Lo mejor de la comarca!'],
+  eat: ['¡Qué rico!', 'Mmm, pan calentito.', 'Hora de almorzar.'],
+  sleep: ['Zzz…', 'Zzz…', 'Zzz… zz…'],
+  harvest: ['¡Buena cosecha!', 'Este trigo está perfecto.'],
+  chop: ['¡Árbol va!', 'Leña para el invierno.'],
+  fish: ['¡Pique!', '¡Uno grande!', 'Hoy el mar está generoso.', 'Shhh, que se espantan.'],
+  sailor: ['¡Barco a la vista!', 'El mar está tranquilo hoy.', 'Mañana llega el mercante.', '¿Querés un bote? Tengo uno lindo.'],
   talk: ['¿Viste lo que construyeron?', 'Dicen que en las cuevas brillan cristales.', 'Mañana llueve, seguro.', 'Necesitamos más casas.', '¡Ja, ja!', '¿Y tu familia?', 'El herrero arregla herramientas.'],
 };
 
@@ -81,7 +94,11 @@ const pick = (r, list) => list[Math.floor(r() * list.length)];
 
 // ───────── Lógica pura de la aldea (sin gráficos: se puede probar) ─────────
 export const allHouses = (plan, rec) => [...plan.houses, ...rec.built.map((i) => plan.slots[i])];
-export const capacity = (plan, rec) => allHouses(plan, rec).length * 2;
+// Cada casa tiene dos camas; el castillo, dos más (la familia real).
+export const capacity = (plan, rec) => allHouses(plan, rec).length * 2 + (plan.castle ? 2 : 0);
+export const levelOf = (plan, rec) => villageLevel(allHouses(plan, rec).length + (plan.castle ? 2 : 0), !!plan.castle);
+// Casa de un aldeano (el rey vive en el castillo).
+export const homeOf = (plan, rec, v) => (v.home === -1 && plan.castle ? plan.castle : allHouses(plan, rec)[v.home] ?? plan.houses[0]);
 export const isChild = (v) => v.age < 2;
 
 export function newVillager(plan, rec, r, { child = false, prof = null } = {}) {
@@ -96,6 +113,7 @@ export function newVillager(plan, rec, r, { child = false, prof = null } = {}) {
   const look = LOOKS[plan.style];
   return {
     id: rec.nextId++, name, female, prof: child ? null : prof ?? 'farmer', trait: pick(r, traitIds), age: child ? 0 : 2 + Math.floor(r() * 12), home,
+    partner: null, parents: null, hunger: 0.2, energy: 1, social: 0.5,
     look: { skin: pick(r, SKINS), hair: pick(r, HAIRS), shirt: pick(r, look.shirts), pants: pick(r, look.pants), hatColor: pick(r, look.hatColors), beard: !female && r() < 0.35 ? pick(r, HAIRS) : null, hood: r() < 0.6 },
   };
 }
@@ -107,6 +125,9 @@ export function neededProfession(plan, rec) {
   if (!has('guard')) return 'guard';
   if (!has('smith') && plan.style !== 'desert') return 'smith';
   if (!has('merchant') && plan.style === 'desert') return 'merchant';
+  if (plan.port && !has('fisher')) return 'fisher';
+  if (plan.port && !has('sailor')) return 'sailor';
+  if (!has('woodcutter') && rec.villagers.length >= 4) return 'woodcutter';
   const n = rec.villagers.filter((v) => v.prof === 'guard').length;
   if (n < 2 && rec.villagers.length >= 7) return 'guard';
   return plan.style === 'desert' && Math.random() < 0.3 ? 'merchant' : 'farmer';
@@ -115,25 +136,64 @@ export function neededProfession(plan, rec) {
 // Registro inicial de una aldea (población y oficios), determinista por semilla.
 export function initialRecord(world, plan) {
   const r = rng(Math.floor(hash3(world.seed, plan.rx, 4242, plan.rz) * 4294967296));
-  const rec = { id: plan.id, villagers: [], built: [], build: null, rep: 0, nextId: 1, born: 0 };
-  const n = Math.min(10, plan.houses.length * 2 - 1);
+  const rec = { id: plan.id, villagers: [], built: [], build: null, rep: 0, nextId: 1, born: 0, stock: { food: 14, wood: 12, stone: 12 }, quest: null, day: 0 };
+  // El rey (o el jefe) primero: vive en el castillo si hay.
+  const king = newVillager(plan, rec, r, { prof: 'king' });
+  king.age = 20 + Math.floor(r() * 20); king.trait = pick(r, ['brave', 'cheerful', 'grumpy', 'chatty']);
+  if (plan.castle) king.home = -1;
+  rec.villagers.push(king);
+  const n = Math.min(11, plan.houses.length * 2 - 1);
   for (let k = 0; k < n; k++) rec.villagers.push(newVillager(plan, rec, r, { child: k === n - 1 && n > 4, prof: neededProfession(plan, rec) }));
+  formCouples(rec, () => 0.1);
   return rec;
+}
+
+// Parejas: adultos solteros de distinto sexo se juntan. Las parejas tienen hijos si hay lugar y comida.
+export function formCouples(rec, r = Math.random) {
+  const events = [];
+  const single = (f) => rec.villagers.filter((v) => !isChild(v) && !v.partner && v.female === f && v.prof !== 'king');
+  for (const a of single(false)) {
+    const b = single(true)[0];
+    if (!b || r() > 0.6) continue;
+    a.partner = b.id; b.partner = a.id;
+    events.push({ type: 'couple', a: a.name, b: b.name });
+  }
+  return events;
 }
 
 // Un nuevo día en la aldea: crecen los niños, puede nacer alguien y se decide si hace falta construir.
 // Devuelve los eventos para mostrar al jugador.
 export function villageDawn(plan, rec, r = Math.random) {
   const events = [];
+  rec.stock ??= { food: 14, wood: 12, stone: 12 };
+  rec.day = (rec.day ?? 0) + 1;
+  // Producción del día: granjeros (comida), leñadores (madera), constructores y guardias (piedra).
+  for (const v of rec.villagers) {
+    if (v.prof === 'farmer') rec.stock.food += 3;
+    if (v.prof === 'fisher') rec.stock.food += 4;
+    if (v.prof === 'woodcutter') rec.stock.wood += 4;
+    if (v.prof === 'builder' || v.prof === 'smith') rec.stock.stone += 2;
+  }
+  // Cada uno come una vez por día; si no alcanza, pasan hambre (y nadie tiene hijos).
+  const eat = rec.villagers.length;
+  const hungry = rec.stock.food < eat;
+  rec.stock.food = Math.max(0, rec.stock.food - eat);
+  if (hungry) events.push({ type: 'hungry' });
   for (const v of rec.villagers) {
     v.age += 1;
+    v.hunger = hungry ? 0.8 : 0.1;
     if (v.age === 2) { v.prof = neededProfession(plan, rec); events.push({ type: 'grown', name: v.name }); }
   }
-  const adults = rec.villagers.filter((v) => !isChild(v)).length;
-  if (adults >= 2 && rec.villagers.length < capacity(plan, rec) && r() < 0.75) {
+  events.push(...formCouples(rec, r));
+  // Nacimiento: una pareja, lugar libre y comida guardada.
+  const couple = rec.villagers.find((v) => v.partner && !v.female);
+  if (couple && !hungry && rec.stock.food >= 3 && rec.villagers.length < capacity(plan, rec) && r() < 0.75) {
+    const mom = rec.villagers.find((v) => v.id === couple.partner);
     const baby = newVillager(plan, rec, r, { child: true });
-    rec.villagers.push(baby); rec.born += 1;
-    events.push({ type: 'born', name: baby.name, female: baby.female });
+    baby.home = couple.home === -1 ? 0 : couple.home;
+    baby.parents = [couple.name, mom?.name].filter(Boolean);
+    rec.villagers.push(baby); rec.born += 1; rec.stock.food -= 3;
+    events.push({ type: 'born', name: baby.name, female: baby.female, parents: baby.parents });
   }
   planBuild(plan, rec);
   return events;
@@ -144,6 +204,7 @@ export function planBuild(plan, rec) {
   if (rec.build) return rec.build;
   const free = plan.slots.findIndex((_, i) => !rec.built.includes(i));
   if (free < 0 || !rec.villagers.some((v) => v.prof === 'builder')) return null;
+  if (rec.stock && rec.stock.wood + rec.stock.stone < 6) return null;   // sin materiales no se empieza
   if (rec.villagers.length >= capacity(plan, rec) - 1) rec.build = { slot: free, step: 0 };
   return rec.build;
 }
@@ -160,6 +221,16 @@ export function buildStep(world, plan, rec, canPlace = () => true) {
     const b = bp[rec.build.step];
     if (world.getBlock(b.x, b.y, b.z) === b.id) { rec.build.step++; skipped++; continue; }
     if (!world.getChunk(Math.floor(b.x / 16), Math.floor(b.z / 16)) || !canPlace(b)) return null;
+    // Los bloques sólidos gastan materiales de la aldea: madera o piedra según el bloque.
+    if (b.id && rec.stock) {
+      rec.build.used = (rec.build.used ?? 0) + 1;
+      if (rec.build.used % 6 === 0) {
+        const wood = [B.PLANKS, B.LOG, B.BIRCH_LOG, B.THATCH, B.DOOR, B.BED, B.WORKBENCH, B.WINDOW].includes(b.id);
+        const key = wood ? (rec.stock.wood > 0 ? 'wood' : 'stone') : (rec.stock.stone > 0 ? 'stone' : 'wood');
+        if (rec.stock[key] <= 0) return 'nomat';
+        rec.stock[key] -= 1;
+      }
+    }
     world.setBlock(b.x, b.y, b.z, b.id);
     rec.build.step++;
     return b;
@@ -232,8 +303,7 @@ export class Villages {
 
   spawn(a, v) {
     const { plan, rec } = a;
-    const homes = allHouses(plan, rec);
-    const home = homes[v.home] ?? homes[0];
+    const home = homeOf(plan, rec, v);
     const child = isChild(v);
     const prof = PROFESSIONS[v.prof] ?? {};
     const look = LOOKS[plan.style];
@@ -256,6 +326,7 @@ export class Villages {
       lookYaw: 0, hp: 10, flash: 0, bubble: null, bubbleT: 0, greetT: 0, talkWith: null, hidden: false, child,
       trait: TRAITS[v.trait] ?? TRAITS.cheerful,
     };
+    if (nightNow && v.prof !== 'guard' && !Number.isFinite(v.x)) { e.state = 'inside'; e.hidden = true; e.sleeping = true; }
     if (prof.prop && !child) { e.prop = makeProp(prof.prop); parts.tool.add(e.prop); }
     parts.root.position.copy(pos);
     this.scene.add(parts.root);
@@ -288,6 +359,16 @@ export class Villages {
     for (const a of this.active.values()) {
       for (const e of [...a.list]) this.think(e, a, dt, ctx);
       this.updateSmoke(a, dt, ctx);
+      // El trigo de los campos crece solo.
+      a.cropT = (a.cropT ?? 6) - dt;
+      if (a.cropT <= 0) {
+        a.cropT = 8;
+        const cells = (a.plan.fields ?? []).flatMap((f) => f.cells);
+        for (let k = 0; k < 3 && cells.length; k++) {
+          const c = cells[Math.floor(Math.random() * cells.length)];
+          if (this.world.getChunk(Math.floor(c.x / 16), Math.floor(c.z / 16)) && this.world.getBlock(c.x, c.y + 1, c.z) === B.WHEAT_YOUNG) this.world.setBlock(c.x, c.y + 1, c.z, B.WHEAT_RIPE);
+        }
+      }
     }
     this.smoke = this.smoke.filter((s) => {
       s.life -= dt; s.mesh.position.y += dt * 0.9; s.mesh.position.x += dt * 0.3; s.mesh.scale.multiplyScalar(1 + dt * 0.35);
@@ -314,21 +395,56 @@ export class Villages {
     this.smoke.push({ mesh: m, life: 4, max: 4 });
   }
 
+  // Abre la puerta de su casa al llegar y la cierra después de pasar (los zombis no saben abrirlas).
+  handleDoor(e, ctx) {
+    const h = e.home; const w = this.world;
+    if (!h?.door) return;
+    const d = Math.hypot(h.doorCell.x - e.pos.x, h.doorCell.z - e.pos.z);
+    const y = h.y + 1;
+    const goingThrough = e.state === 'home' || e.state === 'leave';
+    if (goingThrough && d < 1.9 && w.getBlock(h.door.x, y, h.door.z) === B.DOOR) {
+      w.setBlock(h.door.x, y, h.door.z, B.DOOR_OPEN); w.setBlock(h.door.x, y + 1, h.door.z, B.DOOR_OPEN);
+      e.openedDoor = true; ctx.onDoor?.(h.door.x, y, h.door.z, true);
+    }
+    if (e.openedDoor && d > 2.3) {
+      const busy = e.a.list.some((o) => o !== e && Math.hypot(h.doorCell.x - o.pos.x, h.doorCell.z - o.pos.z) < 1);
+      if (!busy && w.getBlock(h.door.x, y, h.door.z) === B.DOOR_OPEN) {
+        w.setBlock(h.door.x, y, h.door.z, B.DOOR); w.setBlock(h.door.x, y + 1, h.door.z, B.DOOR);
+        ctx.onDoor?.(h.door.x, y, h.door.z, false);
+      }
+      e.openedDoor = false;
+    }
+  }
+
+  // Cama que le toca (según el orden entre los que viven en esa casa).
+  bedOf(e) {
+    const mates = e.a.list.filter((o) => o.home === e.home);
+    const i = Math.max(0, mates.indexOf(e)) % 2;
+    return e.home.beds?.[i] ?? null;
+  }
+
   think(e, a, dt, ctx) {
     const { player } = ctx;
     const w = this.world;
     if (!w.getChunk(Math.floor(e.pos.x / 16), Math.floor(e.pos.z / 16))) return;
-    const night = ctx.daylight < e.trait.homeAt;
-    const prof = e.data.prof;
+    const v = e.data;
+    const tired = (v.energy ?? 1) < 0.25 ? 0.12 : 0;
+    const night = ctx.daylight < e.trait.homeAt + tired;
+    const prof = e.child ? null : v.prof;
+    const time = ctx.time ?? 0.25;
     const distPlayer = Math.hypot(player.pos.x - e.pos.x, player.pos.z - e.pos.z);
     const zombie = (ctx.zombies ?? []).find((z) => !z.dead && Math.hypot(z.pos.x - e.pos.x, z.pos.z - e.pos.z) < (prof === 'guard' ? 14 : 9));
     e.timer -= dt; e.greetT -= dt; e.flash = Math.max(0, e.flash - dt);
-    let speed = 1.5 * e.trait.speed * (e.child ? 1.35 : 1);
+    // Necesidades: cansancio, hambre y ganas de charlar cambian con el día.
+    v.energy = Math.max(0, Math.min(1, (v.energy ?? 1) + (e.sleeping ? dt / 90 : -dt / 700)));
+    v.hunger = Math.min(1, (v.hunger ?? 0.2) + dt / 800);
+    v.social = Math.max(0, Math.min(1, (v.social ?? 0.5) + (e.state === 'talk' ? dt / 25 : -dt / 900)));
+    let speed = 1.5 * e.trait.speed * (e.child ? 1.35 : 1) * (v.energy < 0.2 ? 0.8 : 1);
     let goal = null;
     e.action = 'idle';
 
     // 1. Peligro o noche: a casa (los guardias, en cambio, salen a pelear y patrullar).
-    if (prof === 'guard' && !e.child) {
+    if (prof === 'guard') {
       if (zombie) { goal = { x: zombie.pos.x, z: zombie.pos.z, near: 1.2 }; speed = 3; e.state = 'fight'; }
       else if (night) {
         if (e.state !== 'patrol' || !e.target) { const posts = a.plan.posts; const p = posts[Math.floor(Math.random() * posts.length)]; e.target = { x: p.x + 1.5, z: p.z + 0.5 }; e.state = 'patrol'; }
@@ -347,26 +463,54 @@ export class Villages {
       }
       if (zombie) speed = 3.3;
     } else if (e.state === 'home' || e.state === 'inside') {
-      // Amaneció: salen de la casa.
-      e.state = 'leave'; e.path = [e.home.doorCell, e.home.outside]; e.hidden = false;
+      // Amaneció: se levantan y salen de la casa.
+      e.state = 'leave'; e.path = [e.home.doorCell, e.home.outside]; e.hidden = false; e.sleeping = false; e.sitting = false; e.dined = false; e.dinnerT = 0;
     }
 
-    // 2. Caminos por etapas (afuera → puerta → adentro).
+    // 2. Caminos por etapas (afuera → puerta → adentro), abriendo y cerrando la puerta.
     if (e.state === 'home' || e.state === 'leave') {
       const wp = e.path[0];
       if (!wp) { e.state = e.state === 'home' ? 'inside' : 'idle'; e.timer = 1; }
       else {
         goal = { x: wp.x, z: wp.z, near: 0.4 };
         e.homeT = (e.homeT ?? 0) + dt;
-        // Si se traba mucho rato intentando entrar, "entra" igual (abrió la puerta).
         if (e.state === 'home' && (e.homeT > 18 || e.stuck > 6)) { e.pos.set(e.home.inside.x, e.home.y + 1, e.home.inside.z); e.path = []; }
+        if (e.state === 'leave' && (e.homeT > 18 || e.stuck > 6)) { e.pos.set(e.home.outside.x, e.home.y + 1, e.home.outside.z); e.path = []; }
       }
     }
-    if (e.state === 'inside') { e.hidden = true; e.action = 'idle'; goal = null; }
+    this.handleDoor(e, ctx);
+    // Adentro de noche: a su cama a dormir.
+    if (e.state === 'inside') {
+      e.hidden = true;
+      // Antes de dormir: cena sentado a la mesa (si la casa tiene sillas).
+      if (!e.dined && !e.sleeping && !e.home.isCastle && v.energy > 0.15) {
+        const fu = furnish(e.home); const mates = e.a.list.filter((o) => o.home === e.home);
+        const chair = fu.chairs[Math.max(0, mates.indexOf(e)) % Math.max(1, fu.chairs.length)];
+        if (!chair) e.dined = true;
+        else if (e.sitting) {
+          e.sitT -= dt; goal = null;
+          if (e.sitT <= 0) { e.sitting = false; e.dined = true; }
+          else if (Math.random() < dt * 0.08 && distPlayer < 12) this.say(e, pick(Math.random, LINES.eat), 2);
+        } else if (Math.hypot(chair.x + 0.5 - e.pos.x, chair.z + 0.5 - e.pos.z) < 1.4) {
+          e.sitting = true; e.sitT = 10 + Math.random() * 8; e.chair = chair; e.chairTable = fu.table;
+        } else { goal = { x: chair.x + 0.5, z: chair.z + 0.5, near: 1.3 }; e.dinnerT = (e.dinnerT ?? 0) + dt; if (e.dinnerT > 12) e.dined = true; }
+      }
+      const bed = this.bedOf(e);
+      if (bed && !e.sleeping && (e.dined || e.home.isCastle || v.energy <= 0.15)) {
+        const bx = bed.x + 0.5; const bz = bed.z + 0.5;
+        if (Math.hypot(bx - e.pos.x, bz - e.pos.z) < 1.4 || e.timer < -8) e.sleeping = true;
+        else goal = { x: bx, z: bz, near: 1.2 };
+      }
+      if (e.sleeping) {
+        goal = null;
+        e.zzzT = (e.zzzT ?? 2) - dt;
+        if (e.zzzT <= 0) { e.zzzT = 6 + Math.random() * 4; if (distPlayer < 14) this.say(e, pick(Math.random, LINES.sleep), 2); }
+      }
+    }
 
-    // 3. Día: trabajar, charlar, saludar o pasear.
+    // 3. Día: rutina según la hora y el oficio.
     if (!goal && !['home', 'inside', 'leave', 'patrol', 'fight'].includes(e.state)) {
-      if (prof === 'builder' && a.rec.build && !e.child) {
+      if (prof === 'builder' && a.rec.build && !e.blockedT) {
         const h = a.plan.slots[a.rec.build.slot];
         goal = { x: h.outside.x, z: h.outside.z, near: 2.5 };
         e.state = 'build';
@@ -375,18 +519,26 @@ export class Villages {
         e.action = 'talk';
         e.lookYaw = Math.atan2(e.talkWith.pos.x - e.pos.x, e.talkWith.pos.z - e.pos.z) - e.heading;
         if (e.timer <= 0) { e.state = 'idle'; e.timer = 2 + Math.random() * 3; e.talkWith = null; }
-      } else if (e.state === 'wander' && e.target) goal = e.target;
-      else if (e.state === 'work') { e.action = prof === 'farmer' ? 'farm' : 'build'; if (e.timer <= 0) { e.state = 'idle'; e.timer = 1 + Math.random() * 2; } }
-      else if (e.state === 'cheer') { e.action = 'cheer'; if (e.timer <= 0) e.state = 'idle'; }
-      else if (e.state === 'idle' && e.timer <= 0) this.chooseActivity(e, a);
+      } else if ((e.state === 'wander' || e.state === 'goto') && e.target) goal = e.target;
+      else if (e.state === 'work') { e.action = e.workAction ?? 'build'; this.work(e, a, dt, ctx); }
+      else if (e.state === 'eat') { e.action = 'eat'; if (e.timer <= 0) { v.hunger = 0.05; e.state = 'idle'; e.timer = 1; } }
+      else if (e.state === 'market') {
+        e.action = distPlayer < 5 ? 'talk' : 'idle';
+        if (e.stall) e.heading = Math.atan2(e.stall.f[0], e.stall.f[1]);
+        e.shoutT = (e.shoutT ?? 5) - dt;
+        if (e.shoutT <= 0) { e.shoutT = 14 + Math.random() * 12; if (distPlayer < 16) this.say(e, pick(Math.random, LINES.market), 2.5); }
+        if (e.timer <= 0 || time > 0.42) { e.state = 'idle'; e.timer = 1; }
+      } else if (e.state === 'cheer') { e.action = 'cheer'; if (e.timer <= 0) e.state = 'idle'; }
+      else if (e.state === 'idle' && e.timer <= 0) this.chooseActivity(e, a, time);
     }
+    e.blockedT = Math.max(0, (e.blockedT ?? 0) - dt);
 
     // Saludo al jugador (según la personalidad).
     if (distPlayer < 5 && e.greetT <= 0 && !e.hidden && !night && !zombie) {
       e.greetT = 25 + Math.random() * 20;
-      const lines = prof === 'guard' ? LINES.guard : LINES.greet[e.data.trait] ?? LINES.greet.cheerful;
+      const lines = prof === 'guard' ? LINES.guard : prof === 'king' ? LINES.king : LINES.greet[v.trait] ?? LINES.greet.cheerful;
       this.say(e, pick(Math.random, lines));
-      if (Math.random() < e.trait.wave) { e.state = 'wave'; e.timer = 1.6; }
+      if (Math.random() < e.trait.wave && e.state !== 'market') { e.prevState = e.state; e.state = 'wave'; e.timer = 1.6; }
     }
     if (e.state === 'wave') { e.action = 'wave'; if (e.timer <= 0) e.state = 'idle'; }
 
@@ -398,11 +550,12 @@ export class Villages {
       else {
         if (e.state === 'home' || e.state === 'leave') e.path.shift();
         else if (e.state === 'wander') { e.state = 'idle'; e.timer = 2 + Math.random() * 4; }
+        else if (e.state === 'goto') { e.state = e.then ?? 'idle'; e.timer = e.thenT ?? 3; }
         else if (e.state === 'patrol') e.target = null;
       }
-      if (e.stuck > 4 && e.state === 'wander') { e.state = 'idle'; e.timer = 1; }
+      if (e.stuck > 4 && (e.state === 'wander' || e.state === 'goto')) { e.state = 'idle'; e.timer = 1; }
     }
-    settle(w, e, dt);
+    if (!e.sleeping) settle(w, e, dt);
 
     // 5. Acciones en el lugar: construir, pelear.
     if (e.state === 'build' && !moving && a.rec.build) {
@@ -412,6 +565,7 @@ export class Villages {
         e.buildT = 0.45;
         const res = buildStep(w, a.plan, a.rec, ctx.canPlace);
         if (res === 'done') { this.say(e, '¡Casa terminada!', 3); ctx.onBuilt?.(a.plan, a.rec); for (const o of a.list) if (!o.hidden && Math.random() < 0.7) { o.state = 'cheer'; o.timer = 2.5; } planBuild(a.plan, a.rec); }
+        else if (res === 'nomat') { this.say(e, 'Me quedé sin materiales… ¡Traigan madera o piedra!', 3.5); e.blockedT = 40; e.state = 'idle'; }
         else if (res) {
           ctx.onPlace?.(res);
           e.lookYaw = Math.atan2(res.x + 0.5 - e.pos.x, res.z + 0.5 - e.pos.z) - e.heading;
@@ -431,41 +585,134 @@ export class Villages {
     // 6. Animación y luz.
     e.walk += ((moving ? 1 : 0) - e.walk) * Math.min(1, dt * 8);
     if (moving) e.phase += dt * speed * 4.2;
-    if (moving) e.action = e.state === 'home' && zombie ? 'scared' : e.action === 'build' ? 'walk' : e.action;
+    if (moving) e.action = e.state === 'home' && zombie ? 'scared' : ['build', 'eat', 'farm'].includes(e.action) ? 'walk' : e.action;
     // Mira al jugador si está cerca (los tímidos no lo miran a los ojos).
-    if (distPlayer < 6 && !moving && e.state !== 'talk' && e.state !== 'build') {
+    if (distPlayer < 6 && !moving && !e.sleeping && e.state !== 'talk' && e.state !== 'build') {
       const want = Math.atan2(player.pos.x - e.pos.x, player.pos.z - e.pos.z) - e.heading;
       const wrap = ((want + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
-      e.lookYaw += ((e.data.trait === 'shy' ? wrap * 0.3 : wrap) - e.lookYaw) * Math.min(1, dt * 5);
-      if (Math.abs(wrap) > 1.3) e.heading = turnTo(e.heading, e.heading + wrap, dt, 2);
+      e.lookYaw += ((v.trait === 'shy' ? wrap * 0.3 : wrap) - e.lookYaw) * Math.min(1, dt * 5);
+      if (Math.abs(wrap) > 1.3 && e.state !== 'market') e.heading = turnTo(e.heading, e.heading + wrap, dt, 2);
     } else if (e.state !== 'talk' && e.state !== 'build') e.lookYaw *= Math.max(0, 1 - dt * 3);
     const root = e.parts.root;
-    root.position.copy(e.pos);
-    root.rotation.y = turnTo(root.rotation.y, e.heading, dt, 10);
-    animateHumanoid(e.parts, { t: this.t + e.phase, phase: e.phase, walk: e.walk, action: e.hidden ? 'idle' : e.action, lookYaw: e.lookYaw, lookPitch: e.hidden ? 0.25 : 0 });
-    const light = ctx.lightAt(e.pos.x, e.pos.y + 1.5, e.pos.z);
-    lightHumanoid(e.parts, light, e.flash);
+    if (e.sleeping) {
+      // Acostado en la cama, con la cabeza hacia la pared del fondo.
+      const bed = this.bedOf(e) ?? { x: Math.floor(e.pos.x), z: Math.floor(e.pos.z) };
+      const f = e.home.face ?? [0, 1];
+      root.rotation.set(-Math.PI / 2, Math.atan2(f[0], f[1]), 0);
+      root.position.set(bed.x + 0.5 + f[0] * 0.95, e.home.y + 1.62, bed.z + 0.5 + f[1] * 0.95);
+      animateHumanoid(e.parts, { t: this.t + e.phase, phase: 0, walk: 0, action: 'sleep', lookYaw: 0 });
+    } else if (e.sitting && e.chair) {
+      // Sentado en la silla, mirando a la mesa, comiendo.
+      root.rotation.set(0, e.chairTable ? Math.atan2(e.chairTable.x - e.chair.x, e.chairTable.z - e.chair.z) : e.heading, 0);
+      root.position.set(e.chair.x + 0.5, e.home.y + 1 - 0.2, e.chair.z + 0.5);
+      animateHumanoid(e.parts, { t: this.t + e.phase, phase: 0, walk: 0, action: 'sit', lookYaw: Math.sin(this.t * 0.5 + e.phase) * 0.3 });
+    } else {
+      root.rotation.x = 0; root.rotation.z = 0;
+      root.position.copy(e.pos);
+      root.rotation.y = turnTo(root.rotation.y, e.heading, dt, 10);
+      animateHumanoid(e.parts, { t: this.t + e.phase, phase: e.phase, walk: e.walk, action: e.hidden ? 'idle' : e.action, lookYaw: e.lookYaw, lookPitch: e.hidden ? 0.25 : 0 });
+    }
+    e.lightT = (e.lightT ?? 0) - dt;
+    if (e.lightT <= 0) { e.lightT = 0.3; e.light = ctx.lightAt(e.pos.x, e.pos.y + 1.5, e.pos.z); }
+    lightHumanoid(e.parts, e.light ?? 1, e.flash);
     if (e.prop?.userData.flame) e.prop.userData.flame.scale.setScalar(0.85 + Math.sin(this.t * 20 + e.phase) * 0.15);
     // Globo de diálogo sobre la cabeza.
     if (e.bubble) {
       e.bubbleT -= dt;
-      e.bubble.position.set(e.pos.x, e.pos.y + (e.child ? 1.6 : 2.35), e.pos.z);
+      e.bubble.position.set(e.sleeping ? root.position.x : e.pos.x, (e.sleeping ? e.home.y + 1.2 : e.pos.y) + (e.child ? 1.6 : 2.35), e.sleeping ? root.position.z : e.pos.z);
       e.bubble.material.opacity = Math.min(1, e.bubbleT * 2);
       if (e.bubbleT <= 0) { this.scene.remove(e.bubble); e.bubble.material.map.dispose(); e.bubble.material.dispose(); e.bubble = null; }
     }
   }
 
-  chooseActivity(e, a) {
-    const r = Math.random();
+  // Trabajo en el lugar: cosechar, talar, martillar. Produce recursos para la aldea.
+  work(e, a, dt, ctx) {
+    const w = this.world;
+    if (e.timer > 0) {
+      if (e.job?.kind === 'tree' && Math.random() < dt * 2) ctx.onChop?.(e.job.x, e.job.y, e.job.z);
+      return;
+    }
+    const job = e.job; e.job = null; e.state = 'idle'; e.timer = 1 + Math.random() * 2;
+    if (!job) return;
+    a.rec.stock ??= { food: 10, wood: 10, stone: 10 };
+    if (job.kind === 'crop' && w.getBlock(job.x, job.y, job.z) === B.WHEAT_RIPE) {
+      w.setBlock(job.x, job.y, job.z, B.WHEAT_YOUNG);   // cosecha y vuelve a sembrar
+      a.rec.stock.food += 1;
+      ctx.onPlace?.({ x: job.x, y: job.y, z: job.z, id: B.WHEAT_RIPE });
+      if (Math.random() < 0.15) this.say(e, pick(Math.random, LINES.harvest), 2);
+    }
+    if (job.kind === 'tree') { a.rec.stock.wood += 1; if (Math.random() < 0.2) this.say(e, pick(Math.random, LINES.chop), 2); }
+    if (job.kind === 'forge') a.rec.stock.stone += Math.random() < 0.3 ? 1 : 0;
+    if (job.kind === 'fish') { a.rec.stock.food += 1; if (Math.random() < 0.35) this.say(e, pick(Math.random, LINES.fish), 2); ctx.onSplash?.(e.pos); }
+    if (job.kind === 'watch' && Math.random() < 0.3) this.say(e, pick(Math.random, LINES.sailor), 2.5);
+  }
+
+  // Árboles cerca de la aldea para el leñador (se buscan una vez).
+  findTrees(a) {
+    if (a.trees) return a.trees;
+    a.trees = [];
+    for (let k = 0; k < 120 && a.trees.length < 8; k++) {
+      const ang = Math.random() * Math.PI * 2; const r = a.plan.radius + 2 + Math.random() * 14;
+      const x = Math.floor(a.plan.x + Math.cos(ang) * r); const z = Math.floor(a.plan.z + Math.sin(ang) * r);
+      const top = this.world.topAt(x, z);
+      for (let y = top; y > top - 9 && y > 0; y--) {
+        const id = this.world.getBlock(x, y, z);
+        if (id === B.LOG || id === B.BIRCH_LOG) {
+          // Pararse al lado del tronco, a la altura del suelo.
+          const gy = standY(this.world, x + 1.5, y, z + 0.5, 2, 6);
+          if (gy !== null) a.trees.push({ x, y: gy, z, stand: { x: x + 1.5, z: z + 0.5 } });
+          break;
+        }
+      }
+    }
+    return a.trees;
+  }
+
+  // Elegir qué hacer según la hora, el oficio, las necesidades y la personalidad.
+  chooseActivity(e, a, time) {
+    const v = e.data; const prof = e.child ? null : v.prof; const r = Math.random();
+    const go = (x, z, then, thenT, near = 0.7) => { e.target = { x, z, near }; e.state = 'goto'; e.then = then; e.thenT = thenT; };
+    // Almuerzo: al mediodía (o con hambre) van al mercado o la plaza a comer.
+    if ((time > 0.19 && time < 0.27 && v.hunger > 0.2) || v.hunger > 0.75) {
+      const s = a.plan.stalls?.[Math.floor(Math.random() * (a.plan.stalls.length || 1))];
+      const p = s ? { x: s.x + 0.5 + s.f[0] * 1.6, z: s.z + 0.5 + s.f[1] * 1.6 } : { x: a.plan.x + 3.5, z: a.plan.z + 0.5 };
+      go(p.x + (Math.random() - 0.5), p.z + (Math.random() - 0.5), 'eat', 4);
+      if (Math.random() < 0.3) this.say(e, pick(Math.random, LINES.eat), 2);
+      return;
+    }
+    // Ganas de charlar.
     const others = a.list.filter((o) => o !== e && !o.hidden && o.state === 'idle' && Math.hypot(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < 9);
-    if (others.length && r < e.trait.chat * 0.6) {
+    if (others.length && r < e.trait.chat * (v.social < 0.3 ? 0.9 : 0.5)) {
       const o = others[0];
       e.state = 'talk'; o.state = 'talk'; e.talkWith = o; o.talkWith = e; e.timer = o.timer = 4 + Math.random() * 3;
       this.say(e, pick(Math.random, LINES.talk), 3);
       setTimeout(() => { if (o.state === 'talk') this.say(o, pick(Math.random, LINES.talk), 2.5); }, 1600);
       return;
     }
-    if (!e.child && ['farmer', 'smith'].includes(e.data.prof) && r < 0.6) { e.state = 'work'; e.timer = 4 + Math.random() * 5; return; }
+    const work = time > 0.03 && time < 0.42 && r < 0.75 * e.trait.work;
+    // Puestos del mercado: mercader, herrero y el primer granjero atienden de mañana.
+    const stallIdx = prof === 'merchant' ? 0 : prof === 'smith' ? 1 : prof === 'farmer' && a.list.find((o) => o.data.prof === 'farmer') === e ? 2 : -1;
+    const stall = a.plan.stalls?.[stallIdx];
+    if (work && stall && time < 0.3 && Math.random() < 0.6) { e.stall = stall; go(stall.spot.x, stall.spot.z, 'market', 20 + Math.random() * 20, 0.5); return; }
+    if (work && prof === 'farmer') {
+      const cells = (a.plan.fields ?? []).flatMap((f) => f.cells);
+      const ripe = cells.filter((c) => this.world.getBlock(c.x, c.y + 1, c.z) === B.WHEAT_RIPE);
+      const c = ripe[Math.floor(Math.random() * ripe.length)] ?? cells[Math.floor(Math.random() * cells.length)];
+      if (c) { e.job = { kind: 'crop', x: c.x, y: c.y + 1, z: c.z }; e.workAction = 'farm'; go(c.x + 0.5, c.z + 0.5, 'work', 2.5, 1.3); return; }
+    }
+    if (work && prof === 'woodcutter') {
+      const trees = this.findTrees(a);
+      const t = trees[Math.floor(Math.random() * trees.length)];
+      if (t) { e.job = { kind: 'tree', x: t.x, y: t.y, z: t.z }; e.workAction = 'chop'; go(t.stand.x, t.stand.z, 'work', 6, 0.8); return; }
+    }
+    // Puerto: el pescador pesca en la punta del muelle; el marinero mira el mar desde el muelle.
+    if (work && prof === 'fisher' && a.plan.port) { const f = a.plan.port.fishSpot; e.job = { kind: 'fish' }; e.workAction = 'fish'; go(f.x + (Math.random() - 0.5) * 0.6, f.z + (Math.random() - 0.5) * 0.6, 'work', 9 + Math.random() * 6, 0.6); return; }
+    if (prof === 'sailor' && a.plan.port && r < 0.7) { const d = a.plan.port.pierWalk; e.workAction = 'guard'; e.job = { kind: 'watch' }; go(d.x + (Math.random() - 0.5) * 1.5, d.z + (Math.random() - 0.5) * 1.5, 'work', 10 + Math.random() * 10, 0.6); return; }
+    if (work && (prof === 'smith' || prof === 'builder')) { e.job = { kind: 'forge' }; e.workAction = 'build'; e.state = 'work'; e.timer = 4 + Math.random() * 4; return; }
+    if (prof === 'king' && a.plan.castle?.throne && time < 0.4 && r < 0.7) {
+      // El rey recibe en la sala del trono (o se da una vuelta por la plaza).
+      const t = a.plan.castle.throne; go(t.x, t.z, 'idle', 12 + Math.random() * 10, 0.6); return;
+    }
     // Pasear: cerca de la plaza o de su casa (los chicos corren más lejos).
     const center = Math.random() < 0.5 ? { x: a.plan.x, z: a.plan.z } : e.home.outside;
     const rad = e.child ? 12 : 7;
@@ -527,41 +774,116 @@ export class Villages {
     return out;
   }
 
+  // Título del que manda: rey/reina si hay castillo, jefe/jefa si no.
+  rulerTitle(plan, v) { const p = PROFESSIONS.king; return plan.castle ? (v.female ? p.fem : p.name) : (v.female ? p.chiefFem : p.chief); }
+
   // Datos para la ventana de diálogo.
-  info(e) {
+  info(e, player = {}) {
     const { plan, rec } = e.a;
     const v = e.data;
     const prof = PROFESSIONS[v.prof];
     const trait = TRAITS[v.trait];
     const homes = allHouses(plan, rec).length;
+    const level = levelOf(plan, rec);
+    rec.stock ??= { food: 14, wood: 12, stone: 12 };
     let line;
-    if (isChild(v)) line = pick(Math.random, ['¡Jugamos a las escondidas?', '¡Cuando sea grande voy a ser constructora!', '¿Me mostrás tu espada?', '¡Ji, ji!']);
+    if (isChild(v)) line = pick(Math.random, ['¿Jugamos a las escondidas?', '¡Cuando sea grande voy a ser constructora!', '¿Me mostrás tu espada?', '¡Ji, ji!']) + (v.parents ? ` (Soy hijo de ${v.parents.join(' y ')})` : '');
     else if (rec.rep < -5) line = 'No queremos problemas con vos. Andate.';
-    else if (v.prof === 'builder' && rec.build) line = `Estoy levantando una casa nueva. Si me traés tablas o adoquines, termino más rápido.`;
+    else if (v.prof === 'king') line = rec.quest ? `${rec.quest.text} Te pago ${rec.quest.reward} monedas de plata.` : pick(Math.random, LINES.king);
+    else if (v.prof === 'builder' && rec.build) line = rec.stock.wood + rec.stock.stone < 3 ? 'Me quedé sin materiales para la obra. ¿Me donás tablas, troncos o adoquines?' : 'Estoy levantando una casa nueva. Si me traés materiales, termino más rápido.';
     else if (v.prof === 'builder' && rec.villagers.length >= capacity(plan, rec)) line = 'No queda lugar para nadie más: no hay más terreno para construir.';
-    else if (v.prof === 'smith') line = 'Si tu herramienta está gastada, con un lingote de hierro te la dejo como nueva.';
+    else if (v.prof === 'smith') line = 'Forjo armaduras y armas. Si tu herramienta está gastada, con un lingote de hierro te la dejo como nueva.';
     else if (v.prof === 'guard') line = pick(Math.random, LINES.guard);
+    else if (v.hunger > 0.7) line = 'Tengo un hambre… ¿no tenés un pan?';
+    else if (v.energy < 0.25) line = 'Estoy agotado, me voy a dormir temprano.';
     else line = pick(Math.random, LINES.greet[v.trait] ?? LINES.greet.cheerful);
-    const mood = rec.rep >= 8 ? 'Te adoran' : rec.rep >= 3 ? 'Te aprecian' : rec.rep <= -5 ? 'Desconfían de vos' : 'Te conocen poco';
+    // Ánimo: promedio de las necesidades.
+    const mood = ((1 - (v.hunger ?? 0)) + (v.energy ?? 1) + (v.social ?? 0.5)) / 3;
+    const why = [v.hunger > 0.6 && 'tiene hambre', v.energy < 0.3 && 'está cansado', v.social < 0.25 && 'se siente solo', v.partner && 'está en pareja'].filter(Boolean);
+    const partner = v.partner ? rec.villagers.find((x) => x.id === v.partner)?.name : null;
+    const repText = rec.rep >= 8 ? 'Te adoran' : rec.rep >= 3 ? 'Te aprecian' : rec.rep <= -5 ? 'Desconfían de vos' : 'Te conocen poco';
+    // Precios locales: cada aldea cobra según su bioma, sus reservas y si llegó un barco.
+    const shop = SHOPS[v.prof] && !isChild(v) && rec.rep >= -5 ? {
+      sells: SHOPS[v.prof].sells.map((it) => { const unit = localPrice(it.id, plan, rec); return { ...it, price: Math.max(1, Math.round(unit * it.n)), trend: trend(it.id, plan, rec), locked: (it.level ?? 1) > level, needs: LEVELS[it.level ?? 1].name }; }),
+      buys: SHOPS[v.prof].buys.map((id) => ({ id, price: Math.max(1, Math.floor(localPrice(id, plan, rec) * 0.5)), trend: trend(id, plan, rec) })),
+    } : null;
     return {
-      name: v.name, child: isChild(v), profession: isChild(v) ? (v.female ? 'Niña' : 'Niño') : prof ? (v.female ? prof.fem : prof.name) : 'Aldeano',
+      name: v.name, child: isChild(v), king: v.prof === 'king',
+      profession: isChild(v) ? (v.female ? 'Niña' : 'Niño') : v.prof === 'king' ? this.rulerTitle(plan, v) : prof ? (v.female ? prof.fem : prof.name) : 'Aldeano',
       trait: trait ? (v.female && trait.fem ? trait.fem : trait.name) : '', line, village: plan.name, style: STYLES[plan.style].label,
-      pop: rec.villagers.length, cap: capacity(plan, rec), homes, building: !!rec.build, mood, rep: rec.rep,
-      trades: isChild(v) || rec.rep < -5 ? [] : TRADES[v.prof] ?? [], look: v.look, canDonate: v.prof === 'builder' && !!rec.build,
+      pop: rec.villagers.length, cap: capacity(plan, rec), homes, building: !!rec.build, rep: rec.rep, repText,
+      level, levelName: LEVELS[level].name, stock: rec.stock,
+      mood: mood > 0.66 ? 'Contento' : mood > 0.4 ? 'Normal' : 'Triste', moodWhy: why, partner,
+      trades: isChild(v) || rec.rep < -5 ? [] : TRADES[v.prof] ?? [], shop, look: v.look, canDonate: v.prof === 'builder',
+      quest: v.prof === 'king' ? rec.quest : null, rank: rankFor(player.honor ?? 0).name, economy: economySummary(plan, rec), port: !!plan.port,
     };
   }
 
-  // Donar materiales al constructor: acelera la obra y mejora la reputación.
+  // Encargo del rey: se crea al hablarle si no hay uno.
+  ensureQuest(e) {
+    const { plan, rec } = e.a;
+    if (e.data.prof !== 'king' || rec.quest || rec.rep < -5) return rec.quest;
+    rec.quest = makeQuest(Math.random, levelOf(plan, rec));
+    return rec.quest;
+  }
+
+  // Entregar el encargo. Devuelve la recompensa en plata, o 0 si todavía no se cumplió.
+  completeQuest(e, inventory) {
+    const rec = e.a.rec; const q = rec.quest;
+    if (!q) return 0;
+    if (q.kind === 'deliver') {
+      if ((inventory[q.id] ?? 0) < q.n) return 0;
+      inventory[q.id] -= q.n; if (!inventory[q.id]) delete inventory[q.id];
+    } else if (q.progress < q.n) return 0;
+    rec.quest = null; rec.rep += 3;
+    this.say(e, '¡Bien hecho! El reino te lo agradece.', 3);
+    e.state = 'cheer'; e.timer = 2.5;
+    return q.reward;
+  }
+
+  // Zombi muerto cerca de una aldea de noche: cuenta para el encargo de matar zombis.
+  zombieKilled(x, z) {
+    for (const p of villagesNear(this.world, x, z, 30)) {
+      const q = this.records.get(p.id)?.quest;
+      if (q?.kind === 'zombies' && q.progress < q.n) q.progress += 1;
+    }
+  }
+
+  // Donar materiales: van a las reservas de la aldea, aceleran la obra y mejoran la reputación.
   donate(e, inventory) {
-    const want = [B.PLANKS, B.COBBLE, B.LOG];
+    const want = [[B.PLANKS, 'wood', 1], [B.LOG, 'wood', 2], [B.COBBLE, 'stone', 1]];
     let given = 0;
-    for (const id of want) { const n = Math.min(inventory[id] ?? 0, 16 - given); if (n > 0) { inventory[id] -= n; if (!inventory[id]) delete inventory[id]; given += n; } }
+    e.a.rec.stock ??= { food: 10, wood: 10, stone: 10 };
+    for (const [id, key, worth] of want) {
+      const n = Math.min(inventory[id] ?? 0, 32 - given);
+      if (n > 0) { inventory[id] -= n; if (!inventory[id]) delete inventory[id]; given += n; e.a.rec.stock[key] += Math.ceil((n * worth) / 2); }
+    }
     if (!given) return 0;
-    e.a.rec.boost = (e.a.rec.boost ?? 0) + given * 6;
+    e.a.rec.boost = (e.a.rec.boost ?? 0) + given * 4;
     e.a.rec.rep += given >= 8 ? 2 : 1;
+    if (!e.a.rec.build) planBuild(e.a.plan, e.a.rec);
     this.say(e, '¡Gracias! ¡Con esto vuela la obra!', 3);
-    e.state = 'cheer'; e.timer = 2;
+    e.state = 'cheer'; e.timer = 2; e.blockedT = 0;
     return given;
+  }
+
+  // Comida para la aldea: suma a las reservas (si pasan hambre, la agradecen mucho).
+  giveFood(e, inventory, ids) {
+    let n = 0;
+    e.a.rec.stock ??= { food: 10, wood: 10, stone: 10 };
+    for (const [id, worth] of ids) { const k = inventory[id] ?? 0; if (k) { e.a.rec.stock.food += k * worth; n += k; delete inventory[id]; } }
+    if (n) { e.a.rec.rep += n >= 5 ? 2 : 1; e.data.hunger = 0; this.say(e, '¡Comida! ¡Gracias, de verdad!', 3); }
+    return n;
+  }
+
+  // Un prisionero liberado se muda a esta aldea (aunque esté llena: se acomodan).
+  addRefugee(plan) {
+    const rec = this.record(plan);
+    const v = newVillager(plan, rec, Math.random, { prof: neededProfession(plan, rec) });
+    rec.villagers.push(v); rec.rep += 3;
+    const a = this.active.get(plan.id);
+    if (a) { const e = this.spawn(a, v); e.state = 'cheer'; e.timer = 3; this.say(e, '¡Por fin en casa!', 3); }
+    return v;
   }
 
   // Aldea en la que está parado el jugador (para el cartel de bienvenida y el mapa).
