@@ -37,7 +37,7 @@ test('aldeas: las casas se generan con piso, paredes, puerta abierta, ventana y 
     for (const b of h.beds) assert.equal(w.getBlock(b.x, h.y + 1, b.z), B.BED, 'dos camas');
     assert.ok(BLOCKS[w.getBlock(h.door.x, h.y + 3, h.door.z)].solid, 'dintel');
     assert.ok(BLOCKS[w.getBlock(h.x, h.y, h.z)].solid, 'piso');
-    assert.equal(w.getBlock(h.x, h.y + 1, h.z), B.AIR, 'adentro hay lugar');
+    assert.equal(BLOCKS[w.getBlock(h.x, h.y + 1, h.z)].solid, false, 'adentro hay lugar (a lo sumo una alfombra)');
   }
   const h = p.houses[0];
   const roof = p.style === 'desert' ? w.getBlock(h.x, h.y + 4, h.z) : w.getBlock(h.x, h.y + 8, h.z);

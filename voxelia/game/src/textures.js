@@ -1,11 +1,12 @@
 import * as THREE from 'three';
-import { BLOCKS } from './blocks.js';
+import { B, BLOCKS } from './blocks.js';
+import { drawFurniture, N as ICON_N } from './icons.js';
 
 // Texturas pixel-art de 16×16 generadas por código (sin archivos externos) y empaquetadas en un atlas.
 const S = 16;
 const NAMES = ['grass_top', 'grass_side', 'dirt', 'stone', 'sand', 'water', 'log_top', 'log_side', 'leaves', 'planks',
   'cobble', 'glass', 'snow', 'snow_side', 'brick', 'coal', 'cactus_top', 'cactus_side', 'bedrock', 'gravel', 'iron',
-  'birch_top', 'birch_side', 'birch_leaves', 'clay', 'lamp', 'wool_red', 'wool_blue', 'wool_white', 'crystal', 'faro_top', 'faro_side', 'torch', 'bench_top', 'bench_side', 'roof', 'thatch', 'adobe', 'farmland', 'wheat_young', 'wheat_ripe', 'bed_top', 'bed_side', 'door', 'window', 'lava', 'glow_mushroom', 'moss', 'gold_ore', 'wool_black', 'bars', 'campfire', 'chest_top', 'chest_side'];
+  'birch_top', 'birch_side', 'birch_leaves', 'clay', 'lamp', 'wool_red', 'wool_blue', 'wool_white', 'crystal', 'faro_top', 'faro_side', 'torch', 'bench_top', 'bench_side', 'roof', 'thatch', 'adobe', 'farmland', 'wheat_young', 'wheat_ripe', 'bed_top', 'bed_side', 'door', 'window', 'lava', 'glow_mushroom', 'moss', 'gold_ore', 'wool_black', 'bars', 'campfire', 'chest_top', 'chest_side', 'table_top', 'bookshelf', 'fireplace', 'carpet', 'barrel_top', 'barrel_side', 'hay_top', 'hay_side', 'anvil', 'throne', 'flower_red', 'flower_yellow'];
 const COLS = 8;
 export const ATLAS_COLS = COLS;
 export const ATLAS_ROWS = Math.ceil(NAMES.length / COLS);
@@ -225,6 +226,80 @@ function paint(name, px) {
       }
       if (name === 'chest_side') for (let y = 5; y < 9; y++) for (let x = 7; x < 9; x++) set(x, y, hex('#f2c94c'));   // cerradura de oro
       break;
+    case 'table_top':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const edge = x === 0 || y === 0 || x === S - 1 || y === S - 1;
+        set(x, y, edge ? hex('#7a5230') : shade(hex('#c99a5e'), (x % 5 === 0 ? 0.88 : 1) * (0.94 + r() * 0.1)));
+      }
+      break;
+    case 'bookshelf': {
+      // Dos estantes con lomos de libros de colores.
+      const cols = ['#8f2b26', '#2f4fb8', '#3f7a2c', '#b8842a', '#5a2b7a', '#2a6b6b', '#c9c2b4'];
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, hex('#6b4426'));
+      for (const y0 of [1, 9]) {
+        let x = 1;
+        while (x < 15) {
+          const w = 1 + Math.floor(r() * 2); const h = 5 + Math.floor(r() * 2); const c = hex(cols[Math.floor(r() * cols.length)]);
+          for (let xx = x; xx < Math.min(15, x + w); xx++) for (let y = y0 + (6 - h); y < y0 + 6; y++) set(xx, y, shade(c, xx === x ? 1.15 : 0.9));
+          x += w;
+        }
+        for (let x2 = 0; x2 < S; x2++) set(x2, y0 + 6, hex('#9a6a3a'));
+      }
+      break;
+    }
+    case 'fireplace':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const mortar = y % 4 === 3 || (x + (Math.floor(y / 4) % 2) * 4) % 8 === 7;
+        set(x, y, mortar ? hex('#c9c2b8') : shade(hex('#9c4a35'), 0.88 + r() * 0.2));
+      }
+      // Boca del hogar con arco, leños y fuego.
+      for (let y = 5; y < 15; y++) for (let x = 3; x < 13; x++) {
+        const arch = y < 7 && (x === 3 || x === 12 || (y === 5 && (x === 4 || x === 11)));
+        if (arch) continue;
+        const fire = y > 7 && y < 13 && Math.abs(x - 7.5) < 4 - (12 - y) * 0.4 + r();
+        set(x, y, y >= 13 ? hex('#4a2f1a') : fire ? (y < 10 ? hex('#ffd34d') : hex('#ff8a1e')) : hex('#1a1210'));
+      }
+      break;
+    case 'carpet':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const border = x < 2 || y < 2 || x > 13 || y > 13;
+        const diamond = Math.abs(x - 7.5) + Math.abs(y - 7.5) < 4.5;
+        set(x, y, border ? hex('#d8b14a') : diamond ? hex('#2f4fb8') : shade(hex('#8f2b26'), 0.92 + r() * 0.12));
+      }
+      break;
+    case 'barrel_side':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const hoop = y === 2 || y === 3 || y === 12 || y === 13;
+        set(x, y, hoop ? shade(hex('#5c6068'), 0.9 + r() * 0.2) : shade(hex('#8a5a33'), (x % 4 === 0 ? 0.72 : 1) * (0.9 + r() * 0.15)));
+      }
+      break;
+    case 'barrel_top':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) { const d = Math.hypot(x - 7.5, y - 7.5); set(x, y, d > 7 ? hex('#5c6068') : shade(hex('#a87442'), (Math.floor(d) % 3 === 0 ? 0.8 : 1) * (0.92 + r() * 0.1))); }
+      break;
+    case 'hay_side':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, (y === 4 || y === 11) ? hex('#8f2b26') : shade(hex('#d8b14a'), (x % 2 ? 0.88 : 1.05) * (0.9 + r() * 0.15)));
+      break;
+    case 'hay_top':
+      noise(hex('#c9a040'), 0.2); for (let k = 0; k < 20; k++) set(Math.floor(r() * S), Math.floor(r() * S), hex('#e8c75a'));
+      for (let x = 0; x < S; x++) { set(x, 4, hex('#8f2b26')); set(x, 11, hex('#8f2b26')); }
+      break;
+    case 'anvil': noise(hex('#3e4248'), 0.2); for (let x = 0; x < S; x++) set(x, 0, hex('#8b9098')); break;
+    case 'throne':
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const edge = x < 2 || x > 13 || y < 2;
+        set(x, y, edge ? shade(hex('#e8c040'), 0.9 + r() * 0.2) : shade(hex('#8f1e3a'), (x + y) % 5 === 0 ? 0.85 : 1));
+      }
+      break;
+    case 'flower_red': case 'flower_yellow': {
+      const petal = name === 'flower_red' ? hex('#d8352b') : hex('#f2e04c'); const core = name === 'flower_red' ? hex('#26232a') : hex('#d88a1e');
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) set(x, y, [0, 0, 0], 0);
+      for (const [cx, cy] of [[4, 5], [11, 3], [8, 9]]) {
+        for (let y = cy + 2; y < S; y++) set(cx, y, hex('#4f8a2c'));
+        for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0], [1, -1], [-1, 1]]) set(cx + dx, cy + dy, petal);
+        set(cx, cy, core);
+      }
+      break;
+    }
     default: noise(hex('#ff00ff'), 0);
   }
 }
@@ -268,6 +343,9 @@ export function blockIcon(atlas, id, size = 48) {
   c.width = c.height = size;
   const ctx = c.getContext('2d');
   ctx.imageSmoothingEnabled = false;
+  // Muebles: dibujo con su forma real.
+  const fg = drawFurniture(id, B);
+  if (fg) { const k = size / ICON_N; for (let y = 0; y < ICON_N; y++) for (let x = 0; x < ICON_N; x++) { const col = fg[y * ICON_N + x]; if (col) { ctx.fillStyle = col; ctx.fillRect(Math.floor(x * k), Math.floor(y * k), Math.ceil(k), Math.ceil(k)); } } return c.toDataURL(); }
   if (b.shape === 'torch' || b.shape === 'crop' || b.shape === 'door' || b.shape === 'door_open') {
     const i = TEX_INDEX[b.tex[1]];
     ctx.drawImage(atlas, (i % COLS) * S, Math.floor(i / COLS) * S, S, S, 0, 0, size, size);

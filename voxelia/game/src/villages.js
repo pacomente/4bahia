@@ -194,23 +194,52 @@ export function houseBlueprint(world, plan, h) {
       for (let x = a; x <= b; x++) for (let z = c; z <= d; z++) if (k === 4 || x === a || x === b || z === c || z === d) put(x, y + 4 + k, z, st.roof);
     }
     // Chimenea de piedra en una esquina.
-    if (st.chimney) for (let yy = y + 4; yy <= y + 8; yy++) put(x0 + 5, yy, z0 + 5, B.COBBLE);
+    // Chimenea de piedra justo arriba del hogar (el humo sale de ahí).
+    if (st.chimney) { const f = furnish(h).fireplace; for (let yy = y + 4; yy <= y + 9; yy++) put(f.x, yy, f.z, B.COBBLE); }
   } else {
     for (let x = x0; x <= x0 + 6; x++) for (let z = z0; z <= z0 + 6; z++) put(x, y + 4, z, st.wall);
     for (let x = x0; x <= x0 + 6; x++) for (let z = z0; z <= z0 + 6; z++) if ((x === x0 || z === z0 || x === x0 + 6 || z === z0 + 6) && (x + z) % 2 === 0) put(x, y + 5, z, st.wall);
   }
-  // 5. Adentro: dos camas al fondo, mesa de trabajo, antorcha y puerta de madera.
-  const back = { x: h.x - h.face[0] * 2, z: h.z - h.face[1] * 2 };
+  // 5. Adentro: camas, hogar con chimenea y los muebles del tipo de casa (ver furnish).
+  const fu = furnish(h);
   for (const b of h.beds) put(b.x, y + 1, b.z, B.BED);
-  put(back.x, y + 1, back.z, B.WORKBENCH);
-  put(h.x + h.face[0] * 2 + h.face[1] * 2, y + 1, h.z + h.face[1] * 2 + h.face[0] * 2, B.TORCH);
+  for (const it of fu.items) put(it.x, y + 1, it.z, it.id);
+  if (st.chimney) { put(fu.fireplace.x, y + 1, fu.fireplace.z, B.FIREPLACE); put(fu.fireplace.x, y + 2, fu.fireplace.z, B.COBBLE); put(fu.fireplace.x, y + 3, fu.fireplace.z, B.COBBLE); }
+  put(fu.torch.x, y + 1, fu.torch.z, B.TORCH);
   put(h.door.x, y + 1, h.door.z, B.DOOR); put(h.door.x, y + 2, h.door.z, B.DOOR);
+  // Flores a los costados de la entrada (si el suelo de afuera está a la altura del piso).
+  for (const it of fu.flowers) if (world.heightAt(it.x, it.z) === y) put(it.x, y + 1, it.z, it.id);
   return out;
+}
+
+// Muebles de una casa según su tipo. Coordenadas locales: u = de costado, v = hacia la puerta.
+// El pasillo central (u = 0) queda libre para ir de la puerta a las camas del fondo.
+export function furnish(h) {
+  const f = h.face; const L = (u, v) => ({ x: h.x + f[1] * u + f[0] * v, z: h.z + f[0] * u + f[1] * v });
+  const kind = ['family', 'workshop', 'farm'][((h.x * 7 + h.z * 13) % 3 + 3) % 3];
+  const items = []; const add = (u, v, id) => items.push({ ...L(u, v), id });
+  const chairs = [];
+  if (kind === 'family') {
+    add(-1, 0, B.TABLE); add(-2, 0, B.CHAIR); add(-1, 1, B.CHAIR); chairs.push(L(-2, 0), L(-1, 1));
+    add(0, -2, B.BOOKSHELF);
+    for (const [u, v] of [[0, -1], [0, 0], [0, 1], [1, -1], [1, 0], [1, 1]]) add(u, v, B.CARPET);
+  } else if (kind === 'workshop') {
+    add(-1, 0, B.ANVIL); add(0, -2, B.WORKBENCH); add(-2, 0, B.BARREL); add(-2, 1, B.BARREL);
+  } else {
+    add(-2, 0, B.HAY); add(-2, 1, B.HAY); add(0, -2, B.BARREL); add(-1, 0, B.TABLE); add(-1, 1, B.CHAIR); chairs.push(L(-1, 1));
+  }
+  const table = items.find((i) => i.id === B.TABLE) ?? null;
+  return {
+    kind, items, chairs, table, fireplace: L(2, -1), torch: L(2, 2),
+    flowers: [{ ...L(-1, 4), id: B.FLOWER_RED }, { ...L(1, 4), id: B.FLOWER_YELLOW }],
+  };
 }
 
 // Chimenea (para el humo): punta de la chimenea de una casa, o null.
 export function chimneyTop(plan, h) {
-  return STYLES[plan.style].chimney ? { x: h.x - 3 + 5 + 0.5, y: h.y + 9.2, z: h.z - 3 + 5 + 0.5 } : null;
+  if (!STYLES[plan.style].chimney || h.isCastle) return null;
+  const f = furnish(h).fireplace;
+  return { x: f.x + 0.5, y: h.y + 10.2, z: f.z + 0.5 };
 }
 
 
@@ -277,7 +306,9 @@ function castleBlueprint(world, plan, h) {
   const f = h.face;
   for (let k = -2; k <= 2; k++) put(h.x + f[0] * k, y, h.z + f[1] * k, B.WOOL_RED);
   const throne = { x: h.x - f[0] * 2, z: h.z - f[1] * 2 };
-  put(throne.x, y + 1, throne.z, B.PLANKS);
+  put(throne.x, y + 1, throne.z, B.THRONE);
+  // Bibliotecas a los costados del trono.
+  for (const sgn of [1, -1]) put(h.x + f[1] * 2 * sgn - f[0] * 1, y + 1, h.z + f[0] * 2 * sgn - f[1] * 1, B.BOOKSHELF);
   for (const s of [1, -1]) {
     put(h.x + f[1] * 3 * s - f[0] * 1, y + 4, h.z + f[0] * 3 * s - f[1] * 1, B.WOOL_BLUE);   // estandartes
     put(h.x + f[1] * 2 * s + f[0] * 1, y + 1, h.z + f[0] * 2 * s + f[1] * 1, B.TORCH);
@@ -294,6 +325,7 @@ function stallBlueprint(plan, s) {
   for (let k = -1; k <= 1; k++) {
     for (let j = -1; j <= 0; j++) for (let yy = y + 1; yy <= y + 3; yy++) put(s.x + px * k + fx * j, yy, s.z + pz * k + fz * j, B.AIR);
     put(s.x + px * k, y + 1, s.z + pz * k, B.PLANKS);
+    if (k !== 0) put(s.x + px * k, y + 2, s.z + pz * k, k < 0 ? B.HAY : B.BARREL);   // mercadería sobre el mostrador
     for (let j = -1; j <= 0; j++) put(s.x + px * k + fx * j, y + 4, s.z + pz * k + fz * j, (k + 2) % 2 ? B.WOOL_RED : B.WOOL_WHITE);
   }
   for (const k of [-1, 1]) for (let yy = y + 1; yy <= y + 3; yy++) put(s.x + px * k - fx, yy, s.z + pz * k - fz, B.LOG);

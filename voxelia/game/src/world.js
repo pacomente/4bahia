@@ -182,6 +182,11 @@ export class World {
           if (id === B.AIR && y <= 9 && y < h - 3) id = B.LAVA;
           if (id) c.set(lx, y, lz, id);
         }
+        // Flores silvestres en llanuras y bosques.
+        if ((biome === 'plains' || biome === 'forest') && h > SEA + 1 && c.get(lx, h, lz) === B.GRASS && c.get(lx, h + 1, lz) === B.AIR) {
+          const fr = hash3(this.seed, x, 321, z);
+          if (fr < 0.03) c.set(lx, h + 1, lz, fr < 0.015 ? B.FLOWER_RED : B.FLOWER_YELLOW);
+        }
         // Suelo de las cuevas: musgo y hongos luminosos.
         for (let y = 10; y < Math.min(h - 5, 44); y++) {
           const below = c.get(lx, y, lz);

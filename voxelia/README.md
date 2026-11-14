@@ -77,6 +77,13 @@ Juego de mundo abierto de bloques para PC, con su propio **launcher**. Todo el c
 - **Incursiones**: algunas noches, un grupo de saqueadores ataca una aldea cercana: van contra los aldeanos que quedaron afuera y se roban la comida de la plaza. Los guardias pelean y al amanecer se retiran.
 - **Inventario con tu personaje**: modelo 3D con la armadura, el escudo y lo que tenés en la mano, que **sigue al cursor** con la mirada.
 
+## Hogar (0.8)
+
+- **Herramientas y materiales rediseñados**: todos los íconos son pixel-art de 32×32 dibujado por código, con contorno, sombra y brillo. Cada nivel tiene su material (madera veteada, piedra, hierro pulido, cristal translúcido con destellos); los lingotes y el carbón tienen volumen, la moneda tiene un sello, y la comida se ve apetitosa. En la mano se ven en 3D, sin el contorno.
+- **Casas amuebladas** en tres tipos: **familiar** (mesa con sillas, alfombra, biblioteca), **taller** (yunque, barriles, mesa de trabajo) y **granja** (fardos de heno, barril, mesa). Todas tienen camas, un **hogar a leña** que ilumina y una **chimenea** justo encima (el humo sale de ahí), y flores en la entrada. El castillo tiene **trono** y bibliotecas; los puestos del mercado muestran mercadería.
+- **Muebles nuevos** que se fabrican en la pestaña **Muebles** del Taller: mesa, sillas (el respaldo se acomoda solo mirando a la mesa o contra la pared), biblioteca, hogar a leña (el fuego da hacia el lado libre), alfombras, barril, fardo de heno, yunque y trono. También hay **flores silvestres** en llanuras y bosques.
+- **Aldeanos en casa**: de noche, antes de dormir, se **sientan a cenar** a la mesa.
+
 ## Controles
 
 | Tecla | Acción |

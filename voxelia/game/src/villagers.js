@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { B, BLOCKS } from './blocks.js';
 import { I } from './items.js';
-import { villagesNear, villagePlan, houseBlueprint, chimneyTop, STYLES, REGION } from './villages.js';
+import { villagesNear, villagePlan, houseBlueprint, chimneyTop, furnish, STYLES, REGION } from './villages.js';
 import { createHumanoid, animateHumanoid, lightHumanoid, makeProp } from './humanoid.js';
 import { standY, stepToward, settle, turnTo } from './walk.js';
 import { hash3 } from './world.js';
@@ -457,7 +457,7 @@ export class Villages {
       if (zombie) speed = 3.3;
     } else if (e.state === 'home' || e.state === 'inside') {
       // Amaneció: se levantan y salen de la casa.
-      e.state = 'leave'; e.path = [e.home.doorCell, e.home.outside]; e.hidden = false; e.sleeping = false;
+      e.state = 'leave'; e.path = [e.home.doorCell, e.home.outside]; e.hidden = false; e.sleeping = false; e.sitting = false; e.dined = false; e.dinnerT = 0;
     }
 
     // 2. Caminos por etapas (afuera → puerta → adentro), abriendo y cerrando la puerta.
@@ -475,8 +475,21 @@ export class Villages {
     // Adentro de noche: a su cama a dormir.
     if (e.state === 'inside') {
       e.hidden = true;
+      // Antes de dormir: cena sentado a la mesa (si la casa tiene sillas).
+      if (!e.dined && !e.sleeping && !e.home.isCastle && v.energy > 0.15) {
+        const fu = furnish(e.home); const mates = e.a.list.filter((o) => o.home === e.home);
+        const chair = fu.chairs[Math.max(0, mates.indexOf(e)) % Math.max(1, fu.chairs.length)];
+        if (!chair) e.dined = true;
+        else if (e.sitting) {
+          e.sitT -= dt; goal = null;
+          if (e.sitT <= 0) { e.sitting = false; e.dined = true; }
+          else if (Math.random() < dt * 0.08 && distPlayer < 12) this.say(e, pick(Math.random, LINES.eat), 2);
+        } else if (Math.hypot(chair.x + 0.5 - e.pos.x, chair.z + 0.5 - e.pos.z) < 1.4) {
+          e.sitting = true; e.sitT = 10 + Math.random() * 8; e.chair = chair; e.chairTable = fu.table;
+        } else { goal = { x: chair.x + 0.5, z: chair.z + 0.5, near: 1.3 }; e.dinnerT = (e.dinnerT ?? 0) + dt; if (e.dinnerT > 12) e.dined = true; }
+      }
       const bed = this.bedOf(e);
-      if (bed && !e.sleeping) {
+      if (bed && !e.sleeping && (e.dined || e.home.isCastle || v.energy <= 0.15)) {
         const bx = bed.x + 0.5; const bz = bed.z + 0.5;
         if (Math.hypot(bx - e.pos.x, bz - e.pos.z) < 1.4 || e.timer < -8) e.sleeping = true;
         else goal = { x: bx, z: bz, near: 1.2 };
@@ -581,6 +594,11 @@ export class Villages {
       root.rotation.set(-Math.PI / 2, Math.atan2(f[0], f[1]), 0);
       root.position.set(bed.x + 0.5 + f[0] * 0.95, e.home.y + 1.62, bed.z + 0.5 + f[1] * 0.95);
       animateHumanoid(e.parts, { t: this.t + e.phase, phase: 0, walk: 0, action: 'sleep', lookYaw: 0 });
+    } else if (e.sitting && e.chair) {
+      // Sentado en la silla, mirando a la mesa, comiendo.
+      root.rotation.set(0, e.chairTable ? Math.atan2(e.chairTable.x - e.chair.x, e.chairTable.z - e.chair.z) : e.heading, 0);
+      root.position.set(e.chair.x + 0.5, e.home.y + 1 - 0.2, e.chair.z + 0.5);
+      animateHumanoid(e.parts, { t: this.t + e.phase, phase: 0, walk: 0, action: 'sit', lookYaw: Math.sin(this.t * 0.5 + e.phase) * 0.3 });
     } else {
       root.rotation.x = 0; root.rotation.z = 0;
       root.position.copy(e.pos);

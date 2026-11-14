@@ -6,6 +6,7 @@ export const B = {
   CRYSTAL: 25, FARO: 26, TORCH: 27, WORKBENCH: 28, ROOF: 29, THATCH: 30, ADOBE: 31,
   FARMLAND: 32, WHEAT_YOUNG: 33, WHEAT_RIPE: 34, BED: 35, DOOR: 36, DOOR_OPEN: 37, WINDOW: 38,
   LAVA: 39, GLOW_MUSHROOM: 40, MOSS: 41, GOLD_ORE: 42, WOOL_BLACK: 43, BARS: 44, CAMPFIRE: 45, LOOT_CHEST: 46,
+  TABLE: 47, CHAIR: 48, BOOKSHELF: 49, FIREPLACE: 50, CARPET: 51, BARREL: 52, HAY: 53, ANVIL: 54, THRONE: 55, FLOWER_RED: 56, FLOWER_YELLOW: 57,
 };
 
 export const BLOCKS = [];
@@ -73,11 +74,23 @@ def(B.WOOL_BLACK, 'Lana negra', 'wool_black', { hardness: 0.4, sound: 'wool' });
 def(B.BARS, 'Barrotes', 'bars', { transparent: true, alpha: true, hardness: 2.5, tool: 'pick' });
 def(B.CAMPFIRE, 'Fogata', 'campfire', { solid: false, transparent: true, hardness: 0.3, emissive: true, sound: 'wood', shape: 'crop', light: 14, drop: B.LOG });
 def(B.LOOT_CHEST, 'Cofre del botín', ['chest_top', 'chest_side', 'planks'], { hardness: 1.5, sound: 'wood', tool: 'axe', drop: 0 });
+// Muebles y decoración del hogar.
+def(B.TABLE, 'Mesa', ['table_top', 'planks', 'planks'], { transparent: true, hardness: 1, sound: 'wood', tool: 'axe', shape: 'table' });
+def(B.CHAIR, 'Silla', 'planks', { transparent: true, hardness: 0.8, sound: 'wood', tool: 'axe', shape: 'chair' });
+def(B.BOOKSHELF, 'Biblioteca', ['planks', 'bookshelf', 'planks'], { hardness: 1.2, sound: 'wood', tool: 'axe' });
+def(B.FIREPLACE, 'Hogar a leña', ['cobble', 'brick', 'cobble'], { transparent: true, hardness: 2, tool: 'pick', shape: 'fireplace', light: 12 });
+def(B.CARPET, 'Alfombra', 'carpet', { solid: false, transparent: true, hardness: 0.1, sound: 'wool', shape: 'carpet' });
+def(B.BARREL, 'Barril', ['barrel_top', 'barrel_side', 'barrel_top'], { hardness: 1.2, sound: 'wood', tool: 'axe' });
+def(B.HAY, 'Fardo de heno', ['hay_top', 'hay_side', 'hay_top'], { hardness: 0.5, sound: 'grass' });
+def(B.ANVIL, 'Yunque', 'anvil', { transparent: true, hardness: 4, tool: 'pick', shape: 'anvil' });
+def(B.THRONE, 'Trono', 'throne', { transparent: true, hardness: 3, sound: 'wood', shape: 'throne' });
+def(B.FLOWER_RED, 'Amapolas', 'flower_red', { solid: false, transparent: true, hardness: 0.05, sound: 'grass', shape: 'crop' });
+def(B.FLOWER_YELLOW, 'Margaritas', 'flower_yellow', { solid: false, transparent: true, hardness: 0.05, sound: 'grass', shape: 'crop' });
 def(B.TORCH, 'Antorcha', 'torch', { solid: false, transparent: true, hardness: 0.05, emissive: true, sound: 'wood', shape: 'torch', light: 13 });
 
 // Bloques disponibles en el inventario creativo (orden de la grilla).
 export const PLACEABLE = [B.GRASS, B.DIRT, B.STONE, B.COBBLE, B.PLANKS, B.LOG, B.BIRCH_LOG, B.LEAVES, B.BIRCH_LEAVES,
-  B.GLASS, B.BRICK, B.SAND, B.GRAVEL, B.CLAY, B.SNOW, B.CACTUS, B.COAL, B.IRON, B.LAMP, B.WOOL_RED, B.WOOL_BLUE, B.WOOL_WHITE, B.CRYSTAL, B.FARO, B.TORCH, B.WORKBENCH, B.ROOF, B.THATCH, B.ADOBE, B.FARMLAND, B.BED, B.DOOR, B.WINDOW, B.MOSS, B.GOLD_ORE, B.WOOL_BLACK, B.BARS, B.GLOW_MUSHROOM, B.CAMPFIRE];
+  B.GLASS, B.BRICK, B.SAND, B.GRAVEL, B.CLAY, B.SNOW, B.CACTUS, B.COAL, B.IRON, B.LAMP, B.WOOL_RED, B.WOOL_BLUE, B.WOOL_WHITE, B.CRYSTAL, B.FARO, B.TORCH, B.WORKBENCH, B.ROOF, B.THATCH, B.ADOBE, B.FARMLAND, B.BED, B.DOOR, B.WINDOW, B.MOSS, B.GOLD_ORE, B.WOOL_BLACK, B.BARS, B.GLOW_MUSHROOM, B.CAMPFIRE, B.TABLE, B.CHAIR, B.BOOKSHELF, B.FIREPLACE, B.CARPET, B.BARREL, B.HAY, B.ANVIL, B.THRONE, B.FLOWER_RED, B.FLOWER_YELLOW];
 
 // Bloques que emiten luz (iluminan alrededor y repelen a las Sombras).
 export const LIGHT_BLOCKS = new Set(BLOCKS.filter((b) => b?.light > 0).map((b) => b.id));

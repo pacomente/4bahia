@@ -14,6 +14,7 @@ export const CATEGORIES = [
   { id: 'build', name: 'Construcción' },
   { id: 'armor', name: 'Armadura' },
   { id: 'food', name: 'Comida' },
+  { id: 'furniture', name: 'Muebles' },
   { id: 'special', name: 'Especial' },
 ];
 
@@ -58,6 +59,15 @@ export const RECIPES = [
       desc: ['Protege la cabeza.', 'La pieza que más protege.', 'Protege las piernas.', 'Protege los pies.'][i] + ' Equipala desde el inventario (E).',
     }));
   }),
+  { id: 'table', name: 'Mesa', in: { [B.PLANKS]: 4 }, out: { [B.TABLE]: 1 }, cat: 'furniture', mesa: true, desc: 'Para comer en familia. Las sillas al lado miran hacia la mesa solas.' },
+  { id: 'chair', name: 'Sillas', in: { [B.PLANKS]: 3 }, out: { [B.CHAIR]: 2 }, cat: 'furniture', mesa: true, desc: 'El respaldo se acomoda solo: mira a la mesa o da la espalda a la pared.' },
+  { id: 'bookshelf', name: 'Biblioteca', in: { [B.PLANKS]: 4, [B.WOOL_WHITE]: 2 }, out: { [B.BOOKSHELF]: 1 }, cat: 'furniture', mesa: true, desc: 'Estante lleno de libros de colores.' },
+  { id: 'fireplace', name: 'Hogar a leña', in: { [B.COBBLE]: 5, [B.BRICK]: 2, [I.COAL]: 1 }, out: { [B.FIREPLACE]: 1 }, cat: 'furniture', mesa: true, desc: 'Ilumina y abriga. El fuego mira hacia el lado libre de la habitación.' },
+  { id: 'carpet', name: 'Alfombras', in: { [B.WOOL_RED]: 2 }, out: { [B.CARPET]: 4 }, cat: 'furniture', mesa: true, desc: 'Finitas: se camina por encima.' },
+  { id: 'barrel', name: 'Barril', in: { [B.PLANKS]: 5, [I.IRON]: 1 }, out: { [B.BARREL]: 1 }, cat: 'furniture', mesa: true, desc: 'De roble con aros de hierro.' },
+  { id: 'hay', name: 'Fardo de heno', in: { [I.WHEAT]: 6 }, out: { [B.HAY]: 1 }, cat: 'furniture', desc: 'Trigo atado: decora graneros y establos.' },
+  { id: 'anvil', name: 'Yunque', in: { [I.IRON]: 6 }, out: { [B.ANVIL]: 1 }, cat: 'furniture', mesa: true, desc: 'El corazón de cualquier herrería.' },
+  { id: 'throne', name: 'Trono', in: { [I.GOLD]: 4, [B.WOOL_RED]: 3 }, out: { [B.THRONE]: 1 }, cat: 'furniture', mesa: true, desc: 'Para tu propio castillo.' },
   { id: 'glass', name: 'Vidrio', in: { [B.SAND]: 2, [I.COAL]: 1 }, out: { [B.GLASS]: 2 }, cat: 'build', mesa: true, desc: 'Ventanas transparentes.' },
   { id: 'brick', name: 'Ladrillo', in: { [B.CLAY]: 2, [I.COAL]: 1 }, out: { [B.BRICK]: 4 }, cat: 'build', mesa: true, desc: 'Arcilla cocida, firme y prolija.' },
   { id: 'lamp', name: 'Lámpara', in: { [B.GLASS]: 1, [I.COAL]: 2 }, out: { [B.LAMP]: 2 }, cat: 'light', mesa: true, desc: 'Ilumina más que una antorcha y es un bloque sólido.' },

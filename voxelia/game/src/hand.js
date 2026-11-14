@@ -93,22 +93,25 @@ export class Hand {
   itemMesh(id) {
     const it = ITEMS[id];
     if (it?.glow) this.glow = 1;
-    const c = itemCanvas(id, 16);
-    const d = c.getContext('2d').getImageData(0, 0, 16, 16).data;
+    const G = 32;   // los íconos son de 32×32
+    const c = itemCanvas(id, G);
+    const d = c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, G, G).data;
     const pos = []; const col = []; const idx = [];
-    const px = 0.034; const depth = 0.035;
+    const px = 0.017; const depth = 0.035;
     const color = new THREE.Color();
-    const solid = (x, y) => x >= 0 && y >= 0 && x < 16 && y < 16 && d[(y * 16 + x) * 4 + 3] > 40;
+    // En 3D no hace falta el contorno oscuro del ícono (ya se ve el volumen).
+    const isOutline = (i) => d[i] === 27 && d[i + 1] === 21 && d[i + 2] === 18;
+    const solid = (x, y) => x >= 0 && y >= 0 && x < G && y < G && d[(y * G + x) * 4 + 3] > 40 && !isOutline((y * G + x) * 4);
     const quad = (pts, shade, rgb) => {
       const n = pos.length / 3;
       for (const p of pts) { pos.push(...p); col.push(rgb.r * shade, rgb.g * shade, rgb.b * shade); }
       idx.push(n, n + 1, n + 2, n, n + 2, n + 3);
     };
-    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) {
       if (!solid(x, y)) continue;
-      const i = (y * 16 + x) * 4;
+      const i = (y * G + x) * 4;
       color.setRGB(d[i] / 255, d[i + 1] / 255, d[i + 2] / 255, THREE.SRGBColorSpace);
-      const x0 = (x - 8) * px; const x1 = x0 + px; const y1 = (8 - y) * px; const y0 = y1 - px; const z0 = -depth / 2; const z1 = depth / 2;
+      const x0 = (x - G / 2) * px; const x1 = x0 + px; const y1 = (G / 2 - y) * px; const y0 = y1 - px; const z0 = -depth / 2; const z1 = depth / 2;
       quad([[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], 1, color);          // frente
       quad([[x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0]], 0.7, color);        // atrás
       if (!solid(x, y - 1)) quad([[x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0]], 0.9, color);

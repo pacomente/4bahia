@@ -149,6 +149,7 @@ export function animateHumanoid(p, s) {
   if (s.action === 'chop') { const k = Math.abs(Math.sin(s.t * 4)); aR = -1.9 + k * 1.4; aL = -1.7 + k * 1.3; p.body.rotation.y = -0.4 + k * 0.5; }
   else p.body.rotation.y = 0;
   if (s.action === 'eat') { aR = -2.3 + Math.abs(Math.sin(s.t * 6)) * 0.25; aRz = 0.5; p.head.rotation.x = 0.1 + Math.sin(s.t * 12) * 0.05; }
+  if (s.action === 'sit') { p.legL.rotation.x = -Math.PI / 2; p.legR.rotation.x = -Math.PI / 2; aR = -1.1 + Math.abs(Math.sin(s.t * 3)) * 0.4; aL = -0.7; p.body.position.y = Math.sin(s.t * 1.8) * 0.006; }
   if (s.action === 'sleep') { aR = 0; aL = 0; p.legL.rotation.x = 0; p.legR.rotation.x = 0; p.head.rotation.y = 0; p.head.rotation.x = 0; p.body.position.y = Math.sin(s.t * 1.2) * 0.01; }
   p.armL.rotation.x = aL; p.armR.rotation.x = aR; p.armL.rotation.z = aLz; p.armR.rotation.z = aRz;
 }

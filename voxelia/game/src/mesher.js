@@ -86,35 +86,59 @@ function shapeQuads(out, get, x, y, z, id, b, em, sky) {
     }
     return;
   }
-  let box;
-  if (b.shape === 'bed') box = [0, 0, 0, 1, 9 / 16, 1];
-  else {
-    // Pared a lo largo de x (bloques sólidos a los costados en x) → la puerta ocupa todo x y es fina en z.
-    const solidAt = (dx, dz) => { const n = get(x + dx, y, z + dz); return n !== B.AIR && BLOCKS[n].solid && n !== B.DOOR; };
-    const alongX = solidAt(1, 0) || solidAt(-1, 0) || !(solidAt(0, 1) || solidAt(0, -1));
-    const mid0 = 0.5 - DOOR_T / 2; const mid1 = 0.5 + DOOR_T / 2;
-    if (b.shape === 'door') box = alongX ? [0, 0, mid0, 1, 1, mid1] : [mid0, 0, 0, mid1, 1, 1];
-    else box = alongX ? [0, 0, 0, DOOR_T, 1, 1] : [0, 0, 0, 1, 1, DOOR_T];   // abierta: pegada a la bisagra
-  }
-  for (const f of FACES) {
-    const [dx, dy, dz] = f.dir;
-    // Caras pegadas a un bloque opaco no se ven.
-    const flush = (dx === 1 && box[3] === 1) || (dx === -1 && box[0] === 0) || (dy === 1 && box[4] === 1) || (dy === -1 && box[1] === 0) || (dz === 1 && box[5] === 1) || (dz === -1 && box[2] === 0);
-    if (flush) { const n = get(x + dx, y + dy, z + dz); if (n !== B.AIR && !BLOCKS[n].transparent) continue; }
-    const [u0, v0, u1, v1] = uvRect(b.tex[f.tex]);
-    const pos = []; const uv = [];
-    for (let i = 0; i < 4; i++) {
-      const c = f.corners[i];
-      const px = c[0] ? box[3] : box[0]; const py = c[1] ? box[4] : box[1]; const pz = c[2] ? box[5] : box[2];
-      pos.push([x + px, y + py, z + pz]);
-      // UV según la posición dentro del bloque en el plano de la cara (las caras finas toman una franja).
-      let fu; let fv;
-      if (dx) { fu = dx > 0 ? 1 - pz : pz; fv = py; } else if (dz) { fu = dz > 0 ? px : 1 - px; fv = py; } else { fu = px; fv = dy > 0 ? 1 - pz : pz; }
-      if (b.shape === 'bed' && !dy) fv = py + (1 - 9 / 16);   // los costados de la cama usan la parte de arriba de la textura
-      uv.push([u0 + (u1 - u0) * fu, v0 + (v1 - v0) * fv]);
+  const P = 1 / 16;
+  const solidAt = (dx, dz) => { const n = get(x + dx, y, z + dz); return n !== B.AIR && BLOCKS[n].solid && n !== B.DOOR; };
+  // Hacia dónde mira un asiento: hacia una mesa vecina; si no, de espaldas a la pared.
+  const facing = () => {
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (get(x + dx, y, z + dz) === B.TABLE) return [dx, dz];
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (solidAt(dx, dz)) return [-dx, -dz];
+    return [0, 1];
+  };
+  // Respaldo del lado contrario a donde mira.
+  const backBox = ([fx, fz], y0, y1, t = 2 * P) => (fx === 1 ? [0, y0, 0, t, y1, 1] : fx === -1 ? [1 - t, y0, 0, 1, y1, 1] : fz === 1 ? [0, y0, 0, 1, y1, t] : [0, y0, 1 - t, 1, y1, 1]);
+  const legs = (h, i = 2, w = 2) => [[i, i], [16 - i - w, i], [i, 16 - i - w], [16 - i - w, 16 - i - w]].map(([a, c]) => [a * P, 0, c * P, (a + w) * P, h, (c + w) * P]);
+  let boxes;
+  switch (b.shape) {
+    case 'bed': boxes = [[0, 0, 0, 1, 9 / 16, 1]]; break;
+    case 'table': boxes = [[0, 13 * P, 0, 1, 1, 1], ...legs(13 * P, 1)]; break;
+    case 'chair': { const f = facing(); boxes = [[2 * P, 7 * P, 2 * P, 14 * P, 9 * P, 14 * P], ...legs(7 * P, 2), backBox(f, 9 * P, 1)]; break; }
+    case 'throne': { const f = facing(); boxes = [[1 * P, 0, 1 * P, 15 * P, 8 * P, 15 * P], backBox(f, 8 * P, 1, 3 * P), ...(f[0] ? [[1 * P, 8 * P, 0, 15 * P, 11 * P, 2 * P], [1 * P, 8 * P, 14 * P, 15 * P, 11 * P, 1]] : [[0, 8 * P, 1 * P, 2 * P, 11 * P, 15 * P], [14 * P, 8 * P, 1 * P, 1, 11 * P, 15 * P]])]; break; }
+    case 'carpet': boxes = [[0, 0, 0, 1, P, 1]]; break;
+    case 'anvil': boxes = [[2 * P, 0, 3 * P, 14 * P, 4 * P, 13 * P], [5 * P, 4 * P, 5 * P, 11 * P, 9 * P, 11 * P], [0, 9 * P, 4 * P, 1, 1, 12 * P]]; break;
+    case 'fireplace': boxes = [[0, 0, 0, 1, 1, 1]]; break;
+    default: {
+      // Puertas: pared a lo largo de x → la puerta ocupa todo x y es fina en z.
+      const alongX = solidAt(1, 0) || solidAt(-1, 0) || !(solidAt(0, 1) || solidAt(0, -1));
+      const mid0 = 0.5 - DOOR_T / 2; const mid1 = 0.5 + DOOR_T / 2;
+      if (b.shape === 'door') boxes = [alongX ? [0, 0, mid0, 1, 1, mid1] : [mid0, 0, 0, mid1, 1, 1]];
+      else boxes = [alongX ? [0, 0, 0, DOOR_T, 1, 1] : [0, 0, 0, 1, 1, DOOR_T]];   // abierta: pegada a la bisagra
     }
-    const l = f.light;
-    out.quad(pos, uv, [l, l, l, l], em, false, sky);
+  }
+  for (const box of boxes) {
+    for (const f of FACES) {
+      const [dx, dy, dz] = f.dir;
+      // Caras pegadas a un bloque opaco no se ven.
+      const flush = (dx === 1 && box[3] === 1) || (dx === -1 && box[0] === 0) || (dy === 1 && box[4] === 1) || (dy === -1 && box[1] === 0) || (dz === 1 && box[5] === 1) || (dz === -1 && box[2] === 0);
+      const n = flush ? get(x + dx, y + dy, z + dz) : B.AIR;
+      if (flush && n !== B.AIR && !BLOCKS[n].transparent) continue;
+      // Hogar: la boca con fuego da hacia el lado libre (el cuarto) y brilla.
+      const fire = b.shape === 'fireplace' && !dy && !BLOCKS[n].solid;
+      const tex = fire ? 'fireplace' : b.tex[f.tex];
+      const [u0, v0, u1, v1] = uvRect(tex);
+      const pos = []; const uv = [];
+      for (let i = 0; i < 4; i++) {
+        const c = f.corners[i];
+        const px = c[0] ? box[3] : box[0]; const py = c[1] ? box[4] : box[1]; const pz = c[2] ? box[5] : box[2];
+        pos.push([x + px, y + py, z + pz]);
+        // UV según la posición dentro del bloque en el plano de la cara (las caras finas toman una franja).
+        let fu; let fv;
+        if (dx) { fu = dx > 0 ? 1 - pz : pz; fv = py; } else if (dz) { fu = dz > 0 ? px : 1 - px; fv = py; } else { fu = px; fv = dy > 0 ? 1 - pz : pz; }
+        if (b.shape === 'bed' && !dy) fv = py + (1 - 9 / 16);   // los costados de la cama usan la parte de arriba de la textura
+        uv.push([u0 + (u1 - u0) * fu, v0 + (v1 - v0) * fv]);
+      }
+      const l = f.light;
+      out.quad(pos, uv, [l, l, l, l], fire ? 1 : em, false, sky);
+    }
   }
 }
 

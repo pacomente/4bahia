@@ -6,6 +6,7 @@ let worlds = [];
 let settings = {};
 
 const NEWS = [
+  { date: '14/11/2026', title: 'Voxelia 0.8 — Hogar', items: ['Herramientas, armas, armaduras, materiales y comida rediseñados en pixel-art de 32×32', 'Casas amuebladas: mesas, sillas, hogar a leña con chimenea, bibliotecas, alfombras, barriles, heno y yunque', 'Tres tipos de casa: familiar, taller y granja; flores en la entrada', 'De noche los aldeanos se sientan a cenar antes de ir a dormir', 'Trono en el castillo y mercadería en los puestos del mercado', 'Pestaña Muebles en el Taller para decorar tu propia casa'] },
   { date: '14/11/2026', title: 'Voxelia 0.7 — Profundidades y saqueadores', items: ['Cavernas enormes, grietas que abren la superficie y lagos de lava en el fondo', 'Hongos luminosos y musgo en las cuevas; oro en lo profundo', 'Campamentos de saqueadores con empalizada, carpas, jaulas con prisioneros y cofre del botín', 'Saqueadores con hacha, arqueros que te disparan y un jefe con barra de vida', 'De noche hacen incursiones a las aldeas: los guardias los enfrentan', 'Tu personaje en el inventario sigue el cursor; muchos errores corregidos'] },
   { date: '13/11/2026', title: 'Voxelia 0.6 — Reino', items: ['Rey o reina en un castillo (o jefe/a): encargos que se pagan en plata y rangos de Plebeyo a Héroe', 'Monedas de plata: comprá y vendé con cada oficio; mercado con puestos en la plaza', 'Armadura acolchada, de hierro y de cristal; escudo que se levanta con clic derecho o V', 'Comida: manzanas, trigo, pan y pastel. Campos que crecen y se cosechan', 'Camas para dormir hasta la mañana, puertas que se abren y ventanas', 'Aldeanos con hambre, sueño y ánimo: duermen en sus camas, almuerzan, forman parejas y tienen hijos'] },
   { date: '13/11/2026', title: 'Voxelia 0.5 — Aldeas vivas', items: ['Aldeas medievales (con torre de vigilancia), del bosque, del desierto y de la nieve', 'Aldeanos con nombre, oficio y personalidad: charlan, saludan y hacen trueques', 'De noche se esconden en sus casas; los guardias patrullan con antorchas', 'La población crece y el constructor levanta casas nuevas bloque por bloque', 'Zombis nocturnos que al amanecer se esconden en la sombra o se queman', 'Arco y flechas, escudo, y el herrero repara herramientas'] },
@@ -149,7 +150,7 @@ function browserApi() {
       const p = JSON.parse(localStorage.getItem('voxelia_profile') ?? '{"name":"Jugador"}');
       location.href = `../dist/game/index.html?${new URLSearchParams({ world: w.id, name: w.name, seed: w.seed, mode: w.mode, player: p.name, from: 'launcher' })}`;
     },
-    info: async () => ({ version: '0.7.0', dataPath: 'Navegador (localStorage)', platform: 'web' }),
+    info: async () => ({ version: '0.8.0', dataPath: 'Navegador (localStorage)', platform: 'web' }),
     openDataFolder: async () => toast('Disponible en la app de escritorio'),
   };
 }
