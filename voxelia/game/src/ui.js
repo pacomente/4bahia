@@ -180,6 +180,7 @@ export class UI {
     $('#v-village').innerHTML = `${info.levelName} <b>${info.village}</b> (${info.style}) · ${info.pop}/${info.cap} habitantes · ${info.homes} casas${info.building ? ' · <span class="busy">construyendo</span>' : ''} · <i>${info.repText}</i>`
       + (info.economy ? `<div class="v-stock">Economía${info.port ? ' de puerto' : ''}: ${info.economy.cheap.length ? `<span class="cheap">barato: ${info.economy.cheap.join(', ')}</span>` : ''}${info.economy.dear.length ? ` · <span class="dear">caro: ${info.economy.dear.join(', ')}</span>` : ''}${info.economy.imports ? ' · <b>llegó un barco: lo importado está más barato</b>' : ''}</div>` : '')
       + `<div class="v-stock">💰 Bolsa: ${info.silver} de plata${info.treasury !== null && info.treasury !== undefined ? ` · 👑 Tesoro real: ${info.treasury}` : ''}${info.edu ? ` · 📚 Fue ${info.edu} ${info.edu === 1 ? 'vez' : 'veces'} a la escuela` : ''}${info.buildings?.length ? ` · Tiene ${info.buildings.join(', ')}` : ''}</div>`
+      + ((info.family?.length || info.relations?.length || info.festival) ? `<div class="v-stock">${info.festival ? '🎉 <b>¡Hoy es día de fiesta!</b> ' : ''}${info.family?.length ? `👪 ${info.family.join(' · ')} ` : ''}${info.relations?.length ? `· ${info.relations.map((r) => (r.rel === 'ally' ? `🤝 aliada de ${r.name}` : `⚔ rival de ${r.name}`)).join(' · ')}` : ''}</div>` : '')
       + `<div class="v-stock">Reservas: 🍞 ${info.stock.food} · 🪵 ${info.stock.wood} · 🪨 ${info.stock.stone}${info.partner ? ` · Pareja: ${info.partner}` : ''}${info.moodWhy.length ? ` · ${info.moodWhy.join(', ')}` : ''}</div>`;
     $('#v-line').textContent = `“${info.line}”`;
     const silver = inventory[131] ?? 0;
@@ -187,7 +188,13 @@ export class UI {
     const coin = `<img class="coin" src="${this.icon(131)}" alt="plata">`;
     // Encargo del rey.
     const q = info.quest;
-    $('#v-quest').hidden = !info.king;
+    $('#v-quest').hidden = !info.king && !info.request;
+    if (!info.king && info.request) {
+      const rq = info.request; const ready = (inventory[rq.id] ?? 0) >= rq.n;
+      $('#v-quest').innerHTML = `<h3 class="v-title">Encargo de ${info.name}</h3><div class="quest"><div>${rq.text}<small>${this.name(rq.id)}: tenés ${inventory[rq.id] ?? 0}/${rq.n} · Recompensa: ${rq.reward} de plata</small></div>
+        <button class="mc-btn small ${ready ? 'primary' : ''}" id="q-done" ${ready ? '' : 'disabled'}>Entregar</button></div>`;
+      $('#q-done')?.addEventListener('click', on.request);
+    }
     if (info.king) {
       const ready = q && (q.kind === 'deliver' ? (inventory[q.id] ?? 0) >= q.n : q.progress >= q.n);
       $('#v-quest').innerHTML = q ? `<h3 class="v-title">Encargo real</h3><div class="quest"><div>${q.text}<small>${q.kind === 'deliver' ? `Tenés ${inventory[q.id] ?? 0}/${q.n}` : `Zombis: ${q.progress}/${q.n} (de noche, cerca de la aldea)`} · Recompensa: ${q.reward} ${coin}</small></div>
@@ -211,7 +218,7 @@ export class UI {
     $('#v-trades').innerHTML = info.trades.map((t, i) => `
       <div class="trade ${has(t.give) ? 'ok' : ''}">
         <div class="give">${items(t.give)}</div><span class="arrow">➜</span>
-        <div class="get">${t.upgrade ? '<span class="ti repair">⚒<small>Reforzar lo que tenés en la mano (+1, hasta +3): plata y hierro</small></span>' : t.repair ? '<span class="ti repair">🔧<small>Reparar la herramienta en la mano</small></span>' : items(t.get)}</div>
+        <div class="get">${t.heal ? '<span class="ti repair">❤<small>Curarte todas las heridas</small></span>' : t.reveal ? '<span class="ti repair">🗺<small>Marcar en tu mapa las ruinas y guaridas de la comarca</small></span>' : t.upgrade ? '<span class="ti repair">⚒<small>Reforzar lo que tenés en la mano (+1, hasta +3): plata y hierro</small></span>' : t.repair ? '<span class="ti repair">🔧<small>Reparar la herramienta en la mano</small></span>' : items(t.get)}</div>
         <button class="mc-btn small ${has(t.give) ? 'primary' : ''}" data-t="${i}" ${has(t.give) ? '' : 'disabled'}>Cambiar</button>
       </div>`).join('');
     $('#v-trades').querySelectorAll('[data-t]').forEach((b) => b.addEventListener('click', () => on.trade(info.trades[Number(b.dataset.t)])));

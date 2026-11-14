@@ -21,6 +21,7 @@ import { Animals } from './animals.js';
 import { Sea } from './sea.js';
 import { navFrame } from './pathfind.js';
 import { Creatures, lairsNear } from './creatures.js';
+import { BOOKS, relation, isFestival } from './society.js';
 import { wrecksNear, treasure } from './wrecks.js';
 import { Caravans, tradeGoods, applyTrade, GOODS_NAME } from './caravans.js';
 import { linksOf, routeOf } from './roads.js';
@@ -105,11 +106,14 @@ export class Game {
     this.caravans = new Caravans(this.scene, this.world, this.animals);
     this.creatures = new Creatures(this.scene, this.world, this.sound);
     this.killedLairs = save?.killedLairs ?? [];
+    this.journal = save?.journal ?? [];          // diario: lo que fue pasando
+    this.metNames = save?.metNames ?? [];        // gente que conociste (nombre · aldea)
     this.sea.load(save?.boats);
     this.minimap = new MiniMap(this.atlasCanvas, this.world);
     this.hand = new Hand(this.atlasTex);
     // Aldeas con sus aldeanos, zombis nocturnos y flechas.
     this.villages = new Villages(this.scene, this.world, this.sound, save?.villages);
+    this.villages.onSuccession = (plan, heir) => { if (Math.hypot(plan.x - this.player.pos.x, plan.z - this.player.pos.z) < 100) this.ui.toast(`👑 Murió quien gobernaba ${plan.name}. ${heir.name} toma su lugar.`, 4500); this.logEvent(`${heir.name} asumió en ${plan.name}.`); };
     this.zombies = new Zombies(this.scene, this.world, this.sound);
     this.bandits = new Bandits(this.scene, this.world, this.sound, save?.bandits);
     this.lavaT = 0; this.campNow = null;
@@ -306,7 +310,8 @@ export class Game {
       const busy = this.dead || this.sleeping || this.villagerOpen || (this.paused && !this.inventoryOpen && !this.craftOpen && !this.mapOpen);
       if (e.code === 'KeyE' && this.started && !busy && !this.craftOpen && !this.mapOpen) { this.toggleInventory(); return; }
       if (e.code === 'KeyC' && this.started && !busy && this.mode === 'survival' && !this.inventoryOpen && !this.mapOpen) { this.toggleCraft(); return; }
-      if (e.code === 'KeyM' && this.started && !busy && !this.inventoryOpen && !this.craftOpen) { this.toggleMap(); return; }
+      if (e.code === 'KeyM' && this.started && !busy && !this.inventoryOpen && !this.craftOpen && !this.journalOpen) { this.toggleMap(); return; }
+      if (e.code === 'KeyJ' && this.started && (this.journalOpen || (!busy && !this.inventoryOpen && !this.craftOpen && !this.mapOpen))) { this.toggleJournal(); return; }
       if (e.code === 'KeyV') this.keyV = true;
       if (this.paused) return;
       if (keymap[e.code]) this.player.input[keymap[e.code]] = 1;
@@ -656,6 +661,8 @@ export class Game {
     }
     for (const ev of this.villages.dawn()) {
       if (!ev.near) continue;
+      if (ev.type === 'born') this.logEvent(`Nació ${ev.name} en ${ev.village}.`);
+      if (ev.type === 'king') { this.ui.toast(`👑 ${ev.name} es ${ev.female ? 'la nueva reina' : 'el nuevo rey'} de ${ev.village}.`, 4000); this.logEvent(`${ev.name} asumió el trono de ${ev.village}.`); }
       if (ev.type === 'born') this.ui.toast(`¡Nació ${ev.name} en ${ev.village}${ev.parents?.length ? `, hij${ev.female ? 'a' : 'o'} de ${ev.parents.join(' y ')}` : ''}! Ya son ${ev.pop}.`, 4500);
       if (ev.type === 'grown') this.ui.toast(`${ev.name} ya es grande en ${ev.village}.`, 3000);
       if (ev.type === 'couple') this.ui.toast(`${ev.a} y ${ev.b} se pusieron de novios en ${ev.village}.`, 3500);
@@ -716,6 +723,28 @@ export class Game {
   }
 
   // Mapa grande (M): muestra lo explorado alrededor, faros y punto de reaparición.
+  // ───── Diario de viaje y libros ─────
+  logEvent(text) { this.journal.unshift({ day: this.stats.nights + 1, text }); this.journal.length = Math.min(this.journal.length, 80); this.villages.addGossip?.({ type: 'none' }); }
+  toggleJournal(book = null) {
+    this.journalOpen = !this.journalOpen;
+    this.ui.show('#journal-screen', this.journalOpen);
+    if (!this.journalOpen) { this.paused = false; this.lock(); return; }
+    this.paused = true; this.unlock();
+    const $ = (s) => document.querySelector(s);
+    const esc = (t) => String(t).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+    if (book) { $('#j-title').textContent = book[0]; $('#j-body').innerHTML = `<div class="book">${esc(book[1])}</div>`; return; }
+    $('#j-title').textContent = `Diario de viaje de ${this.playerName}`;
+    const villages = [...this.villages.records.entries()].map(([id, rec]) => { const [rx, rz] = id.slice(1).split('_').map(Number); const p = villagePlan(this.world, rx, rz); return p ? `<li><b>${esc(p.name)}</b> · ${rec.villagers.length} habitantes · ${rec.rep >= 8 ? 'te adoran' : rec.rep >= 3 ? 'te aprecian' : rec.rep <= -5 ? 'desconfían de vos' : 'te conocen poco'}</li>` : ''; }).join('');
+    const s = this.stats;
+    const feats = [['Noches sobrevividas', s.nights], ['Aldeas visitadas', s.visited], ['Encargos cumplidos', s.honor], ['Ruinas exploradas', s.ruins], ['Tesoros desenterrados', s.treasures], ['Peces pescados', s.fished], ['Platos cocinados', s.cooked], ['Prisioneros liberados', s.freed], ['Jefes saqueadores vencidos', s.leaders], ['Dragones vencidos', s.dragons], ['Serpientes marinas', s.serpents], ['Perros', s.pets]].filter(([, v]) => v).map(([k, v]) => `<div>${k}: <b>${v}</b></div>`).join('');
+    $('#j-body').innerHTML = `<h3>Hazañas</h3><div class="feats">${feats || '<span class="muted">Todavía nada… ¡a explorar!</span>'}</div>
+      <h3>Pueblos conocidos</h3><ul>${villages || '<li class="muted">Ninguno todavía.</li>'}</ul>
+      <h3>Gente que conociste</h3><p>${this.metNames.slice(0, 40).map(esc).join(', ') || '<span class="muted">Nadie todavía.</span>'}</p>
+      <h3>Lo que fue pasando</h3><ul>${this.journal.slice(0, 30).map((j) => `<li><small class="muted">Día ${j.day}</small> ${esc(j.text)}</li>`).join('') || '<li class="muted">Nada para contar todavía.</li>'}</ul>
+      <h3>Chismes que escuchaste</h3><ul>${this.villages.gossip.slice(0, 8).map((g) => `<li>${esc(g)}</li>`).join('') || '<li class="muted">Ninguno.</li>'}</ul>`;
+  }
+  readBook() { const b = BOOKS[Math.floor(Math.random() * BOOKS.length)]; this.toggleJournal(b); this.stats.books = (this.stats.books ?? 0) + 1; }
+
   toggleMap() {
     this.mapOpen = !this.mapOpen;
     this.ui.show('#map-screen', this.mapOpen);
@@ -918,6 +947,7 @@ export class Game {
     if (COOKS[held] && t && (t.id === B.CAMPFIRE || t.id === B.FIREPLACE || t.id === B.OVEN)) { this.startCooking(t, held); return true; }
     if (held === I.ROD) return this.castOrReel();
     if (held === I.TREASURE_MAP) { this.readMap(); return true; }
+    if (held === I.BOOK) { this.readBook(); return true; }
     if (t?.id === B.BEEHIVE && !this.player.sneaking) { this.harvestHive(t); return true; }
     if (isFood(held)) { if (this.health < this.maxHealth || this.food < 20 || this.player.stamina < 95 || this.mode === 'creative') this.eat(held); else this.ui.toast('No tenés hambre', 1400); return true; }
     // Arar: pala sobre pasto o tierra.
@@ -1054,10 +1084,12 @@ export class Game {
           this.killedLairs.push(lair.id);
           if (this.mode === 'survival') { this.addItem(I.DRAGON_SCALE, 3); this.addItem(I.GOLD, 10); this.addItem(I.SILVER, 150); }
           this.ui.toast('🐉 ¡Venciste al dragón de las montañas! Escamas de dragón, oro y plata.', 6000);
+          this.villages.addGossip({ type: 'dragon' }); this.logEvent('¡Venciste al dragón de las montañas!');
           this.stats.dragons = (this.stats.dragons ?? 0) + 1;
         } else {
           if (this.mode === 'survival') { this.addItem(I.SERPENT_FANG, 1); this.addItem(I.PEARL, 4); }
           this.ui.toast('🐍 ¡La serpiente marina se hundió! Te dejó un colmillo y perlas.', 5000);
+          this.villages.addGossip({ type: 'serpent' }); this.logEvent('Hundiste a la serpiente marina.');
           this.stats.serpents = (this.stats.serpents ?? 0) + 1;
         }
         for (let k = 0; k < 6; k++) setTimeout(() => this.sound.tone(392 * Math.pow(1.19, k), 0.25, 0.12, 'triangle'), k * 140);
@@ -1093,7 +1125,7 @@ export class Game {
       onArrive: (c) => {
         const from = this.villages.record(c.from); const to = this.villages.record(c.to);
         const g = c.goods ?? tradeGoods(from, to);
-        if (g) applyTrade(from, to, g);
+        if (g) { applyTrade(from, to, g); this.villages.addGossip({ type: 'caravan', from: c.from.name, to: c.to.name, goods: GOODS_NAME[g.kind] }); }
         if (Math.hypot(c.mesh.position.x - pp.x, c.mesh.position.z - pp.z) < 90) {
           this.stats.caravans = (this.stats.caravans ?? 0) + 1; this.checkMissions();
           this.ui.toast(g ? `🐴 Llegó la carreta de ${c.from.name} a ${c.to.name}: ${g.n} de ${GOODS_NAME[g.kind]} por ${g.price} de plata` : `🐴 Llegó la carreta de ${c.from.name} a ${c.to.name} de visita`, 4000);
@@ -1116,6 +1148,7 @@ export class Game {
         const d = Math.hypot(pos.x - pp.x, pos.z - pp.z);
         if (d < 120) {
           this.ui.toast(`⚓ Llegó un barco mercante a ${plan.name}: hay gemas, hierro y lana más baratos`, 4500);
+          this.villages.addGossip({ type: 'ship', village: plan.name });
           const g = Math.max(0.05, 0.35 * (1 - d / 120));
           this.sound.tone(147, 1.1, g, 'sawtooth'); setTimeout(() => this.sound.tone(110, 1.4, g, 'sawtooth'), 900);
         }
@@ -1156,7 +1189,12 @@ export class Game {
         const g = Math.max(0.05, 0.25 * (1 - d / 90));
         [0, 350, 700].forEach((ms) => setTimeout(() => this.sound.tone(196, 0.3, g, 'sawtooth'), ms));
       },
-      onVictory: (plan) => { if (Math.hypot(plan.x - this.player.pos.x, plan.z - this.player.pos.z) < 70) this.ui.toast(`🛡 Los guardias de ${plan.name} defendieron la aldea`, 3000); },
+      onVictory: (plan) => { this.villages.addGossip({ type: 'defended', village: plan.name }); if (Math.hypot(plan.x - this.player.pos.x, plan.z - this.player.pos.z) < 70) this.ui.toast(`🛡 Los guardias de ${plan.name} defendieron la aldea`, 3000); },
+      onWedding: (plan, w) => {
+        if (!w || w.done) return; w.done = true;
+        this.villages.addGossip({ type: 'wedding', a: w.a, b: w.b, village: plan.name });
+        if (Math.hypot(plan.x - this.player.pos.x, plan.z - this.player.pos.z) < 80) { this.ui.toast(`💍 ¡Se casaron ${w.a} y ${w.b} en ${plan.name}!`, 4000); this.logEvent(`Fuiste al casamiento de ${w.a} y ${w.b} en ${plan.name}.`); [523, 659, 784, 1046].forEach((f, k) => setTimeout(() => this.sound.tone(f, 0.4, 0.1, 'sine'), k * 220)); }
+      },
     };
   }
 
@@ -1168,6 +1206,7 @@ export class Game {
     e.state = 'idle'; e.timer = 6;
     e.heading = Math.atan2(this.player.pos.x - e.pos.x, this.player.pos.z - e.pos.z);
     this.stats.met = (this.stats.met ?? 0) + 1;
+    { const tag = `${e.data.name} (${e.a.plan.name})`; if (!this.metNames.includes(tag)) { this.metNames.unshift(tag); this.metNames.length = Math.min(this.metNames.length, 200); } }
     this.renderVillager();
     this.ui.show('#villager-screen', true);
     this.sound.tone(440 + Math.random() * 200, 0.08, 0.1, 'triangle');
@@ -1182,7 +1221,8 @@ export class Game {
   renderVillager() {
     const e = this.talkingTo; if (!e) return;
     if (e.data.prof === 'king') this.villages.ensureQuest(e);
-    this.ui.renderVillager(this.villages.info(e, { honor: this.stats.honor ?? 0 }), this.inventory, this.mode, {
+    this.ui.renderVillager(this.villages.info(e, { honor: this.stats.honor ?? 0, name: this.playerName }), this.inventory, this.mode, {
+      request: () => this.deliverRequest(e),
       trade: (tr) => this.trade(e, tr),
       buy: (it) => this.buy(e, it),
       sell: (id, all) => this.sell(e, id, all),
@@ -1220,6 +1260,16 @@ export class Game {
 
   coinSound() { this.sound.tone(1320, 0.06, 0.12, 'square'); setTimeout(() => this.sound.tone(1760, 0.1, 0.1, 'square'), 60); }
 
+  deliverRequest(e) {
+    const reward = this.villages.completeRequest(e, this.inventory);
+    if (!reward) { this.ui.toast('Todavía no tenés lo que te pidió', 1800); return; }
+    this.addItem(I.SILVER, reward);
+    this.ui.toast(`¡Encargo de ${e.data.name} cumplido! +${reward} de plata.`, 3000);
+    this.logEvent(`Ayudaste a ${e.data.name} en ${e.a.plan.name}.`);
+    this.stats.requests = (this.stats.requests ?? 0) + 1;
+    this.coinSound(); this.syncHotbar(); this.renderStatus(); this.checkMissions(); this.renderVillager();
+  }
+
   deliverQuest(e) {
     const reward = this.villages.completeQuest(e, this.inventory);
     if (!reward) { this.ui.toast('Todavía no cumpliste el encargo', 1800); return; }
@@ -1235,6 +1285,14 @@ export class Game {
   trade(e, tr) {
     const has = Object.entries(tr.give).every(([id, n]) => (this.inventory[id] ?? 0) >= n);
     if (this.mode === 'survival' && !has) { this.ui.toast('Te faltan materiales para el trueque', 1600); return; }
+    if (tr.heal || tr.reveal) {
+      if (this.mode === 'survival' && (this.inventory[I.SILVER] ?? 0) < (tr.give[I.SILVER] ?? 0)) { this.ui.toast('Te falta plata', 1600); return; }
+      if (this.mode === 'survival') { this.inventory[I.SILVER] -= tr.give[I.SILVER]; if (this.inventory[I.SILVER] <= 0) delete this.inventory[I.SILVER]; }
+      if (tr.heal) { this.health = this.maxHealth; this.food = Math.max(this.food, 12); this.ui.toast('El médico te curó todas las heridas.', 2500); this.sound.tone(660, 0.3, 0.1, 'sine'); }
+      else { this.stats.ruinsSeen = Math.max(1, this.stats.ruinsSeen ?? 0); this.revealedMap = true; this.ui.toast('🗺 El cartógrafo marcó en tu mapa las ruinas y guaridas de la comarca (M).', 3500); this.villageCheck = 0; }
+      this.villages.remember(e); e.a.rec.rep += 1; this.renderStatus(); this.syncHotbar(); this.renderVillager();
+      return;
+    }
     if (tr.upgrade) {
       // Refuerzo del herrero: más daño (armas), más velocidad (herramientas) o más protección (armaduras).
       const id = this.held(); const kind = ITEMS[id]?.kind;
@@ -1259,7 +1317,7 @@ export class Game {
     }
     if (this.mode === 'survival') for (const [id, n] of Object.entries(tr.give)) { this.inventory[id] -= n; if (this.inventory[id] <= 0) delete this.inventory[id]; }
     for (const [id, n] of Object.entries(tr.get)) this.addItem(Number(id), n);
-    e.a.rec.rep += 1;
+    e.a.rec.rep += 1; this.villages.remember(e);
     this.stats.trades = (this.stats.trades ?? 0) + 1;
     this.sound.tone(660, 0.08, 0.15, 'sine'); setTimeout(() => this.sound.tone(990, 0.12, 0.12, 'sine'), 80);
     this.villages.say(e, ['¡Trato hecho!', '¡Un placer!', 'Volvé cuando quieras.'][Math.floor(Math.random() * 3)], 2.5);
@@ -1337,6 +1395,7 @@ export class Game {
       tr.found = true;
       if (this.mode === 'survival') for (const [id, n] of Object.entries(buriedTreasure())) this.addItem(Number(id), n);
       this.ui.toast(`💰 ¡Encontraste el tesoro enterrado del mapa de ${tr.from}!`, 4500);
+      this.villages.addGossip({ type: 'treasure', who: this.playerName }); this.logEvent(`Desenterraste el tesoro del mapa de ${tr.from}.`);
       for (let k = 0; k < 5; k++) setTimeout(() => this.sound.tone(523 * Math.pow(1.26, k), 0.18, 0.12, 'sine'), k * 110);
       this.stats.treasures = (this.stats.treasures ?? 0) + 1; this.checkMissions(); this.renderStatus();
     }
@@ -1511,7 +1570,7 @@ export class Game {
       player: { x: this.player.pos.x, y: this.player.pos.y, z: this.player.pos.z, yaw: this.player.yaw, pitch: this.player.pitch, flying: this.player.flying },
       spawn: this.spawn, time: this.sky.time, health: this.health, inventory: this.inventory, hotbar: this.hotbar, selected: this.selected,
       playTime: this.playTime, mods: this.world.serializeMods(), savedAt: new Date().toISOString(),
-      stats: this.stats, maxHealth: this.maxHealth, pets: this.animals.list.filter((a) => a.tamed).map((a) => ({ species: a.species, name: a.petName, color: a.mesh.userData.base?.[0]?.getHex?.() })), food: this.food, upgrades: this.upgrades, hives: this.hives, treasures: this.treasures, lootedRuins: this.lootedRuins, killedLairs: this.killedLairs, faros: this.faros, toolWear: this.toolWear, villages: this.villages.serialize(), bandits: this.bandits.serialize(), equip: this.equip, armorWear: this.armorWear, crops: this.crops, boats: this.sea.serialize(),
+      stats: this.stats, maxHealth: this.maxHealth, pets: this.animals.list.filter((a) => a.tamed).map((a) => ({ species: a.species, name: a.petName, color: a.mesh.userData.base?.[0]?.getHex?.() })), food: this.food, upgrades: this.upgrades, hives: this.hives, treasures: this.treasures, lootedRuins: this.lootedRuins, killedLairs: this.killedLairs, journal: this.journal, metNames: this.metNames, faros: this.faros, toolWear: this.toolWear, villages: this.villages.serialize(), bandits: this.bandits.serialize(), equip: this.equip, armorWear: this.armorWear, crops: this.crops, boats: this.sea.serialize(),
     };
   }
   async save() {
@@ -1693,7 +1752,9 @@ export class Game {
     const v = this.villages.villageAt(p.x, p.z);
     if (v && v.id !== this.villageNow) {
       const rec = this.villages.records.get(v.id);
-      this.ui.toast(`${v.port ? '⚓ ' : 'Aldea '}${v.name}${rec ? ` · ${rec.villagers.length} habitantes` : ''}`, 3500);
+      const fest = rec && isFestival(v, rec.day ?? 0);
+      this.ui.toast(`${v.port ? '⚓ ' : 'Aldea '}${v.name}${rec ? ` · ${rec.villagers.length} habitantes` : ''}${fest ? ' · 🎉 ¡hoy es día de fiesta!' : ''}`, 3500);
+      if (!this.journal.some((j) => j.text === `Llegaste a ${v.name}.`)) this.logEvent(`Llegaste a ${v.name}.`);
       this.stats.visited = (this.stats.visited ?? 0) + 1;
       if (v.port) this.stats.ports = (this.stats.ports ?? 0) + 1;
       this.checkMissions();
@@ -1715,7 +1776,7 @@ export class Game {
     this.ruinNow = ruin?.id ?? null;
     this.ruinMarkers = [];
     for (let rx = Math.floor((p.x - 300) / RUIN_REGION); rx <= Math.floor((p.x + 300) / RUIN_REGION); rx++) for (let rz = Math.floor((p.z - 300) / RUIN_REGION); rz <= Math.floor((p.z + 300) / RUIN_REGION); rz++) {
-      const r = ruinPlan(this.world, rx, rz); if (r && (this.stats.ruinsSeen || Math.hypot(r.x - p.x, r.z - p.z) < 120)) this.ruinMarkers.push({ x: r.x, z: r.z, name: r.name, done: this.lootedRuins.includes(r.id) });
+      const r = ruinPlan(this.world, rx, rz); if (r && (this.revealedMap || this.stats.ruinsSeen || Math.hypot(r.x - p.x, r.z - p.z) < 120)) this.ruinMarkers.push({ x: r.x, z: r.z, name: r.name, done: this.lootedRuins.includes(r.id) });
     }
     this.campMarkers = [];
     for (let rx = Math.floor((p.x - 400) / CAMP_REGION); rx <= Math.floor((p.x + 400) / CAMP_REGION); rx++) for (let rz = Math.floor((p.z - 400) / CAMP_REGION); rz <= Math.floor((p.z + 400) / CAMP_REGION); rz++) {
@@ -1750,6 +1811,10 @@ export class Game {
       onShoot: (from, dir, b) => this.arrows.shoot(from, dir, 26, { enemy: true, shooter: b }),
       onRaid: (plan, campName) => {
         this.ui.toast(`⚔ ¡Saqueadores de ${campName} atacan ${plan.name}!`, 4500);
+        this.villages.addGossip({ type: 'raid', village: plan.name }); this.logEvent(`Los saqueadores de ${campName} atacaron ${plan.name}.`);
+        // Las aldeas aliadas mandan guardias de refuerzo.
+        const a = this.villages.active.get(plan.id);
+        if (a) for (const o of linksOf(this.world, plan)) if (relation(this.world, plan, o) === 'ally') { this.villages.sendReinforcements(a, o, 2); this.ui.toast(`🤝 ${o.name}, aldea aliada, manda guardias a ayudar`, 3500); break; }
         this.sound.tone(196, 0.5, 0.2, 'sawtooth'); setTimeout(() => this.sound.tone(147, 0.7, 0.2, 'sawtooth'), 450);
       },
       onSteal: (plan, n) => { const rec = this.villages.records.get(plan.id); if (rec?.stock) rec.stock.food = Math.max(0, rec.stock.food - n); if (Math.random() < 0.3) this.ui.toast(`¡Se están robando la comida de ${plan.name}!`, 2500); },
@@ -1769,6 +1834,7 @@ export class Game {
           this.stats.leaders = (this.stats.leaders ?? 0) + 1;
           this.addItem(I.SILVER, 30); this.addItem(I.GOLD, 2); this.addItem(I.ESSENCE, 2);
           this.ui.toast(`¡Derrotaste a ${b.name}! El campamento ${b.camp?.plan.name ?? ''} quedó libre.`, 5000);
+          this.villages.addGossip({ type: 'camp', camp: b.camp?.plan.name ?? 'los saqueadores' }); this.logEvent(`Venciste a ${b.name}, jefe de ${b.camp?.plan.name ?? 'los saqueadores'}.`);
           this.sound.tone(523, 0.15, 0.15, 'square'); setTimeout(() => this.sound.tone(659, 0.15, 0.15, 'square'), 150); setTimeout(() => this.sound.tone(1046, 0.4, 0.15, 'square'), 300);
           // Reputación con las aldeas cercanas.
           for (const p of this.villages.mapMarkers(b.pos.x, b.pos.z, 450)) { const plan = this.villages.villageAt(p.x, p.z); const rec = plan && this.villages.records.get(plan.id); if (rec) rec.rep += 5; }

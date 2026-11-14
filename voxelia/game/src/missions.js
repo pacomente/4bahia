@@ -26,6 +26,7 @@ export const MISSIONS = [
   { id: 'cook', title: 'Cociná algo', hint: 'Con carne o pescado crudo en la mano, clic derecho sobre una fogata, un hogar o un horno.', goal: 1, progress: (s) => s.cooked ?? 0 },
   { id: 'fish', title: 'Pescá 3 peces', hint: 'Taller: tablas + lana = Caña de pescar. Tirala al agua y sacá el pez cuando se hunda el corcho.', goal: 3, progress: (s) => s.fished ?? 0 },
   { id: 'upgrade', title: 'Reforzá tu equipo con el herrero', hint: 'Hablá con un herrero con el arma o la armadura en la mano. Cuesta plata y hierro.', goal: 1, progress: (s) => s.upgraded ?? 0 },
+  { id: 'request', title: 'Cumplí el encargo de un vecino', hint: 'Cada vecino puede pedirte algo distinto (no solo el rey). Hablá con ellos: si tienen un encargo, aparece en su ventana.', goal: 1, progress: (s) => s.requests ?? 0 },
   { id: 'horse', title: 'Montá a caballo', hint: 'Hay caballos en las praderas y en los corrales de las aldeas. Clic derecho para subir, Shift para bajar.', goal: 1, progress: (s) => s.rode ?? 0 },
   { id: 'caravan', title: 'Mirá llegar una carreta de comercio', hint: 'Los caminos de grava unen las aldeas. Las carretas llevan comida, madera y piedra de un pueblo a otro.', goal: 1, progress: (s) => s.caravans ?? 0 },
   { id: 'ruin', title: 'Explorá una ruina', hint: 'Torres abandonadas, templos de arenisca y minas viejas: en el mapa aparecen al acercarte. Buscá el cofre.', goal: 1, progress: (s) => s.ruins ?? 0 },

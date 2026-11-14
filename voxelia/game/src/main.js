@@ -69,6 +69,7 @@ function bindMenus(game, settings) {
     if (game.craftOpen) { game.toggleCraft(); return; }
     if (game.mapOpen) { game.toggleMap(); return; }
     if (game.villagerOpen) { game.closeVillager(); return; }
+    if (game.journalOpen) { game.toggleJournal(); return; }
     if (!game.dead) game.pause(!game.paused);
   });
 }

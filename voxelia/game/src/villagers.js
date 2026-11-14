@@ -6,6 +6,8 @@ import { createHumanoid, animateHumanoid, lightHumanoid, makeProp } from './huma
 import { standY, stepToward, settle, turnTo } from './walk.js';
 import { navigate } from './pathfind.js';
 import { GROW, RIPE, REPLANT } from './crops.js';
+import { makeRequest, relation, isFestival, successor, gossipLine } from './society.js';
+import { linksOf } from './roads.js';
 import { GUARD_HP, threats, assign, fight, blocks } from './guards.js';
 import { hash3 } from './world.js';
 import { SHOPS, PRICE, sellPrice, villageLevel, LEVELS, makeQuest, rankFor, localPrice, trend, economySummary } from './economy.js';
@@ -27,6 +29,10 @@ export const PROFESSIONS = {
   sailor: { name: 'Marinero', fem: 'Marinera', prop: null, hat: 'cap', hatColor: '#1e2a4a', apron: '#e8e4d8' },
   priest: { name: 'Sacerdote', fem: 'Sacerdotisa', prop: null, apron: '#f2efe6', cape: '#2a2a3a' },
   teacher: { name: 'Maestro', fem: 'Maestra', prop: null, cape: '#2f6f4a', apron: '#d8c08a' },
+  baker: { name: 'Panadero', fem: 'Panadera', prop: 'basket', hat: 'cap', hatColor: '#f2efe6', apron: '#f2efe6' },
+  doctor: { name: 'Médico', fem: 'Médica', prop: null, cape: '#e8e4d8', apron: '#3f8a6a' },
+  cartographer: { name: 'Cartógrafo', fem: 'Cartógrafa', prop: null, hat: 'cap', hatColor: '#3c6ba8', cape: '#3c6ba8' },
+  librarian: { name: 'Bibliotecario', fem: 'Bibliotecaria', prop: null, cape: '#5a3a7a' },
   king: { name: 'Rey', fem: 'Reina', chief: 'Jefe', chiefFem: 'Jefa', prop: null, hat: 'crown', cape: '#6a1f8a' },
 };
 
@@ -99,6 +105,10 @@ const HAIRS = ['#2b1d12', '#5b3d22', '#a8743a', '#d8c08a', '#1a1a1a', '#8a8a8a']
 
 // Trueques por oficio. `repair`: deja como nueva la herramienta que tengas en la mano.
 export const TRADES = {
+  doctor: [{ give: { [I.SILVER]: 6 }, get: {}, heal: true }],
+  cartographer: [{ give: { [I.SILVER]: 12 }, get: {}, reveal: true }, { give: { [I.SILVER]: 25 }, get: { [I.TREASURE_MAP]: 1 } }],
+  librarian: [{ give: { [I.SILVER]: 5 }, get: { [I.BOOK]: 1 } }],
+  baker: [{ give: { [I.WHEAT]: 4 }, get: { [I.BREAD]: 3 } }],
   builder: [{ give: { [B.COBBLE]: 10 }, get: { [B.ROOF]: 8 } }, { give: { [B.PLANKS]: 6 }, get: { [B.THATCH]: 8 } }, { give: { [B.SAND]: 8 }, get: { [B.ADOBE]: 8 } }],
   guard: [{ give: { [I.IRON]: 2 }, get: { [I.ARROW]: 16 } }, { give: { [I.ESSENCE]: 3 }, get: { [I.SHIELD]: 1 } }, { give: { [I.ESSENCE]: 2, [B.PLANKS]: 3 }, get: { [I.BOW]: 1 } }],
   farmer: [{ give: { [B.WOOL_WHITE]: 4 }, get: { [B.WOOL_RED]: 2, [B.WOOL_BLUE]: 2 } }, { give: { [B.DIRT]: 16 }, get: { [I.COAL]: 2 } }, { give: { [B.LOG]: 4 }, get: { [B.TORCH]: 8 } }],
@@ -150,6 +160,10 @@ export function neededProfession(plan, rec) {
   if (!has('woodcutter') && rec.villagers.length >= 4) return 'woodcutter';
   if (plan.church && !has('priest') && rec.villagers.length >= 5) return 'priest';
   if (plan.school && !has('teacher') && rec.villagers.length >= 6) return 'teacher';
+  if (!has('baker') && rec.villagers.length >= 7) return 'baker';
+  if (!has('doctor') && rec.villagers.length >= 8) return 'doctor';
+  if (!has('librarian') && plan.school && rec.villagers.length >= 9) return 'librarian';
+  if (!has('cartographer') && (plan.port || rec.villagers.length >= 10)) return 'cartographer';
   const n = rec.villagers.filter((v) => v.prof === 'guard').length;
   if (n < 2 && rec.villagers.length >= 7) return 'guard';
   return plan.style === 'desert' && Math.random() < 0.3 ? 'merchant' : 'farmer';
@@ -201,7 +215,7 @@ export function villageDawn(plan, rec, r = Math.random) {
   // Plata: cada oficio cobra su jornal; el rey cobra impuestos y con el tesoro paga a guardias y maestros
   // y compra materiales para las obras si faltan.
   rec.treasury ??= 20;
-  const WAGE = { farmer: 2, fisher: 2, woodcutter: 2, smith: 3, builder: 2, merchant: 4, sailor: 2 };
+  const WAGE = { farmer: 2, fisher: 2, woodcutter: 2, smith: 3, builder: 2, merchant: 4, sailor: 2, baker: 3, doctor: 3, cartographer: 3, librarian: 2 };
   const PAID = { guard: 3, teacher: 3, priest: 1 };
   let taxes = 0;
   for (const v of rec.villagers) {
@@ -215,7 +229,7 @@ export function villageDawn(plan, rec, r = Math.random) {
   if (taxes) events.push({ type: 'taxes', n: taxes, treasury: rec.treasury });
   if (rec.treasury >= 12 && rec.stock.wood + rec.stock.stone < 12) { rec.treasury -= 8; rec.stock.wood += 5; rec.stock.stone += 3; events.push({ type: 'royalBuy' }); }
   // Si la aldea tiene iglesia o escuela y le falta quien la atienda, un granjero cambia de oficio.
-  for (const [prof, b] of [['priest', plan.church], ['teacher', plan.school]]) {
+  for (const [prof, b] of [['priest', plan.church], ['teacher', plan.school], ['baker', rec.villagers.length >= 7], ['doctor', rec.villagers.length >= 8]]) {
     if (!b || rec.villagers.some((v) => v.prof === prof) || rec.villagers.filter((v) => v.prof === 'farmer').length < 2) continue;
     const v = rec.villagers.find((x) => x.prof === 'farmer'); v.prof = prof;
     events.push({ type: 'newjob', name: v.name, prof });
@@ -230,7 +244,24 @@ export function villageDawn(plan, rec, r = Math.random) {
     v.hunger = hungry ? 0.8 : 0.1;
     if (v.age === 2) { v.prof = neededProfession(plan, rec); events.push({ type: 'grown', name: v.name, studied: (v.edu ?? 0) >= 2 }); }
   }
-  events.push(...formCouples(rec, r));
+  // Encargos de cada vecino (además del rey) y memoria.
+  for (const v of rec.villagers) {
+    if (isChild(v) || v.prof === 'king') continue;
+    if (!v.request && r() < 0.25) v.request = makeRequest(v.prof, r);
+  }
+  // El panadero hornea: más comida para todos.
+  for (const v of rec.villagers) if (v.prof === 'baker') rec.stock.food += 3;
+  // Sin rey (murió): asume el sucesor.
+  if (!rec.villagers.some((v) => v.prof === 'king')) {
+    const heir = successor(rec);
+    if (heir) { heir.prof = 'king'; if (plan.castle) heir.home = -1; events.push({ type: 'king', name: heir.name, female: heir.female }); }
+  }
+  // Casamientos: las parejas nuevas se casan al día siguiente (en la iglesia, a la hora de la misa).
+  const couples = formCouples(rec, r);
+  events.push(...couples);
+  for (const c of couples) rec.wedding = { a: c.a, b: c.b, day: rec.day + 1 };
+  if (rec.wedding && rec.wedding.day < rec.day) rec.wedding = null;
+  if (isFestival(plan, rec.day)) events.push({ type: 'festival' });
   // Nacimiento: una pareja, lugar libre y comida guardada.
   const couple = rec.villagers.find((v) => v.partner && !v.female);
   if (couple && !hungry && rec.stock.food >= 3 && rec.villagers.length < capacity(plan, rec) && r() < 0.75) {
@@ -309,6 +340,7 @@ export class Villages {
     this.sound = sound;
     this.records = new Map(Object.entries(saved ?? {}));
     this.active = new Map();       // id → { plan, rec, list: [aldeanos en escena] }
+    this.gossip = [];              // chismes: lo que pasó en el mundo y se cuentan entre ellos
     this.t = 0;
     this.smoke = [];
     this.scanTimer = 0;
@@ -452,6 +484,21 @@ export class Villages {
       a.alarm = false;
       for (const g of guards) if (g.fought) { g.fought = false; g.state = 'cheer'; g.timer = 2.5; if (Math.random() < 0.6) this.say(g, pick(Math.random, LINES.victory), 2.5); }
       ctx.onVictory?.(a.plan);
+    }
+  }
+
+  addGossip(ev) { const line = gossipLine(ev); if (line) { this.gossip.unshift(line); this.gossip.length = Math.min(this.gossip.length, 12); } }
+
+  // Refuerzos: guardias de una aldea aliada llegan a ayudar (se van al amanecer).
+  sendReinforcements(a, fromPlan, n = 2) {
+    for (let k = 0; k < n; k++) {
+      const v = newVillager(fromPlan, { villagers: [], nextId: 900 + k }, Math.random, { prof: 'guard' });
+      v.visitor = fromPlan.name; v.age = 6;
+      const e = this.spawn(a, v);
+      const ang = Math.random() * Math.PI * 2; const rad = a.plan.radius;
+      e.pos.set(a.plan.x + Math.cos(ang) * rad, a.plan.y + 2, a.plan.z + Math.sin(ang) * rad);
+      settle(this.world, e, 0.1);
+      this.say(e, `¡Venimos de ${fromPlan.name} a ayudar!`, 3);
     }
   }
 
@@ -661,6 +708,18 @@ export class Villages {
         if (e.shoutT <= 0) { e.shoutT = 14 + Math.random() * 12; if (distPlayer < 16) this.say(e, pick(Math.random, LINES.market), 2.5); }
         if (e.timer <= 0 || time > 0.42) { e.state = 'idle'; e.timer = 1; }
       } else if (e.state === 'cheer') { e.action = 'cheer'; if (e.timer <= 0) e.state = 'idle'; }
+      else if (e.state === 'dance') { e.action = 'cheer'; e.heading += dt * 2.5; if (e.timer <= 0) { e.state = 'idle'; e.timer = 1; } }
+      else if (e.state === 'spar') {
+        // Torneo: pelea de práctica con otro guardia (sin lastimarse).
+        const o = e.sparWith; e.action = 'fight';
+        if (o && !o.hidden) { e.heading = Math.atan2(o.pos.x - e.pos.x, o.pos.z - e.pos.z); e.swingT = (e.swingT ?? Math.random()) - dt; if (e.swingT <= 0) { e.swingT = 0.9 + Math.random() * 0.6; e.swing = 0; } }
+        if (e.swing >= 0) { e.swing += dt / 0.34; if (e.swing >= 1) e.swing = -1; }
+        e.block = o && o.swing >= 0 && o.swing < 0.6 ? 1 : Math.max(0, (e.block ?? 0) - dt * 4);
+        if (e.timer <= 0) { e.state = 'cheer'; e.timer = 2; e.sparWith = null; e.swing = -1; e.block = 0; }
+      } else if (e.state === 'wed') {
+        e.action = 'idle'; const f = a.plan.church?.face; if (f) e.heading = Math.atan2(-f[0], -f[1]);
+        if (e.timer <= 0) { e.state = 'cheer'; e.timer = 4; this.say(e, '¡Sí, quiero!', 3); ctx.onWedding?.(a.plan, a.rec.wedding); if (e.visitB) this.leaveBuilding(e); }
+      }
       else if (e.state === 'post') { e.action = 'guard'; e.block = 0; if (e.timer <= 0) { e.state = 'idle'; e.timer = 1; } }
       else if (e.state === 'idle' && e.timer <= 0) this.chooseActivity(e, a, time);
     }
@@ -775,6 +834,8 @@ export class Villages {
     if (job.kind === 'forge') a.rec.stock.stone += Math.random() < 0.3 ? 1 : 0;
     if (job.kind === 'fish') { a.rec.stock.food += 1; if (Math.random() < 0.35) this.say(e, pick(Math.random, LINES.fish), 2); ctx.onSplash?.(e.pos); }
     if (job.kind === 'watch' && Math.random() < 0.3) this.say(e, pick(Math.random, LINES.sailor), 2.5);
+    if (job.kind === 'bake') { a.rec.stock.food += 1; if (Math.random() < 0.3) this.say(e, pick(Math.random, ['¡Pan recién horneado!', 'Huele a pan calentito…', '¡Medialunas!']), 2); }
+    if (job.kind === 'heal' && job.who && a.list.includes(job.who)) { job.who.hp = job.who.maxHp ?? 10; this.say(e, 'Listo, ya estás curado.', 2); }
     if (job.kind === 'feed') {
       // Corral: los animales dan leche, huevos y lana.
       a.rec.stock.food += 2; a.rec.stock.wool = (a.rec.stock.wool ?? 0) + (Math.random() < 0.4 ? 1 : 0);
@@ -861,6 +922,40 @@ export class Villages {
       return;
     }
     const P = a.plan; const day = a.rec.day ?? 0;
+    // Casamiento: a la hora de la misa, todos a la iglesia (o a la plaza); los novios al altar.
+    const wed = a.rec.wedding;
+    if (wed && wed.day === day && time > 0.29 && time < 0.36) {
+      const bride = v.name === wed.a || v.name === wed.b;
+      if (bride && v.wedDay !== day) {
+        v.wedDay = day;
+        if (P.church) { const s = P.church.stand; const off = v.name === wed.a ? -0.6 : 0.6; const f = P.church.face; this.visit(e, P.church, { x: s.x + f[1] * off, z: s.z + f[0] * off }, 'wed', 30); }
+        else go(P.x + 1.5, P.z + 0.5, 'wed', 30, 0.5);
+        return;
+      }
+      if (!bride && v.massDay !== day && prof !== 'guard') {
+        const s = P.church && this.freeSeat(a, P.church);
+        if (s) { v.massDay = day; this.takeSeat(a, P.church, e, s, P.church.altar); this.visit(e, P.church, s, 'seated', 28); return; }
+        go(P.x + (Math.random() - 0.5) * 8, P.z + (Math.random() - 0.5) * 8, 'cheer', 6); return;
+      }
+    }
+    // Día de fiesta: baile en la plaza y torneo de guardias.
+    if (isFestival(P, day) && time > 0.05 && time < 0.42 && !e.hidden) {
+      if (prof === 'guard' && time > 0.22 && time < 0.3 && r < 0.6) {
+        const rival = a.list.find((o) => o !== e && o.data.prof === 'guard' && o.state !== 'spar');
+        if (rival) { const ang = Math.random() * 6.28; go(P.x + 0.5 + Math.cos(ang) * 1.2, P.z + 0.5 + Math.sin(ang) * 1.2, 'spar', 10); e.sparWith = rival; rival.sparWith = e; rival.state = 'idle'; rival.timer = 0; return; }
+      }
+      if (r < 0.55) { const ang = Math.random() * 6.28; const rad = 3 + Math.random() * 3; go(P.x + 0.5 + Math.cos(ang) * rad, P.z + 0.5 + Math.sin(ang) * rad, 'dance', 8 + Math.random() * 8, 0.6); return; }
+    }
+    // Oficios nuevos.
+    if (prof === 'baker' && time > 0.03 && time < 0.42 && r < 0.6) { const st = a.plan.stalls?.[0]; e.job = { kind: 'bake' }; e.workAction = 'build'; if (st) go(st.spot.x, st.spot.z, 'work', 8 + Math.random() * 6, 0.6); else { e.state = 'work'; e.timer = 6; } return; }
+    if (prof === 'doctor' && r < 0.7) {
+      const sick = a.list.find((o) => o !== e && !o.hidden && o.hp < (o.maxHp ?? 10));
+      if (sick) { e.job = { kind: 'heal', who: sick }; e.workAction = 'talk'; go(sick.pos.x + 0.8, sick.pos.z + 0.8, 'work', 3, 1.2); return; }
+    }
+    if ((prof === 'librarian' || prof === 'cartographer') && r < 0.5) {
+      const spot = prof === 'librarian' && P.school ? P.school.outside : { x: P.x + (Math.random() - 0.5) * P.radius, z: P.z + (Math.random() - 0.5) * P.radius };
+      go(spot.x, spot.z, 'post', 10 + Math.random() * 10, 0.8); return;
+    }
     // Escuela: los chicos van a clase a la mañana; la maestra da la clase.
     if (P.school && time > 0.04 && time < 0.19) {
       if (e.child && v.schoolDay !== day) {
@@ -891,8 +986,9 @@ export class Villages {
     if (others.length && r < e.trait.chat * (v.social < 0.3 ? 0.9 : 0.5)) {
       const o = others[0];
       e.state = 'talk'; o.state = 'talk'; e.talkWith = o; o.talkWith = e; e.timer = o.timer = 4 + Math.random() * 3;
-      this.say(e, pick(Math.random, LINES.talk), 3);
-      setTimeout(() => { if (o.state === 'talk') this.say(o, pick(Math.random, LINES.talk), 2.5); }, 1600);
+      const chat = () => (this.gossip.length && Math.random() < 0.45 ? pick(Math.random, this.gossip) : pick(Math.random, LINES.talk));
+      this.say(e, chat(), 3);
+      setTimeout(() => { if (o.state === 'talk') this.say(o, Math.random() < 0.5 ? pick(Math.random, ['¡No me digas!', '¿En serio?', 'Ya lo sabía.', '¡Qué barbaridad!']) : chat(), 2.5); }, 1600);
       return;
     }
     const work = time > 0.03 && time < 0.42 && r < 0.75 * e.trait.work;
@@ -946,6 +1042,7 @@ export class Villages {
   // El jugador le pegó a un aldeano: se enoja y huye a su casa (no se lo puede matar).
   annoy(e) {
     e.flash = 0.25; e.scaredT = 6; e.a.rec.rep -= 3;
+    e.data.mem = { ...(e.data.mem ?? {}), hurt: (e.data.mem?.hurt ?? 0) + 1 };
     this.say(e, pick(Math.random, LINES.hurt), 2.5);
     this.sound.tone(330, 0.12, 0.12, 'triangle');
   }
@@ -973,7 +1070,13 @@ export class Villages {
     this.sound.tone(280, 0.15, 0.12, 'sawtooth');
     if (e.hp > 0) { if (Math.random() < 0.5 && e.data.prof !== 'guard') this.say(e, '¡Ay! ¡Ayuda!', 2); return false; }
     const a = e.a;
+    if (e.data.visitor) { a.list = a.list.filter((x) => x !== e); this.removeMesh(e); return true; }
     a.rec.villagers = a.rec.villagers.filter((v) => v !== e.data);
+    if (e.data.prof === 'king') {
+      // Sucesión: asume la pareja o el más grande (se ve al instante).
+      const heir = successor(a.rec);
+      if (heir) { heir.prof = 'king'; if (a.plan.castle) heir.home = -1; this.addGossip({ type: 'king', village: a.plan.name, name: heir.name, title: a.plan.castle ? (heir.female ? 'reina' : 'rey') : (heir.female ? 'jefa' : 'jefe') }); this.onSuccession?.(a.plan, heir); }
+    }
     a.list = a.list.filter((x) => x !== e);
     this.removeMesh(e);
     planBuild(a.plan, a.rec);
@@ -989,6 +1092,12 @@ export class Villages {
       if (!plan) continue;
       const events = villageDawn(plan, rec);
       const a = this.active.get(id);
+      if (a) for (const e of [...a.list]) if (e.data.visitor) { a.list = a.list.filter((x) => x !== e); this.removeMesh(e); }
+      for (const ev of events) {
+        if (ev.type === 'born') this.addGossip({ type: 'born', village: plan.name, name: ev.name });
+        if (ev.type === 'king') { this.addGossip({ type: 'king', village: plan.name, name: ev.name, title: plan.castle ? (ev.female ? 'reina' : 'rey') : (ev.female ? 'jefa' : 'jefe') }); if (a) { const k = a.list.find((x) => x.data.name === ev.name); if (k) { a.list = a.list.filter((x) => x !== k); this.removeMesh(k); delete k.data.x; this.spawn(a, k.data).pos.copy(k.pos); } } }
+        if (ev.type === 'festival') this.addGossip({ type: 'festival', village: plan.name });
+      }
       for (const ev of events) {
         out.push({ ...ev, village: plan.name, pop: rec.villagers.length, near: !!a });
         if (a && ev.type === 'born') { const v = rec.villagers[rec.villagers.length - 1]; const e = this.spawn(a, v); e.state = 'cheer'; e.timer = 3; this.say(e, '¡Hola mundo!', 3); }
@@ -1009,6 +1118,7 @@ export class Villages {
   info(e, player = {}) {
     const { plan, rec } = e.a;
     const v = e.data;
+    const mem = v.mem ?? {};
     const prof = PROFESSIONS[v.prof];
     const trait = TRAITS[v.trait];
     const homes = allHouses(plan, rec).length;
@@ -1023,6 +1133,15 @@ export class Villages {
     else if (v.prof === 'builder' && rec.villagers.length >= capacity(plan, rec)) line = 'No queda lugar para nadie más: no hay más terreno para construir.';
     else if (v.prof === 'smith') line = 'Forjo armaduras y armas. Si tu herramienta está gastada, con un lingote de hierro te la dejo como nueva.';
     else if (v.prof === 'guard') line = pick(Math.random, LINES.guard);
+    else if (v.visitor) line = `Vine de ${v.visitor} a ayudar. Cuando salga el sol vuelvo a casa.`;
+    else if (mem.hurt > 0 && Math.random() < 0.6) line = pick(Math.random, ['No me olvido de que me pegaste.', 'Vos sos el que me golpeó… te tengo vigilado.', 'Mmm. Ya te conozco.']);
+    else if (v.request && Math.random() < 0.7) line = `${v.request.text} Te pago ${v.request.reward} de plata.`;
+    else if (mem.helped > 0 && Math.random() < 0.6) line = pick(Math.random, [`¡Hola, ${player.name ?? 'viajero'}! Gracias otra vez por la ayuda.`, `¡${player.name ?? 'Amigo'}! Siempre es un gusto verte.`, `En ${plan.name} todos hablan bien de vos, ${player.name ?? 'viajero'}.`]);
+    else if (this.gossip.length && e.trait === TRAITS.chatty && Math.random() < 0.6) line = pick(Math.random, this.gossip);
+    else if (v.prof === 'baker') line = 'Todas las mañanas horneo pan para el pueblo. Si me traés trigo, hago más.';
+    else if (v.prof === 'doctor') line = 'Curo a los heridos. A vos también, por unas monedas.';
+    else if (v.prof === 'cartographer') line = 'Dibujo los mapas de la comarca. Por unas monedas te marco ruinas y guaridas.';
+    else if (v.prof === 'librarian') line = 'Guardo los libros con la historia del mundo. ¿Querés uno?';
     else if (v.prof === 'priest') line = pick(Math.random, ['A la tarde suena la campana: los esperamos en misa.', 'La iglesia está abierta para todos.', 'Que la luz te acompañe, viajero.']);
     else if (v.prof === 'teacher') line = `Tengo ${rec.villagers.filter(isChild).length} alumnos. Las clases son a la mañana, ¡no se llega tarde!`;
     else if (v.hunger > 0.7) line = 'Tengo un hambre… ¿no tenés un pan?';
@@ -1046,6 +1165,10 @@ export class Villages {
       level, levelName: LEVELS[level].name, stock: rec.stock,
       mood: mood > 0.66 ? 'Contento' : mood > 0.4 ? 'Normal' : 'Triste', moodWhy: why, partner,
       trades: isChild(v) || rec.rep < -5 ? [] : TRADES[v.prof] ?? [], shop, look: v.look, canDonate: v.prof === 'builder',
+      request: !isChild(v) && v.prof !== 'king' ? v.request ?? null : null,
+      family: [v.parents?.length ? `hijo/a de ${v.parents.join(' y ')}` : null, (() => { const kids = rec.villagers.filter((k) => k.parents?.includes(v.name)).map((k) => k.name); return kids.length ? `${kids.length === 1 ? 'hijo/a' : 'hijos'}: ${kids.join(', ')}` : null; })()].filter(Boolean),
+      relations: linksOf(this.world, plan).map((o) => ({ name: o.name, rel: relation(this.world, plan, o) })).filter((x) => x.rel !== 'neutral'),
+      festival: isFestival(plan, rec.day ?? 0),
       silver: v.silver ?? 0, treasury: v.prof === 'king' ? rec.treasury ?? 0 : null, edu: isChild(v) ? v.edu ?? 0 : null,
       buildings: [plan.castle && 'castillo', plan.church && 'iglesia', plan.school && 'escuela', plan.pen && 'corral', plan.port && 'puerto'].filter(Boolean),
       quest: v.prof === 'king' ? rec.quest : null, rank: rankFor(player.honor ?? 0).name, economy: economySummary(plan, rec), port: !!plan.port,
@@ -1061,6 +1184,17 @@ export class Villages {
   }
 
   // Entregar el encargo. Devuelve la recompensa en plata, o 0 si todavía no se cumplió.
+  // Encargo personal de un vecino (no el rey).
+  completeRequest(e, inventory) {
+    const q = e.data.request; if (!q) return 0;
+    if ((inventory[q.id] ?? 0) < q.n) return 0;
+    inventory[q.id] -= q.n; if (!inventory[q.id]) delete inventory[q.id];
+    e.data.request = null; e.a.rec.rep += 2; this.remember(e);
+    this.say(e, '¡Muchas gracias! No me voy a olvidar.', 3);
+    return q.reward;
+  }
+  remember(e) { e.data.mem = { ...(e.data.mem ?? {}), helped: (e.data.mem?.helped ?? 0) + 1 }; }
+
   completeQuest(e, inventory) {
     const rec = e.a.rec; const q = rec.quest;
     if (!q) return 0;
@@ -1105,7 +1239,7 @@ export class Villages {
     let n = 0;
     e.a.rec.stock ??= { food: 10, wood: 10, stone: 10 };
     for (const [id, worth] of ids) { const k = inventory[id] ?? 0; if (k) { e.a.rec.stock.food += k * worth; n += k; delete inventory[id]; } }
-    if (n) { e.a.rec.rep += n >= 5 ? 2 : 1; e.data.hunger = 0; this.say(e, '¡Comida! ¡Gracias, de verdad!', 3); }
+    if (n) { e.a.rec.rep += n >= 5 ? 2 : 1; e.data.hunger = 0; this.remember(e); this.say(e, '¡Comida! ¡Gracias, de verdad!', 3); }
     return n;
   }
 

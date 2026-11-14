@@ -274,6 +274,12 @@ export function drawItem(id, it, I) {
       thickLine(set, 21, 8, 26, 13, 1.6, RAMPS.red); thickLine(set, 26, 8, 21, 13, 1.6, RAMPS.red);
       thickLine(set, 5, 6, 5, 28, 1.6, RAMPS.wood); thickLine(set, 27, 4, 27, 27, 1.6, RAMPS.wood);
       break;
+    case I.BOOK:
+      poly(set, [[6, 5], [24, 3], [26, 27], [8, 29]], (x, y) => pickRamp(['#2a1a3a', '#5a3a7a', '#7a5aa0', '#a888c8'], 0.9 - (x + y) / 80));
+      poly(set, [[24, 3], [27, 4], [28, 27], [26, 27]], () => '#f2efe6');
+      for (let y = 8; y < 26; y += 3) set(27, y, '#c8c2b4');
+      thickLine(set, 12, 12, 20, 11, 1.4, RAMPS.gold); thickLine(set, 12, 16, 20, 15, 1, RAMPS.gold);
+      break;
     case I.DRAGON_SCALE:
       poly(set, [[16, 3], [28, 14], [16, 29], [4, 14]], (x, y) => pickRamp(['#4a0e0a', '#8f2b26', '#c8352b', '#ffb070'], 0.95 - Math.abs(x - 16) / 20 - y / 80));
       for (let y = 8; y < 26; y += 4) thickLine(set, 10, y, 16, y + 3, 1, ['#3a0806', '#3a0806', '#3a0806', '#3a0806']);
